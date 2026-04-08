@@ -38,7 +38,7 @@
     "lint": "vp fmt --check ."
   },
   "dependencies": {
-    "@askrjs/askr": "0.0.1"
+    "@askrjs/askr": "file:../askr"
   },
   "devDependencies": {
     "vite-plus": "latest"
