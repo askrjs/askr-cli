@@ -9,11 +9,11 @@
     "test": "vp test run",
     "test:watch": "vp test --watch",
     "type-check": "tsc --noEmit",
-    "lint": "cross-env OXLINT_TSGOLINT_PATH=../../../../node_modules/.bin/tsgolint.cmd vp lint .",
-    "lint:fix": "cross-env OXLINT_TSGOLINT_PATH=../../../../node_modules/.bin/tsgolint.cmd vp lint --fix .",
+    "lint": "vp lint .",
+    "lint:fix": "vp lint --fix .",
     "fmt": "vp fmt .",
     "fmt:check": "vp fmt --check .",
-    "check": "cross-env OXLINT_TSGOLINT_PATH=../../../../node_modules/.bin/tsgolint.cmd vp check && vp test run"
+    "check": "vp check && vp test run"
   },
   "dependencies": {
     "@askrjs/askr": "0.0.1",

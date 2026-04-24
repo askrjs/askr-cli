@@ -8,8 +8,8 @@
     "preview": "cross-env NODE_ENV=production node dist/server/server.js",
     "test": "vp test run",
     "type-check": "tsc --noEmit",
-    "lint": "cross-env OXLINT_TSGOLINT_PATH=../../../../node_modules/.bin/tsgolint.cmd vp lint src server.ts tests",
-    "lint:fix": "cross-env OXLINT_TSGOLINT_PATH=../../../../node_modules/.bin/tsgolint.cmd vp lint --fix src server.ts tests",
+    "lint": "vp lint src server.ts tests",
+    "lint:fix": "vp lint --fix src server.ts tests",
     "fmt": "vp fmt \"src/**/*.{ts,tsx,css}\" \"server.ts\" \"tests/**/*.{ts,tsx}\" \"*.md\""
   },
   "dependencies": {

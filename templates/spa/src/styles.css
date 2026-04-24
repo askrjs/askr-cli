@@ -75,6 +75,28 @@ code {
   font-size: 0.9em;
 }
 
+.icon-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.icon-label--compact {
+  gap: 0.25rem;
+}
+
+.icon-label__text {
+  display: inline;
+}
+
+.example-controls {
+  margin-bottom: var(--ak-space-md);
+}
+
+.text-bold {
+  font-weight: 700;
+}
+
 /* Feature grid */
 .features {
   display: grid;
