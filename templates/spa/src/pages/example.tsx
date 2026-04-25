@@ -139,7 +139,6 @@ export default function Example() {
           </Toggle>
           <Input
             placeholder="Type your name..."
-            value={name()}
             onInput={(event: Event) =>
               setName((event.target as HTMLInputElement).value)
             }
