@@ -1,0 +1,19 @@
+.section {
+  margin-bottom: var(--ak-space-xl);
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-muted {
+  color: var(--ak-color-muted);
+}
+
+.text-bold {
+  font-weight: 700;
+}
+
+.example-controls {
+  margin-bottom: var(--ak-space-md);
+}

@@ -1,0 +1,25 @@
+body {
+  margin: 0;
+  background: var(--ak-color-bg);
+  color: var(--ak-color-fg);
+  font-family: var(--ak-font-family);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 var(--ak-space-md);
+  color: var(--ak-color-fg);
+}
+
+p {
+  margin: 0 0 var(--ak-space-md);
+  line-height: 1.6;
+}
+
+code {
+  padding: 0.15em 0.4em;
+  border-radius: var(--ak-radius-sm);
+  background: var(--ak-color-surface-muted);
+  font-size: 0.9em;
+}
