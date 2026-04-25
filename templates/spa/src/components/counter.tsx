@@ -1,6 +1,5 @@
 import { state, derive } from '@askrjs/askr';
 import { Button } from '@askrjs/askr-ui/primitives/button';
-import { Badge } from '@askrjs/askr-ui/primitives/badge';
 
 export default function Counter() {
   const [count, setCount] = state(0);
@@ -13,9 +12,7 @@ export default function Counter() {
         Built with <code>state()</code> and <code>derive()</code>
       </p>
       <div class="counter-value">{count()}</div>
-      <div>
-        <Badge>{parity()}</Badge>
-      </div>
+      <p class="text-muted text-bold">{parity()}</p>
       <div class="counter-controls">
         <Button onPress={() => setCount((c) => Math.max(0, c - 1))}>
           - Decrement
