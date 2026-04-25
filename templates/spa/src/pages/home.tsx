@@ -1,6 +1,5 @@
 import { Link } from '@askrjs/askr/router';
 import { Button } from '@askrjs/askr-ui/primitives/button';
-import { Badge } from '@askrjs/askr-ui/primitives/badge';
 import { ArrowRightIcon } from '@askrjs/askr-lucide/icons/arrow-right';
 import { BookOpenIcon } from '@askrjs/askr-lucide/icons/book-open';
 import { Clock3Icon } from '@askrjs/askr-lucide/icons/clock3';
@@ -32,19 +31,19 @@ export default function Home() {
       </section>
 
       <div class="features">
-        <FeatureCard icon={<SparklesIcon size={16} />} title={<Badge>Reactive</Badge>}>
+        <FeatureCard icon={<SparklesIcon size={16} />} title="Reactive">
           <code>state()</code> and <code>derive()</code> give you fine-grained
           reactivity. Only the DOM nodes that depend on changed values update
           — nothing more.
         </FeatureCard>
-        <FeatureCard icon={<Clock3Icon size={16} />} title={<Badge>Async</Badge>}>
+        <FeatureCard icon={<Clock3Icon size={16} />} title="Async">
           <code>resource()</code> handles data fetching with built-in loading
           states, error handling, and automatic refetching when dependencies
           change.
         </FeatureCard>
         <FeatureCard
           icon={<ShapesIcon size={16} />}
-          title={<Badge>Composable</Badge>}
+          title="Composable"
         >
           askr-ui provides headless components. askr-themes provides CSS
           themes. Mix and match — or build your own.

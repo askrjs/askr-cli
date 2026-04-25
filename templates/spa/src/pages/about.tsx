@@ -2,13 +2,11 @@ import {
   BookOpenIcon,
   Clock3Icon,
   LayoutGridIcon,
-
-      <h1>About Askr</h1>
-      <p class="text-muted">
-        A modern reactive framework for building fast, maintainable web
-        applications.
-      </p>
-
+  PaletteIcon,
+  SparklesIcon,
+} from '@askrjs/askr-lucide';
+import FeatureCard from '../components/feature-card';
+import IconLabel from '../components/icon-label';
 
 export default function About() {
   return (
@@ -44,7 +42,7 @@ export default function About() {
             title="Fine-grained Reactivity"
           >
             <code>state()</code> for reactive values with automatic dependency
-            tracking. Updates are surgical — only the specific DOM nodes that
+            tracking. Updates are surgical - only the specific DOM nodes that
             need to change are updated.
           </FeatureCard>
           <FeatureCard icon={<Clock3Icon size={16} />} title="Simple Async Data">
@@ -70,7 +68,7 @@ export default function About() {
             <BookOpenIcon size={16} />
             askr
           </strong>{' '}
-          — the core framework with reactive primitives, routing, SSR, and SSG
+          - the core framework with reactive primitives, routing, SSR, and SSG
           support. Zero runtime dependencies.
         </p>
         <p>
@@ -78,7 +76,7 @@ export default function About() {
             <LayoutGridIcon size={16} />
             askr-ui
           </strong>{' '}
-          — headless, accessible UI components. Button, Tabs, Accordion,
+          - headless, accessible UI components. Button, Tabs, Accordion,
           Dialog, and 30+ more. All interaction logic, no opinions on style.
         </p>
         <p>
@@ -86,7 +84,7 @@ export default function About() {
             <PaletteIcon size={16} />
             askr-themes
           </strong>{' '}
-          — CSS-only themes that target askr-ui's <code>data-slot</code>{' '}
+          - CSS-only themes that target askr-ui's <code>data-slot</code>{' '}
           attributes. Swap themes with a single import change.
         </p>
       </section>
