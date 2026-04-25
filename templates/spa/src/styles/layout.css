@@ -1,0 +1,56 @@
+.app-shell {
+  min-height: 100vh;
+}
+
+header {
+  padding: var(--ak-space-md) var(--ak-space-xl);
+  border-bottom: 1px solid var(--ak-color-border);
+}
+
+header nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: var(--ak-layout-content-max-width);
+  margin: 0 auto;
+}
+
+header nav a {
+  color: var(--ak-color-fg);
+  text-decoration: none;
+  font-size: var(--ak-font-size-md);
+}
+
+header nav a:hover {
+  color: var(--ak-color-primary);
+}
+
+main {
+  max-width: var(--ak-layout-content-max-width);
+  margin: 0 auto;
+  padding: var(--ak-space-xl);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: var(--ak-space-lg);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--ak-space-md);
+}
+
+.theme-toggle {
+  white-space: nowrap;
+}
+
+@media (max-width: 48rem) {
+  header nav,
+  .nav-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
