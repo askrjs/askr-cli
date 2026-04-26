@@ -1,91 +1,57 @@
-import {
-  BookOpenIcon,
-  Clock3Icon,
-  LayoutGridIcon,
-  PaletteIcon,
-  SparklesIcon,
-} from '@askrjs/askr-lucide';
+import { BarChart3Icon, CompassIcon, PaletteIcon } from '@askrjs/askr-lucide';
 import FeatureCard from '../components/feature-card';
-import IconLabel from '../components/icon-label';
 
 export default function About() {
   return (
     <>
-      <h1>About Askr</h1>
-      <p class="text-muted">
-        A modern reactive framework for building fast, maintainable web
-        applications.
-      </p>
-
-      <section class="section">
-        <h2>
-          <IconLabel icon={<SparklesIcon size={18} />}>Why Askr Exists</IconLabel>
-        </h2>
-        <p>
-          Modern web development has become unnecessarily complex. Frameworks
-          have grown bloated with abstractions, requiring developers to learn
-          extensive APIs and fight against the framework rather than work with
-          it.
-        </p>
-        <p>
-          Askr was created to bring simplicity back to web development. It
-          provides just enough structure to build sophisticated applications
-          while staying out of your way.
+      <section class="marketing-hero">
+        <p class="marketing-eyebrow">About this app</p>
+        <h1>A starter-sized demo, not a framework tour.</h1>
+        <p class="marketing-lead text-muted">
+          The goal is to show how an Askr app can feel cohesive with a small set
+          of routes, components, and charts.
         </p>
       </section>
 
-      <section class="section">
-        <h2>Core Primitives</h2>
-        <div class="features">
-          <FeatureCard
-            icon={<SparklesIcon size={16} />}
-            title="Fine-grained Reactivity"
-          >
-            <code>state()</code> for reactive values with automatic dependency
-            tracking. Updates are surgical - only the specific DOM nodes that
-            need to change are updated.
+      <section class="marketing-section">
+        <div class="page-header-copy">
+          <p class="marketing-eyebrow">Design direction</p>
+          <h2>Keep the pages useful, then stop.</h2>
+          <p class="text-muted">
+            Each page demonstrates one narrow idea instead of trying to document
+            every feature in the workspace.
+          </p>
+        </div>
+
+        <div class="marketing-card-grid">
+          <FeatureCard icon={<CompassIcon size={16} />} title="Focused scope">
+            Four routes keep the navigation clear and the content intentionally
+            small.
           </FeatureCard>
-          <FeatureCard icon={<Clock3Icon size={16} />} title="Simple Async Data">
-            <code>resource()</code> handles async data fetching with built-in
-            loading states, error handling, and automatic refetching when
-            dependencies change.
+          <FeatureCard icon={<PaletteIcon size={16} />} title="Shared shell">
+            askr-themes provides the structure so the app can stay visually
+            consistent.
           </FeatureCard>
-          <FeatureCard
-            icon={<LayoutGridIcon size={16} />}
-            title="Declarative Routing"
-          >
-            Routes are declared at module-load time with{' '}
-            <code>registerRoutes()</code>, <code>group()</code>, and{' '}
-            <code>route()</code>. Clean, type-safe, and no configuration needed.
+          <FeatureCard icon={<BarChart3Icon size={16} />} title="Real packages">
+            The demos use the actual askr-ui and askr-charts packages from this
+            workspace.
           </FeatureCard>
         </div>
       </section>
 
-      <section class="section">
-        <h2>The Ecosystem</h2>
-        <p>
-          <strong style="display: inline-flex; align-items: center; gap: 0.35rem;">
-            <BookOpenIcon size={16} />
-            askr
-          </strong>{' '}
-          - the core framework with reactive primitives, routing, SSR, and SSG
-          support. Zero runtime dependencies.
-        </p>
-        <p>
-          <strong style="display: inline-flex; align-items: center; gap: 0.35rem;">
-            <LayoutGridIcon size={16} />
-            askr-ui
-          </strong>{' '}
-          - headless, accessible UI components. Button, Tabs, Accordion,
-          Dialog, and 30+ more. All interaction logic, no opinions on style.
-        </p>
-        <p>
-          <strong style="display: inline-flex; align-items: center; gap: 0.35rem;">
-            <PaletteIcon size={16} />
-            askr-themes
-          </strong>{' '}
-          - CSS-only themes that target askr-ui's <code>data-slot</code>{' '}
-          attributes. Swap themes with a single import change.
+      <section class="marketing-section">
+        <div class="panel showcase-section">
+          <h3>What this app is not</h3>
+          <p class="marketing-lead text-muted">
+            It is not a component catalog, a style guide, or a complete charting
+            showcase.
+          </p>
+          <p>
+            The pages are here to prove the app shape: landing copy, a few
+            reactive controls, and interactive charts that still feel
+            lightweight.
+          </p>
+        </div>
         </p>
       </section>
     </>

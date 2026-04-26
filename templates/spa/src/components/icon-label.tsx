@@ -1,7 +1,5 @@
-import type { JSXElement } from '@askrjs/askr';
-
 type IconLabelProps = {
-  icon: JSXElement;
+  icon: unknown;
   children?: unknown;
   compact?: boolean;
 };

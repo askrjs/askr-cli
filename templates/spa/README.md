@@ -1,6 +1,6 @@
 # {{appName}} - SPA Template
 
-A Single-Page Application built with **Askr**, **Vite**, and **TypeScript**.
+A compact single-page app built with Askr, askr-ui, askr-themes, and askr-charts.
 
 ## Quick Start
 
@@ -17,13 +17,12 @@ npm test         # Run tests with Vitest
 ```
 src/
 ├── main.tsx         # Entry point - creates SPA
-├── app.tsx          # Root component with navigation
-├── routes.tsx       # Route registration with route()
-├── styles.css       # Global styles
-├── components/      # Reusable components (Counter, etc)
-├── pages/           # Page components (Home, About)
-├── resources/       # Async data fetching with resource()
-└── tests/           # Test files
+├── app.tsx          # Shared shell and navigation
+├── routes.tsx       # Route registration for the four app pages
+├── styles.css       # Theme import plus app styles
+├── components/      # Small local helpers (counter, labels, cards)
+├── pages/           # Home, About, Components, Charts
+└── resources/       # Async data fetchers
 ```
 
 ## Core Concepts
@@ -34,21 +33,33 @@ Routes are registered declaratively at module load time:
 
 ```tsx
 // src/routes.tsx
-import { route } from '@askrjs/askr';
+import { group, registerRoutes, route } from '@askrjs/askr/router';
+import AppLayout from './app';
+import Home from './pages/home';
+import About from './pages/about';
+import Components from './pages/components';
+import Charts from './pages/charts';
 
-route('/', () => <Home />);
-route('/about', () => <About />);
-route('/users/{id}', ({ id }) => <UserDetail userId={id} />);
+registerRoutes(() => {
+  group({ layout: AppLayout }, () => {
+    route('/', Home);
+    route('/about', About);
+    route('/components', Components);
+    route('/charts', Charts);
+  });
+});
 ```
 
 Navigate with the `Link` component:
 
 ```tsx
-import { Link } from '@askrjs/askr';
+import { Link } from '@askrjs/askr/router';
 
 <nav>
   <Link href="/">Home</Link>
   <Link href="/about">About</Link>
+  <Link href="/components">Components</Link>
+  <Link href="/charts">Charts</Link>
 </nav>;
 ```
 
@@ -78,34 +89,12 @@ function Counter() {
 - Call `count.set(newValue)` or `count.set(prev => ...)` to update
 - Only components that use the state re-render (fine-grained)
 
-### Async Data with `resource()`
+### What This Template Includes
 
-Fetch data in components with automatic loading/error handling:
-
-```tsx
-import { resource } from '@askrjs/askr/resources';
-
-function UserDetail({ userId }) {
-  const user = resource(
-    async ({ signal }) => {
-      const res = await fetch(`/api/users/${userId}`, { signal });
-      return res.json();
-    },
-    [userId]
-  ); // Re-run when userId changes
-
-  if (user.pending) return <div>Loading...</div>;
-  if (user.error) return <div>Error: {user.error.message}</div>;
-
-  return <h1>{user.value.name}</h1>;
-}
-```
-
-**Important:**
-
-- Must be called during render
-- Uses `AbortSignal` for cancellation
-- Dependencies array triggers re-run when values change
+- A shared app shell with `NavLink` navigation and theme toggle
+- Two small landing pages for home and about
+- A compact components page with tabs, accordion, toggle, input, and reactive counter
+- A compact charts page with bar, donut, and heatmap demos
 
 ## Development Commands
 
@@ -155,16 +144,6 @@ function Form() {
 }
 ```
 
-### Conditional Rendering
-
-```tsx
-function Page() {
-  const isLoading = state(true);
-
-  return <div>{isLoading() ? <div>Loading...</div> : <div>Content</div>}</div>;
-}
-```
-
 ### Derived State
 
 ```tsx
@@ -191,10 +170,7 @@ npm test -- --coverage      # Coverage report
 
 ## Next Steps
 
-1. Read [Askr docs](https://github.com/askrjs/askr#readme)
-2. Add pages to `src/pages/`
-3. Register routes in `src/routes.tsx`
-4. Use `state()` and `resource()` for data
-5. Build and deploy!
-
-Happy building! 🚀
+1. Replace the landing copy with your app content.
+2. Swap the demo datasets in `src/pages/charts.tsx` for your own data.
+3. Add or remove routes in `src/routes.tsx` as the app grows.
+4. Build on the local component helpers only where shared packages are not enough.

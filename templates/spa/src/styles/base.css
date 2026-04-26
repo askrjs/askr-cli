@@ -1,25 +1,59 @@
-body {
-  margin: 0;
+:where(*, *::before, *::after) {
+  box-sizing: border-box;
+}
+
+:where(html) {
   background: var(--ak-color-bg);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(
+      72rem 38rem at 50% -6%,
+      color-mix(in srgb, var(--ak-color-primary-soft) 95%, transparent) 0%,
+      transparent 60%
+    ),
+    var(--ak-color-bg);
   color: var(--ak-color-fg);
   font-family: var(--ak-font-family);
+}
+
+a {
+  color: inherit;
 }
 
 h1,
 h2,
 h3 {
-  margin: 0 0 var(--ak-space-md);
+  margin: 0;
   color: var(--ak-color-fg);
+  text-wrap: balance;
 }
 
 p {
-  margin: 0 0 var(--ak-space-md);
-  line-height: 1.6;
+  margin: 0;
+  max-inline-size: 68ch;
+  line-height: 1.7;
 }
 
 code {
-  padding: 0.15em 0.4em;
-  border-radius: var(--ak-radius-sm);
-  background: var(--ak-color-surface-muted);
-  font-size: 0.9em;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.16em 0.45em;
+  border: 1px solid color-mix(in srgb, var(--ak-color-border) 86%, white 14%);
+  border-radius: calc(var(--ak-radius-sm) - 2px);
+  background: color-mix(in srgb, var(--ak-color-surface-muted) 88%, white 12%);
+  color: var(--ak-color-text);
+  font-size: 0.88em;
+}
+
+svg {
+  display: block;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--ak-color-primary-soft) 88%, transparent);
+  color: var(--ak-color-text);
 }
