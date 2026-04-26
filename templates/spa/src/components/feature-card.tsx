@@ -1,8 +1,5 @@
-import type { JSXElement } from '@askrjs/askr';
-import IconLabel from './icon-label';
-
 type FeatureCardProps = {
-  icon: JSXElement;
+  icon: unknown;
   title: unknown;
   children?: unknown;
 };
@@ -13,11 +10,12 @@ export default function FeatureCard({
   children,
 }: FeatureCardProps) {
   return (
-    <div class="feature-card">
-      <h3>
-        <IconLabel icon={icon}>{title}</IconLabel>
-      </h3>
-      <p>{children}</p>
-    </div>
+    <article class="feature-card panel">
+      <div class="feature-card__icon">{icon}</div>
+      <div class="feature-card__copy">
+        <h3>{title}</h3>
+        <p>{children}</p>
+      </div>
+    </article>
   );
 }
