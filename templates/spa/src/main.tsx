@@ -2,6 +2,8 @@ import { createSPA } from '@askrjs/askr';
 import { getRoutes, navigate } from '@askrjs/askr/router';
 import '@askrjs/askr-charts';
 
+import './styles.css';
+
 // Import routes (they auto-register)
 import './routes';
 
