@@ -1,6 +1,6 @@
 {
   "name": "@askrjs/askr-cli",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Unified CLI for the askr platform",
   "type": "module",
   "license": "Apache-2.0",
@@ -32,11 +32,13 @@
   },
   "scripts": {
     "build": "vp pack",
+    "pack": "npm run build",
     "dev": "vp pack --watch",
     "test": "npm run test:unit",
     "test:unit": "vp test run -c vitest.config.ts",
     "fmt": "vp fmt .",
-    "lint": "vp fmt --check ."
+    "lint": "vp fmt --check .",
+    "prepublishOnly": "npm run pack"
   },
   "dependencies": {
     "@askrjs/askr": "file:../askr"
