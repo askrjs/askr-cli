@@ -14,12 +14,12 @@
     "fmt": "vp fmt \"src/**/*.{ts,tsx,css}\" \"tests/**/*.{ts,tsx}\" \"*.md\""
   },
   "dependencies": {
-    "@askrjs/askr": "0.0.1",
-    "@askrjs/askr-ui": "0.0.1",
-    "@askrjs/askr-themes": "0.0.1"
+    "@askrjs/askr": "0.1.0",
+    "@askrjs/askr-ui": "0.1.0",
+    "@askrjs/askr-themes": "0.1.0"
   },
   "devDependencies": {
-    "@askrjs/askr-vite": "0.0.1",
+    "@askrjs/askr-vite": "0.1.0",
     "@types/node": "^25.5.0",
     "jiti": "^2.6.1",
     "jsdom": "^29.0.1",
