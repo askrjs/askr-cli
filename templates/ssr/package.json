@@ -6,11 +6,11 @@
     "dev": "cross-env NODE_ENV=development node --loader tsx ./server.ts",
     "build": "vp build && vp build --ssr src/entry-server.tsx && tsc -p tsconfig.server.json",
     "preview": "cross-env NODE_ENV=production node dist/server/server.js",
-    "test": "vp test run",
+    "test": "npx vite-plus test run",
     "type-check": "tsc --noEmit",
-    "lint": "vp lint src server.ts tests",
-    "lint:fix": "vp lint --fix src server.ts tests",
-    "fmt": "vp fmt \"src/**/*.{ts,tsx,css}\" \"server.ts\" \"tests/**/*.{ts,tsx}\" \"*.md\""
+    "lint": "npx vite-plus lint src server.ts tests",
+    "lint:fix": "npx vite-plus lint --fix src server.ts tests",
+    "fmt": "npx vite-plus fmt \"src/**/*.{ts,tsx,css}\" \"server.ts\" \"tests/**/*.{ts,tsx}\" \"*.md\""
   },
   "dependencies": {
     "@askrjs/askr": "0.1.0",

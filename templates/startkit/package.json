@@ -6,14 +6,14 @@
     "dev": "vp dev",
     "build": "vp build",
     "preview": "vp preview",
-    "test": "vp test run",
+    "test": "npx vite-plus test run",
     "test:watch": "vp test --watch",
     "type-check": "tsc --noEmit",
-    "lint": "vp lint .",
-    "lint:fix": "vp lint --fix .",
-    "fmt": "vp fmt .",
-    "fmt:check": "vp fmt --check .",
-    "check": "vp check && vp test run"
+    "lint": "npx vite-plus lint .",
+    "lint:fix": "npx vite-plus lint --fix .",
+    "fmt": "npx vite-plus fmt .",
+    "fmt:check": "npx vite-plus fmt --check .",
+    "check": "npx vite-plus check && npx vite-plus test run"
   },
   "dependencies": {
     "@askrjs/askr": "0.1.0",

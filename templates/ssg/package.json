@@ -7,11 +7,11 @@
     "build": "vp build",
     "generate": "tsx ssg-build.ts",
     "preview": "vp preview",
-    "test": "vp test run",
+    "test": "npx vite-plus test run",
     "type-check": "tsc --noEmit",
-    "lint": "vp lint src tests",
-    "lint:fix": "vp lint --fix src tests",
-    "fmt": "vp fmt \"src/**/*.{ts,tsx,css}\" \"tests/**/*.{ts,tsx}\" \"*.md\""
+    "lint": "npx vite-plus lint src tests",
+    "lint:fix": "npx vite-plus lint --fix src tests",
+    "fmt": "npx vite-plus fmt \"src/**/*.{ts,tsx,css}\" \"tests/**/*.{ts,tsx}\" \"*.md\""
   },
   "dependencies": {
     "@askrjs/askr": "0.1.0",

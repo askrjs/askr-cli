@@ -34,7 +34,7 @@
     "build": "vp pack",
     "dev": "vp pack --watch",
     "test": "npm run test:unit",
-    "test:unit": "vp test run -c vitest.config.ts",
+    "test:unit": "npx vite-plus test run -c vitest.config.ts",
     "fmt": "vp fmt .",
     "lint": "vp lint .",
     "prepublishOnly": "npm run build"
