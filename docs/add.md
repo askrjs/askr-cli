@@ -42,4 +42,4 @@ Generates:
 ## See also
 
 - [CLI overview](./overview.md)
-- [Conventions](../reference/conventions.md)
+- [Conventions](https://github.com/askrjs/askr/tree/main/docs/reference/conventions.md)

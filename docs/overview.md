@@ -63,12 +63,11 @@ askr add table <name>   # Generate a data table component
 askr add form <name>    # Generate a form component
 ```
 
-Generated code follows the [conventions](../reference/conventions.md) and [project structure](../reference/project-structure.md) expected by the platform.
+Generated code follows the [conventions](https://github.com/askrjs/askr/tree/main/docs/reference/conventions.md) and [project structure](https://github.com/askrjs/askr/tree/main/docs/reference/project-structure.md) expected by the platform.
 
 ## See also
 
 - [create](./create.md) â€” full `create` command reference
 - [add](./add.md) â€” generator command reference
 - [workflows](./workflows.md) â€” common CLI workflows end to end
-- [CLI reference](../reference/cli.md) â€” full option reference
 

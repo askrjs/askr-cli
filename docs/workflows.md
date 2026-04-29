@@ -44,6 +44,5 @@ npm run preview
 
 - [create](./create.md)
 - [add](./add.md)
-- [SSG guide](../core/rendering.md)
-- [Full CLI reference](../reference/cli.md)
+- [SSG guide](https://github.com/askrjs/askr/tree/main/docs/guides/ssg.md)
 
