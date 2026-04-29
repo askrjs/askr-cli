@@ -32,13 +32,12 @@
   },
   "scripts": {
     "build": "vp pack",
-    "pack": "npm run build",
     "dev": "vp pack --watch",
     "test": "npm run test:unit",
     "test:unit": "vp test run -c vitest.config.ts",
     "fmt": "vp fmt .",
     "lint": "vp fmt --check .",
-    "prepublishOnly": "npm run pack"
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@askrjs/askr": "file:../askr"

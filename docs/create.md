@@ -76,4 +76,4 @@ Stack included:
 ## See also
 
 - [CLI overview](./overview.md)
-- [Project structure](../reference/project-structure.md)
+- [Project structure](https://github.com/askrjs/askr/tree/main/docs/reference/project-structure.md)

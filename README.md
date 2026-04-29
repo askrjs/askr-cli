@@ -2,7 +2,7 @@
 
 Unified command-line interface for the Askr platform.
 
-Canonical docs live in [docs/reference/cli.md](../../docs/reference/cli.md).
+Canonical docs live in [docs/README.md](./docs/README.md).
 
 ## Commands
 
