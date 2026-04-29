@@ -1,6 +1,6 @@
-import { MoonIcon, SunIcon } from "@askrjs/askr-lucide";
+﻿import { MoonIcon, SunIcon } from "@askrjs/lucide";
 import { Link } from "@askrjs/askr/router";
-import { NavLink } from "@askrjs/askr-ui";
+import { NavLink } from "@askrjs/ui";
 import {
   Badge,
   Container,
@@ -15,7 +15,7 @@ import {
   Stack,
   ThemeProvider,
   ThemeToggle,
-} from "@askrjs/askr-themes/components";
+} from "@askrjs/themes/components";
 
 export default function App({ children }: { children?: unknown }) {
   const year = new Date().getFullYear();
@@ -126,3 +126,4 @@ export default function App({ children }: { children?: unknown }) {
     </ThemeProvider>
   );
 }
+

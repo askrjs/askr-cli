@@ -1,4 +1,4 @@
-import './styles.css';
+﻿import './styles.css';
 import {
   ToastProvider,
   Toast,
@@ -6,7 +6,7 @@ import {
   ToastDescription,
   ToastTitle,
   ToastViewport,
-} from '@askrjs/askr-ui/toast';
+} from '@askrjs/ui/toast';
 import {
   clearToast,
   bindToast,
@@ -51,3 +51,4 @@ export default function App({ children }: { children?: unknown }) {
     </ToastProvider>
   );
 }
+

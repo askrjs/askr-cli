@@ -1,7 +1,7 @@
-import { ArrowRightIcon } from '@askrjs/askr-lucide/icons/arrow-right';
-import { BarChart3Icon } from '@askrjs/askr-lucide';
-import { BoxesIcon } from '@askrjs/askr-lucide';
-import { LayoutTemplateIcon } from '@askrjs/askr-lucide';
+﻿import { ArrowRightIcon } from '@askrjs/lucide/icons/arrow-right';
+import { BarChart3Icon } from '@askrjs/lucide';
+import { BoxesIcon } from '@askrjs/lucide';
+import { LayoutTemplateIcon } from '@askrjs/lucide';
 import {
   Card,
   CardContent,
@@ -10,7 +10,7 @@ import {
   CardTitle,
   Grid,
   Section,
-} from '@askrjs/askr-themes/components';
+} from '@askrjs/themes/components';
 import FeatureCard from '../components/feature-card';
 import Hero, {
   HeroActions,
@@ -190,3 +190,4 @@ export default function Home() {
     </>
   );
 }
+

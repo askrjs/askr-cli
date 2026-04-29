@@ -1,4 +1,4 @@
-import { BarChart3Icon, CompassIcon, PaletteIcon } from '@askrjs/askr-lucide';
+﻿import { BarChart3Icon, CompassIcon, PaletteIcon } from '@askrjs/lucide';
 import {
   Card,
   CardDescription,
@@ -6,7 +6,7 @@ import {
   CardTitle,
   Grid,
   Section,
-} from '@askrjs/askr-themes/components';
+} from '@askrjs/themes/components';
 
 export default function About() {
   return (

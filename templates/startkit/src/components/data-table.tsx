@@ -1,5 +1,5 @@
-import { For } from '@askrjs/askr/for';
-import { Skeleton } from '@askrjs/askr-ui/skeleton';
+﻿import { For } from '@askrjs/askr/for';
+import { Skeleton } from '@askrjs/ui/skeleton';
 import EmptyState from './empty-state';
 import { joinClasses } from '../utils/join-classes';
 
@@ -76,3 +76,4 @@ export default function DataTable<Row>(props: {
     </div>
   );
 }
+

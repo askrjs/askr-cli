@@ -1,12 +1,12 @@
-import { state } from '@askrjs/askr';
+﻿import { state } from '@askrjs/askr';
 import { resource } from '@askrjs/askr/resources';
-import { Button } from '@askrjs/askr-ui/button';
+import { Button } from '@askrjs/ui/button';
 import {
   BarChart3Icon,
   CircleDollarSignIcon,
   Clock3Icon,
   UsersIcon,
-} from '@askrjs/askr-lucide';
+} from '@askrjs/lucide';
 import DataTable, { type DataTableColumn } from '../../components/data-table';
 import EmptyState from '../../components/empty-state';
 import PageHeader from '../../components/page-header';
@@ -116,3 +116,4 @@ export default function DashboardPage() {
     </section>
   );
 }
+

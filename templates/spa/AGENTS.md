@@ -1,4 +1,4 @@
-# {{appName}}
+﻿# {{appName}}
 
 Client-side SPA built with Askr, askr-ui, askr-themes, and askr-charts.
 
@@ -16,13 +16,13 @@ npm run fmt        # Prettier
 
 ## Architecture
 
-- **Framework:** Askr — actor-backed, fine-grained reactive UI. No virtual DOM.
+- **Framework:** Askr â€” actor-backed, fine-grained reactive UI. No virtual DOM.
 - **Components:** askr-ui headless components (Button, Tabs, Accordion, Toggle, Input, NavLink, etc.). Props use `onPress` (not `onClick`), `asChild` for polymorphism, `data-slot` attributes for styling hooks.
-- **Styling:** askr-themes CSS via `[data-slot]` selectors. Design tokens use `--ak-*` prefix. Theme import in `src/styles.css`. Switch themes by changing the import (e.g., `@askrjs/askr-themes/tuxedo`).
-- **Charts:** askr-charts provides the chart page primitives. Import `@askrjs/askr-charts` in `src/main.tsx` so the package CSS loads.
+- **Styling:** askr-themes CSS via `[data-slot]` selectors. Design tokens use `--ak-*` prefix. Theme import in `src/styles.css`. Switch themes by changing the import (e.g., `@askrjs/themes/tuxedo`).
+- **Charts:** askr-charts provides the chart page primitives. Import `@askrjs/charts` in `src/main.tsx` so the package CSS loads.
 - **Routing:** `registerRoutes()` composes `group()` and `route()` declarations in `src/routes.tsx`. Navigate with `<Link href="...">`. No config file.
 - **State:** `state(initial)` creates reactive values. Read with `count()`, update with `count.set(v => v + 1)`. `derive()` for computed values. `resource()` for async data.
-- **Vite plugin:** `askr()` from `@askrjs/askr-vite` handles JSX transform — no manual esbuild config needed.
+- **Vite plugin:** `askr()` from `@askrjs/vite` handles JSX transform â€” no manual esbuild config needed.
 
 ## File Structure
 
@@ -46,3 +46,4 @@ tests/               # Vitest tests
 - Keep the SPA template compact; it should feel like a small app, not a framework catalog
 - Style with `--ak-*` tokens, never `--pico-*` or hardcoded colors
 - Prettier + ESLint enforced
+

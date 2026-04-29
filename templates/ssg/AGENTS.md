@@ -1,4 +1,4 @@
-# {{appName}}
+﻿# {{appName}}
 
 Static site built with Askr, askr-ui, askr-themes, and createStaticGen.
 
@@ -17,13 +17,13 @@ npm run fmt        # Prettier
 
 ## Architecture
 
-- **Framework:** Askr — actor-backed, fine-grained reactive UI. No virtual DOM.
+- **Framework:** Askr â€” actor-backed, fine-grained reactive UI. No virtual DOM.
 - **SSG flow:** `ssg.config.ts` defines routes. `ssg-build.ts` imports the config and calls `createStaticGen()` to render each route to static HTML at build time. Dev mode uses `createSPA()` for a normal SPA experience.
 - **Components:** askr-ui headless components. Props use `onPress` (not `onClick`), `asChild` for polymorphism, `data-slot` attributes for styling hooks.
 - **Styling:** askr-themes CSS via `[data-slot]` selectors. Design tokens use `--ak-*` prefix. Theme import in `src/styles.css`.
 - **Routing:** `registerRoutes()`, `group()`, and `route()` in `src/routes.tsx` for dev SPA mode. `ssg.config.ts` defines the same routes for static generation using `RouteConfig[]`.
 - **State:** `state(initial)`, `derive()`, `resource()`. Static generation renders components synchronously; interactive state works at runtime in the browser.
-- **Vite plugin:** `askr()` from `@askrjs/askr-vite` handles JSX transform.
+- **Vite plugin:** `askr()` from `@askrjs/vite` handles JSX transform.
 
 ## File Structure
 
@@ -49,3 +49,4 @@ tests/                 # Vitest tests
 - Use askr-ui components instead of raw HTML for interactive elements
 - Style with `--ak-*` tokens
 - Prettier + ESLint enforced
+

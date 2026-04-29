@@ -1,14 +1,14 @@
-import { state } from '@askrjs/askr';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@askrjs/askr-ui/tabs';
+﻿import { state } from '@askrjs/askr';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@askrjs/ui/tabs';
 import {
   Accordion,
   AccordionItem,
   AccordionHeader,
   AccordionTrigger,
   AccordionContent,
-} from '@askrjs/askr-ui/accordion';
-import { Toggle } from '@askrjs/askr-ui/toggle';
-import { Input } from '@askrjs/askr-ui/input';
+} from '@askrjs/ui/accordion';
+import { Toggle } from '@askrjs/ui/toggle';
+import { Input } from '@askrjs/ui/input';
 import Counter from '../components/counter';
 
 export default function Example() {
@@ -19,7 +19,7 @@ export default function Example() {
     <>
       <h1>Component Showcase</h1>
       <p class="text-muted">
-        askr-ui headless components styled by askr-themes — working together out
+        askr-ui headless components styled by askr-themes â€” working together out
         of the box.
       </p>
 
@@ -71,7 +71,7 @@ export default function Example() {
               <p>
                 Fine-grained reactivity means updates are surgical. When a state
                 value changes, only the specific DOM nodes that read that value
-                are updated — no virtual DOM diffing, no component re-renders.
+                are updated â€” no virtual DOM diffing, no component re-renders.
               </p>
             </AccordionContent>
           </AccordionItem>
@@ -126,3 +126,4 @@ export default function Example() {
     </>
   );
 }
+

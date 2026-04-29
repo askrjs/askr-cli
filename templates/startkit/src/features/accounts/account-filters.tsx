@@ -1,5 +1,5 @@
-import { Input } from '@askrjs/askr-ui/input';
-import { SearchIcon } from '@askrjs/askr-lucide';
+﻿import { Input } from '@askrjs/ui/input';
+import { SearchIcon } from '@askrjs/lucide';
 import {
   Select,
   SelectContent,
@@ -7,8 +7,8 @@ import {
   SelectPortal,
   SelectTrigger,
   SelectValue,
-} from '@askrjs/askr-ui/select';
-import { Button } from '@askrjs/askr-ui/button';
+} from '@askrjs/ui/select';
+import { Button } from '@askrjs/ui/button';
 import type { AccountStatus } from '../../lib/mock-data';
 
 export default function AccountFilters(props: {
@@ -59,3 +59,4 @@ export default function AccountFilters(props: {
     </div>
   );
 }
+

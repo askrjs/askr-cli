@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "{{appName}}",
   "version": "0.1.0",
   "type": "module",
@@ -14,12 +14,12 @@
   },
   "dependencies": {
     "@askrjs/askr": "0.1.0",
-    "@askrjs/askr-ui": "0.1.0",
-    "@askrjs/askr-themes": "0.1.0",
+    "@askrjs/ui": "0.1.0",
+    "@askrjs/themes": "0.1.0",
     "express": "^5.2.1"
   },
   "devDependencies": {
-    "@askrjs/askr-vite": "0.1.0",
+    "@askrjs/vite": "0.1.0",
     "@types/express": "^5.0.6",
     "@types/node": "^25.5.0",
     "cross-env": "^10.1.0",
@@ -30,3 +30,4 @@
     "vite-plus": "^0.1.19"
   }
 }
+

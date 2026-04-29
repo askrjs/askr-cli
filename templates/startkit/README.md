@@ -1,4 +1,4 @@
-# {{appName}} starter kit
+﻿# {{appName}} starter kit
 
 A production-ready Askr starter built to feel like a real product from day one.
 
@@ -11,7 +11,7 @@ Stack:
 - askr
 - askr-ui
 - askr-themes (default)
-- lucide icons via @askrjs/askr-lucide
+- lucide icons via @askrjs/lucide
 - plain CSS with layers and design tokens
 
 ## Quick start
@@ -174,3 +174,4 @@ When integrating backend services:
 1. Keep API calls and data transforms in src/lib.
 2. Preserve AbortController signal forwarding in async operations.
 3. Keep route guards and layout boundaries explicit in src/router.tsx.
+

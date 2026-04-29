@@ -1,4 +1,4 @@
-import { derive, state } from '@askrjs/askr';
+﻿import { derive, state } from '@askrjs/askr';
 import {
   Button,
   Card,
@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
   Flex,
-} from '@askrjs/askr-themes/components';
+} from '@askrjs/themes/components';
 
 export default function Counter() {
   const count = state(0);
@@ -44,3 +44,4 @@ export default function Counter() {
     </Card>
   );
 }
+

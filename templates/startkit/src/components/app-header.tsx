@@ -1,7 +1,7 @@
-import { currentRoute, Link } from '@askrjs/askr/router';
-import { Input } from '@askrjs/askr-ui/input';
-import { Inline } from '@askrjs/askr-ui/inline';
-import { Spacer } from '@askrjs/askr-ui/spacer';
+﻿import { currentRoute, Link } from '@askrjs/askr/router';
+import { Input } from '@askrjs/ui/input';
+import { Inline } from '@askrjs/ui/inline';
+import { Spacer } from '@askrjs/ui/spacer';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,9 +11,9 @@ import {
   DropdownMenuPortal,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@askrjs/askr-ui/dropdown-menu';
-import { Avatar, AvatarFallback } from '@askrjs/askr-ui/avatar';
-import { SearchIcon } from '@askrjs/askr-lucide';
+} from '@askrjs/ui/dropdown-menu';
+import { Avatar, AvatarFallback } from '@askrjs/ui/avatar';
+import { SearchIcon } from '@askrjs/lucide';
 import { buildLoginHref, getRouteLabel, settingsRoute } from '../lib/routes';
 import { showToast } from '../toast';
 import { signOut } from '../lib/mock-data';
@@ -88,3 +88,4 @@ export default function AppHeader() {
     </header>
   );
 }
+

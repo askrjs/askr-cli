@@ -1,7 +1,7 @@
-import { derive, state } from '@askrjs/askr';
-import { Toggle } from '@askrjs/askr-ui/primitives/toggle';
-import { BarChart, DonutChart, Heatmap } from '@askrjs/askr-charts/components';
-import { BarChart3Icon, FlameIcon, PieChartIcon } from '@askrjs/askr-lucide';
+﻿import { derive, state } from '@askrjs/askr';
+import { Toggle } from '@askrjs/ui/primitives/toggle';
+import { BarChart, DonutChart, Heatmap } from '@askrjs/charts/components';
+import { BarChart3Icon, FlameIcon, PieChartIcon } from '@askrjs/lucide';
 import {
   Button,
   Card,
@@ -12,7 +12,7 @@ import {
   Grid,
   Inline,
   Section,
-} from '@askrjs/askr-themes/components';
+} from '@askrjs/themes/components';
 
 const launchBar = [
   { label: 'Docs', value: 42 },

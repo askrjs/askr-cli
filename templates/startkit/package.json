@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "{{appName}}",
   "version": "0.1.0",
   "type": "module",
@@ -17,12 +17,12 @@
   },
   "dependencies": {
     "@askrjs/askr": "0.1.0",
-    "@askrjs/askr-ui": "0.1.0",
-    "@askrjs/askr-themes": "0.1.0",
-    "@askrjs/askr-lucide": "0.1.0"
+    "@askrjs/ui": "0.1.0",
+    "@askrjs/themes": "0.1.0",
+    "@askrjs/lucide": "0.1.0"
   },
   "devDependencies": {
-    "@askrjs/askr-vite": "0.1.0",
+    "@askrjs/vite": "0.1.0",
     "@types/node": "^25.5.0",
     "jiti": "^2.6.1",
     "jsdom": "^29.0.1",
@@ -30,3 +30,4 @@
     "vite-plus": "^0.1.19"
   }
 }
+

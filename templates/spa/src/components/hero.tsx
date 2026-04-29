@@ -1,11 +1,11 @@
-import { Link, type LinkProps } from '@askrjs/askr/router';
+﻿import { Link, type LinkProps } from '@askrjs/askr/router';
 import {
   Button,
   Flex,
   Section,
   Stack,
   type ButtonProps,
-} from '@askrjs/askr-themes/components';
+} from '@askrjs/themes/components';
 
 type HeroProps = {
   children?: unknown;

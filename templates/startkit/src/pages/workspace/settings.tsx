@@ -1,5 +1,5 @@
-import { state } from '@askrjs/askr';
-import { Button } from '@askrjs/askr-ui/button';
+﻿import { state } from '@askrjs/askr';
+import { Button } from '@askrjs/ui/button';
 import {
   Dialog,
   DialogClose,
@@ -9,10 +9,10 @@ import {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
-} from '@askrjs/askr-ui/dialog';
-import { Field, FieldLabel } from '@askrjs/askr-ui/field';
-import { Input } from '@askrjs/askr-ui/input';
-import { Inline } from '@askrjs/askr-ui/inline';
+} from '@askrjs/ui/dialog';
+import { Field, FieldLabel } from '@askrjs/ui/field';
+import { Input } from '@askrjs/ui/input';
+import { Inline } from '@askrjs/ui/inline';
 import {
   Select,
   SelectContent,
@@ -20,9 +20,9 @@ import {
   SelectPortal,
   SelectTrigger,
   SelectValue,
-} from '@askrjs/askr-ui/select';
-import { Switch } from '@askrjs/askr-ui/switch';
-import { SaveIcon } from '@askrjs/askr-lucide';
+} from '@askrjs/ui/select';
+import { Switch } from '@askrjs/ui/switch';
+import { SaveIcon } from '@askrjs/lucide';
 import PageHeader from '../../components/page-header';
 import {
   appearanceMode,
@@ -215,3 +215,4 @@ export default function SettingsPage() {
     </section>
   );
 }
+
