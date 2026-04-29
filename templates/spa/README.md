@@ -16,13 +16,13 @@ npm test         # Run tests with Vitest
 
 ```
 src/
-├── main.tsx         # Entry point - creates SPA
-├── app.tsx          # Shared shell and navigation
-├── routes.tsx       # Route registration for the four app pages
-├── styles.css       # Theme import plus app styles
-├── components/      # Small local helpers (counter, labels, cards)
-├── pages/           # Home, About, Components, Charts
-└── resources/       # Async data fetchers
+|-- main.tsx         # Entry point - creates SPA
+|-- app.tsx          # Shared shell and navigation
+|-- routes.tsx       # Route registration for the four app pages
+|-- styles.css       # Theme import plus app styles
+|-- components/      # Small local helpers (counter, labels, cards)
+|-- pages/           # Home, About, Components, Charts
+`-- resources/       # Async data fetchers
 ```
 
 ## Core Concepts

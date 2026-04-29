@@ -2,14 +2,16 @@
 
 Generate feature code into an existing Askr project.
 
-> **Status:** `add` generators are planned. This page tracks the intended API.
+> **Roadmap status:** `add` generators are not part of the shipped CLI yet.
+> This page records the intended command shape so generated projects can align
+> with platform conventions.
 
 ## Philosophy
 
-Generators scaffold the right files in the right places according to Askr conventions.
-Generated code is normal Askr code — no runtime magic, no generator dependency.
+Generators will scaffold files according to Askr conventions. Generated code
+should remain ordinary Askr code: no runtime magic and no generator dependency.
 
-## Planned commands
+## Planned Commands
 
 ```bash
 askr add page <name>
@@ -21,25 +23,27 @@ askr add form <name>
 
 ## `add page`
 
-Scaffold a new page component and register the route.
+The planned `add page` command will scaffold a route component and register it
+in the app router.
 
-Generates:
+Expected output:
 
 - `src/routes/<name>.tsx`
-- Route entry in `src/router.tsx`
+- Route registration in `src/router.tsx`
 
 ## `add crud`
 
-Scaffold a full CRUD UI for a model: list view, detail view, create form, edit form.
+The planned `add crud` command will scaffold list, detail, create, edit, and
+delete UI for a model.
 
-Generates:
+Expected output:
 
 - `src/routes/<model>.tsx`
 - `src/routes/<model>.detail.tsx`
 - `src/features/<model>/<model>-table.tsx`
 - `src/features/<model>/<model>-form.tsx`
 
-## See also
+## See Also
 
 - [CLI overview](./overview.md)
 - [Conventions](https://github.com/askrjs/askr/tree/main/docs/reference/conventions.md)

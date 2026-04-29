@@ -17,7 +17,7 @@ npm run fmt        # Prettier
 
 ## Architecture
 
-- **Framework:** Askr â€” actor-backed, fine-grained reactive UI. No virtual DOM.
+- **Framework:** Askr - actor-backed, fine-grained reactive UI. No virtual DOM.
 - **SSG flow:** `ssg.config.ts` defines routes. `ssg-build.ts` imports the config and calls `createStaticGen()` to render each route to static HTML at build time. Dev mode uses `createSPA()` for a normal SPA experience.
 - **Components:** askr-ui headless components. Props use `onPress` (not `onClick`), `asChild` for polymorphism, `data-slot` attributes for styling hooks.
 - **Styling:** askr-themes CSS via `[data-slot]` selectors. Design tokens use `--ak-*` prefix. Theme import in `src/styles.css`.
