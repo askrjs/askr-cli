@@ -1,6 +1,6 @@
-import { createSPA } from '@askrjs/askr';
+﻿import { createSPA } from '@askrjs/askr';
 import { getRoutes, navigate } from '@askrjs/askr/router';
-import '@askrjs/askr-charts';
+import '@askrjs/charts';
 
 import './styles.css';
 
@@ -15,3 +15,4 @@ createSPA({
 
 // Resolve initial route
 navigate(window.location.pathname);
+

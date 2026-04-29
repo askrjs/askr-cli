@@ -1,5 +1,5 @@
-import { Inline } from '@askrjs/askr-ui/inline';
-import { Spacer } from '@askrjs/askr-ui/spacer';
+﻿import { Inline } from '@askrjs/ui/inline';
+import { Spacer } from '@askrjs/ui/spacer';
 
 export default function PageHeader(props: {
   title: string;
@@ -22,3 +22,4 @@ export default function PageHeader(props: {
     </Inline>
   );
 }
+

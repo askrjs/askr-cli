@@ -1,10 +1,10 @@
-import { Link } from '@askrjs/askr/router';
+﻿import { Link } from '@askrjs/askr/router';
 import {
   ShieldCheckIcon,
   WorkflowIcon,
   LayoutPanelTopIcon,
   SparklesIcon,
-} from '@askrjs/askr-lucide';
+} from '@askrjs/lucide';
 import { dashboardRoute, loginRoute } from '../lib/routes';
 
 const navButtonClass = 'button button-secondary';
@@ -81,3 +81,4 @@ export default function LandingPage() {
     </section>
   );
 }
+

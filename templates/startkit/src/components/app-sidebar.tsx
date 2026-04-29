@@ -1,11 +1,11 @@
-import { Link, currentRoute } from '@askrjs/askr/router';
+﻿import { Link, currentRoute } from '@askrjs/askr/router';
 import {
   LayoutDashboardIcon,
   UsersIcon,
   SettingsIcon,
   LayersIcon,
   ShieldCheckIcon,
-} from '@askrjs/askr-lucide';
+} from '@askrjs/lucide';
 import {
   accountsRoute,
   dashboardRoute,
@@ -96,3 +96,4 @@ export default function AppSidebar() {
     </aside>
   );
 }
+

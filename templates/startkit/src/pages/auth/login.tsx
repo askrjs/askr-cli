@@ -1,9 +1,9 @@
-import { state } from '@askrjs/askr';
+﻿import { state } from '@askrjs/askr';
 import { Link, currentRoute, navigate } from '@askrjs/askr/router';
-import { Button } from '@askrjs/askr-ui/button';
-import { Field, FieldLabel } from '@askrjs/askr-ui/field';
-import { Input } from '@askrjs/askr-ui/input';
-import { LockKeyholeIcon, MailIcon } from '@askrjs/askr-lucide';
+import { Button } from '@askrjs/ui/button';
+import { Field, FieldLabel } from '@askrjs/ui/field';
+import { Input } from '@askrjs/ui/input';
+import { LockKeyholeIcon, MailIcon } from '@askrjs/lucide';
 import { signIn } from '../../lib/mock-data';
 import {
   dashboardRoute,
@@ -125,3 +125,4 @@ export default function LoginPage() {
     </section>
   );
 }
+

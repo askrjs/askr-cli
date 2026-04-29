@@ -1,6 +1,6 @@
-import { state, derive } from '@askrjs/askr';
-import { Button } from '@askrjs/askr-ui/button';
-import { Badge } from '@askrjs/askr-ui/badge';
+﻿import { state, derive } from '@askrjs/askr';
+import { Button } from '@askrjs/ui/button';
+import { Badge } from '@askrjs/ui/badge';
 
 export default function Counter() {
   const [count, setCount] = state(0);
@@ -25,3 +25,4 @@ export default function Counter() {
     </div>
   );
 }
+

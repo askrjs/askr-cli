@@ -1,4 +1,4 @@
-# @askrjs/askr-cli
+﻿# @askrjs/cli
 
 Unified command-line interface for the Askr platform.
 
@@ -28,6 +28,7 @@ Templates are stored in `templates/`.
 ## Recommended Usage
 
 ```bash
-npx @askrjs/askr-cli create startkit my-app
-npx @askrjs/askr-cli ssg --config ./ssg.config.ts --output ./dist/static
+npx @askrjs/cli create startkit my-app
+npx @askrjs/cli ssg --config ./ssg.config.ts --output ./dist/static
 ```
+

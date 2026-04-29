@@ -1,6 +1,6 @@
-import { Link } from '@askrjs/askr/router';
-import { Button } from '@askrjs/askr-ui/button';
-import { Badge } from '@askrjs/askr-ui/badge';
+﻿import { Link } from '@askrjs/askr/router';
+import { Button } from '@askrjs/ui/button';
+import { Badge } from '@askrjs/ui/badge';
 
 export default function Home() {
   return (
@@ -29,7 +29,7 @@ export default function Home() {
           <p>
             <code>state()</code> and <code>derive()</code> give you fine-grained
             reactivity. Only the DOM nodes that depend on changed values update
-            — nothing more.
+            â€” nothing more.
           </p>
         </div>
         <div class="feature-card">
@@ -48,10 +48,11 @@ export default function Home() {
           </h3>
           <p>
             askr-ui provides headless components. askr-themes provides CSS
-            themes. Mix and match — or build your own.
+            themes. Mix and match â€” or build your own.
           </p>
         </div>
       </div>
     </>
   );
 }
+

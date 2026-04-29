@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite-plus';
-import { askr } from '@askrjs/askr-vite';
+﻿import { defineConfig } from 'vite-plus';
+import { askr } from '@askrjs/vite';
 
 export default defineConfig({
   plugins: [askr()],
@@ -15,3 +15,4 @@ export default defineConfig({
     },
   },
 });
+

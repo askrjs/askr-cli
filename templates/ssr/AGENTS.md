@@ -1,4 +1,4 @@
-# {{appName}}
+﻿# {{appName}}
 
 Server-rendered app built with Askr, askr-ui, askr-themes, and Express.
 
@@ -16,13 +16,13 @@ npm run fmt        # Prettier
 
 ## Architecture
 
-- **Framework:** Askr — actor-backed, fine-grained reactive UI. No virtual DOM.
+- **Framework:** Askr â€” actor-backed, fine-grained reactive UI. No virtual DOM.
 - **SSR flow:** `server.ts` (Express) loads `src/entry-server.tsx` which calls `renderToString()`. The rendered HTML is injected into `index.html` at `<!--ssr-outlet-->`. Client hydration happens via `src/main.tsx` using `hydrateSPA()`.
 - **Components:** askr-ui headless components. Props use `onPress` (not `onClick`), `asChild` for polymorphism, `data-slot` attributes for styling hooks.
 - **Styling:** askr-themes CSS via `[data-slot]` selectors. Design tokens use `--ak-*` prefix. Theme import in `src/styles.css`.
 - **Routing:** `registerRoutes()` composes `group()` and `route()` declarations in `src/routes.tsx`. Both server and client import the same routes file.
-- **State:** `state(initial)`, `derive()`, `resource()` — same primitives as SPA. SSR renders deterministically; hydration attaches interactivity.
-- **Vite plugin:** `askr()` from `@askrjs/askr-vite` handles JSX transform.
+- **State:** `state(initial)`, `derive()`, `resource()` â€” same primitives as SPA. SSR renders deterministically; hydration attaches interactivity.
+- **Vite plugin:** `askr()` from `@askrjs/vite` handles JSX transform.
 
 ## File Structure
 
@@ -49,3 +49,4 @@ tests/                 # Vitest tests
 - Use askr-ui components instead of raw HTML for interactive elements
 - Style with `--ak-*` tokens
 - Prettier + ESLint enforced
+

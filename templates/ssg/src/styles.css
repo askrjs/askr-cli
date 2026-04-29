@@ -1,4 +1,4 @@
-@import '@askrjs/askr-themes/default';
+﻿@import '@askrjs/themes/default';
 
 /* Layout */
 body {
@@ -146,3 +146,4 @@ code {
     align-items: stretch;
   }
 }
+

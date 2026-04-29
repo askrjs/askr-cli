@@ -1,4 +1,4 @@
-import { state } from '@askrjs/askr';
+﻿import { state } from '@askrjs/askr';
 import { resource } from '@askrjs/askr/resources';
 import {
   AlertDialog,
@@ -10,11 +10,11 @@ import {
   AlertDialogPortal,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@askrjs/askr-ui/alert-dialog';
-import { Button } from '@askrjs/askr-ui/button';
-import { Inline } from '@askrjs/askr-ui/inline';
-import { Pagination } from '@askrjs/askr-ui/pagination';
-import { ArchiveIcon, PlusIcon } from '@askrjs/askr-lucide';
+} from '@askrjs/ui/alert-dialog';
+import { Button } from '@askrjs/ui/button';
+import { Inline } from '@askrjs/ui/inline';
+import { Pagination } from '@askrjs/ui/pagination';
+import { ArchiveIcon, PlusIcon } from '@askrjs/lucide';
 import PageHeader from '../../../components/page-header';
 import AccountFilters from '../../../features/accounts/account-filters';
 import AccountTable from '../../../features/accounts/account-table';
@@ -189,3 +189,4 @@ export default function AccountsPage() {
     </section>
   );
 }
+

@@ -1,21 +1,21 @@
-import { state } from '@askrjs/askr';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@askrjs/askr-ui';
+﻿import { state } from '@askrjs/askr';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@askrjs/ui';
 import {
   Accordion,
   AccordionContent,
   AccordionHeader,
   AccordionItem,
   AccordionTrigger,
-} from '@askrjs/askr-ui/composites/accordion';
-import { Input } from '@askrjs/askr-ui/primitives/input';
-import { Toggle } from '@askrjs/askr-ui/primitives/toggle';
+} from '@askrjs/ui/composites/accordion';
+import { Input } from '@askrjs/ui/primitives/input';
+import { Toggle } from '@askrjs/ui/primitives/toggle';
 import {
   BookOpenIcon,
   LayoutGridIcon,
   ListIcon,
   SparklesIcon,
   ToggleLeftIcon,
-} from '@askrjs/askr-lucide';
+} from '@askrjs/lucide';
 import {
   Card,
   CardContent,
@@ -25,7 +25,7 @@ import {
   Grid,
   Inline,
   Section,
-} from '@askrjs/askr-themes/components';
+} from '@askrjs/themes/components';
 import Counter from '../components/counter';
 
 export default function Components() {

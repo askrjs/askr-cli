@@ -1,6 +1,6 @@
 {
-  "name": "@askrjs/askr-cli",
-  "version": "0.1.0",
+  "name": "@askrjs/cli",
+  "version": "0.0.1",
   "description": "Unified CLI for the askr platform",
   "type": "module",
   "license": "Apache-2.0",
@@ -45,7 +45,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
-    "@askrjs/askr-vite": "file:../askr-vite",
+    "@askrjs/vite": "file:../askr-vite",
     "vite-plus": "^0.1.19"
   }
 }

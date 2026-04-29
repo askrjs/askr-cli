@@ -1,6 +1,6 @@
-import { Checkbox } from '@askrjs/askr-ui/checkbox';
-import { Button } from '@askrjs/askr-ui/button';
-import { EyeIcon } from '@askrjs/askr-lucide';
+﻿import { Checkbox } from '@askrjs/ui/checkbox';
+import { Button } from '@askrjs/ui/button';
+import { EyeIcon } from '@askrjs/lucide';
 import DataTable, { type DataTableColumn } from '../../components/data-table';
 import type { AccountRecord } from '../../lib/mock-data';
 import { formatCurrency } from '../../lib/format';
@@ -77,3 +77,4 @@ export default function AccountTable(props: {
     />
   );
 }
+
