@@ -68,10 +68,10 @@ askr-cli create startkit my-dashboard
 
 Stack included:
 
-- `askr` — runtime
-- `askr-ui` — UI primitives
-- `askr-themes` — default visual layer
-- `askr-lucide` — icon set
+- `askr` - runtime
+- `askr-ui` - UI primitives
+- `askr-themes` - default visual layer
+- `askr-lucide` - icon set
 
 ## See also
 

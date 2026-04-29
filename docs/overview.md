@@ -6,10 +6,10 @@ The `@askrjs/cli` package is the command-line surface for the Askr platform.
 
 The CLI exists to:
 
-- Reduce boilerplate â€” you describe what you want, the CLI writes the files
-- Enforce conventions â€” generated code follows platform standards
-- Standardize structure â€” every generated project starts from the same foundation
-- Accelerate feature creation â€” generators produce the right files in the right places
+- Reduce boilerplate - you describe what you want, the CLI writes the files
+- Enforce conventions - generated code follows platform standards
+- Standardize structure - every generated project starts from the same foundation
+- Accelerate feature creation - generators produce the right files in the right places
 
 Generated code has no runtime dependency on the CLI. Once scaffolded, the CLI is a dev-time
 tool only. You can read and modify every generated file without affecting how the CLI works.
@@ -67,7 +67,7 @@ Generated code follows the [conventions](https://github.com/askrjs/askr/tree/mai
 
 ## See also
 
-- [create](./create.md) â€” full `create` command reference
-- [add](./add.md) â€” generator command reference
-- [workflows](./workflows.md) â€” common CLI workflows end to end
+- [create](./create.md) - full `create` command reference
+- [add](./add.md) - generator command reference
+- [workflows](./workflows.md) - common CLI workflows end to end
 

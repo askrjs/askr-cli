@@ -16,14 +16,14 @@ npm test         # Run tests with Vitest
 
 ```
 src/
-├── main.tsx         # Client entry - hydration
-├── app.tsx          # Root component
-├── routes.tsx       # Route registration with route()
-├── styles.css       # Global styles
-├── components/      # Reusable components (Counter, etc)
-├── pages/           # Page components (Home, About)
-├── resources/       # Async data fetching with resource()
-└── tests/           # Test files
+|-- main.tsx         # Client entry - hydration
+|-- app.tsx          # Root component
+|-- routes.tsx       # Route registration with route()
+|-- styles.css       # Global styles
+|-- components/      # Reusable components (Counter, etc)
+|-- pages/           # Page components (Home, About)
+|-- resources/       # Async data fetching with resource()
+`-- tests/           # Test files
 
 server.ts           # Express server
 vite.config.ts      # Vite config (client)
@@ -36,23 +36,23 @@ vitest.config.ts    # Vitest config
 
 ```
 1. Browser requests /about
-   ↓
+   v
 2. Express receives GET /about
-   ↓
+   v
 3. Server calls renderToString(<App />)
-   ↓
+   v
 4. setServerLocation('/about') makes currentRoute() return /about
-   ↓
+   v
 5. Router component renders matching page
-   ↓
+   v
 6. HTML string returned to browser
-   ↓
+   v
 7. Browser displays pre-rendered content immediately (fast!)
-   ↓
+   v
 8. JavaScript bundle loads in background
-   ↓
+   v
 9. hydrateSPA() attaches interactivity to existing DOM
-   ↓
+   v
 10. Buttons, forms, etc become interactive
 ```
 
@@ -288,4 +288,4 @@ Node environment is configured in `vitest.config.ts`.
 5. Fetch data on server, pass to pages
 6. Build and deploy!
 
-Happy building! 🚀
+Happy building!
