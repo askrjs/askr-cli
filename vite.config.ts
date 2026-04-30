@@ -10,6 +10,9 @@ export default defineConfig({
     format: ['esm'],
     outDir: 'dist',
     platform: 'node',
+    outExtensions: () => ({
+      js: '.js',
+    }),
     sourcemap: true,
     copy: ['templates'],
     deps: {
