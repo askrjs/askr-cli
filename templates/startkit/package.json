@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@askrjs/askr": "0.1.0",
-    "@askrjs/ui": "0.1.0",
+    "@askrjs/ui": "0.0.1",
     "@askrjs/themes": "0.1.0",
     "@askrjs/lucide": "0.1.0"
   },
