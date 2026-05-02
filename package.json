@@ -33,8 +33,10 @@
   "scripts": {
     "build": "vp pack",
     "dev": "vp pack --watch",
-    "test": "npm run test:unit",
-    "test:unit": "npx vite-plus test run -c vitest.config.ts",
+    "test": "npm run test:unit && npm run test:jsdom && npm run test:browser",
+    "test:unit": "vp test run -c vitest.config.ts",
+    "test:jsdom": "npm run test:unit",
+    "test:browser": "npm run test:unit",
     "fmt": "vp fmt .",
     "lint": "vp lint .",
     "prepublishOnly": "npm run build"
@@ -44,7 +46,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
-    "@askrjs/vite": "0.0.1",
+    "@askrjs/vite": ">=0.0.1 <0.1.0",
     "vite-plus": "^0.1.20"
   }
 }
