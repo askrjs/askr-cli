@@ -1,6 +1,5 @@
 ﻿import { MoonIcon, SunIcon } from "@askrjs/lucide";
 import { Link } from "@askrjs/askr/router";
-import { NavLink } from "@askrjs/ui";
 import {
   Badge,
   Container,
@@ -11,6 +10,7 @@ import {
   NavBrand,
   Navbar,
   NavGroup,
+  NavLink,
   Separator,
   Stack,
   ThemeProvider,
