@@ -17,7 +17,7 @@ npm run fmt        # Prettier
 ## Architecture
 
 - **Framework:** Askr - actor-backed, fine-grained reactive UI. No virtual DOM.
-- **Components:** askr-ui headless components (Button, Tabs, Accordion, Toggle, Input, NavLink, etc.). Props use `onPress` (not `onClick`), `asChild` for polymorphism, `data-slot` attributes for styling hooks.
+- **Components:** askr-ui headless components (Button, Tabs, Accordion, Toggle, Input, etc.) for behavior primitives. Use askr-themes shell chrome such as `NavLink`, `Navbar`, and `ThemeToggle` for the branded frame. Props use `onPress` (not `onClick`), `asChild` for polymorphism, `data-slot` attributes for styling hooks.
 - **Styling:** askr-themes CSS via `[data-slot]` selectors. Design tokens use `--ak-*` prefix. Theme import in `src/styles.css`. Switch themes by changing the import (e.g., `@askrjs/themes/tuxedo`).
 - **Charts:** askr-charts provides the chart page primitives. Import `@askrjs/charts` in `src/main.tsx` so the package CSS loads.
 - **Routing:** `registerRoutes()` composes `group()` and `route()` declarations in `src/routes.tsx`. Navigate with `<Link href="...">`. No config file.

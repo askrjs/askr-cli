@@ -89,6 +89,7 @@ test("runCreateCli scaffolds SPA with the compact four-page app shell", async ()
     expect(appFile).toMatch(/ThemeProvider/);
     expect(appFile).toMatch(/ThemeToggle/);
     expect(appFile).toMatch(/NavLink/);
+    expect(appFile).toMatch(/@askrjs\/themes\/components/);
     expect(appFile).toMatch(/MoonIcon/);
     expect(appFile).toMatch(/SunIcon/);
     expect(appFile).toMatch(/toggleThemes=\{\["light", "dark"\]\}/);
