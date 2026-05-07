@@ -1,4 +1,4 @@
-﻿import { Link, currentRoute } from '@askrjs/askr/router';
+﻿import { Link } from '@askrjs/askr/router';
 import {
   LayoutDashboardIcon,
   UsersIcon,
@@ -6,6 +6,7 @@ import {
   LayersIcon,
   ShieldCheckIcon,
 } from '@askrjs/lucide';
+import { NavBrand, NavGroup, NavLink, Navbar } from '@askrjs/themes/components';
 import {
   accountsRoute,
   dashboardRoute,
@@ -13,7 +14,6 @@ import {
   loginRoute,
   settingsRoute,
 } from '../lib/routes';
-import { joinClasses } from '../utils/join-classes';
 
 type NavItem = {
   href: string;
@@ -45,54 +45,45 @@ const secondaryNav: NavItem[] = [
 ];
 
 export default function AppSidebar() {
-  const isActive = (href: string) => {
-    const current = currentRoute().path;
-    return current === href || current.startsWith(`${href}/`);
-  };
-
   return (
     <aside class="app-sidebar" aria-label="Sidebar navigation">
-      <div class="sidebar-brand">
-        <span class="brand-pill" aria-hidden="true">
-          A
-        </span>
-        <div>
-          <p class="sidebar-title">{'{{appName}}'}</p>
-          <p class="sidebar-subtitle">Starter Kit</p>
-        </div>
-      </div>
+      <Navbar orientation="vertical" class="app-sidebar-nav" aria-label="Sidebar navigation">
+        <NavBrand>
+          <Link href={dashboardRoute.href} class="sidebar-brand">
+            <span class="brand-pill" aria-hidden="true">
+              A
+            </span>
+            <div>
+              <p class="sidebar-title">{'{{appName}}'}</p>
+              <p class="sidebar-subtitle">Starter Kit</p>
+            </div>
+          </Link>
+        </NavBrand>
 
-      <p class="sidebar-section-label">Workspace</p>
-      <nav class="sidebar-nav">
-        {primaryNav.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link
-              href={item.href}
-              class={joinClasses(
-                'sidebar-link',
-                isActive(item.href) ? 'is-active' : undefined
-              )}
-            >
-              <Icon size={16} aria-hidden={true} />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+        <NavGroup id="workspace-nav-group" label="Workspace">
+          {primaryNav.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink href={item.href}>
+                <Icon size={16} aria-hidden={true} />
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </NavGroup>
 
-      <p class="sidebar-section-label">Other</p>
-      <nav class="sidebar-nav sidebar-nav-secondary">
-        {secondaryNav.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link href={item.href} class="sidebar-link">
-              <Icon size={16} aria-hidden={true} />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+        <NavGroup id="other-nav-group" label="Other" placement="bottom">
+          {secondaryNav.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink href={item.href}>
+                <Icon size={16} aria-hidden={true} />
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </NavGroup>
+      </Navbar>
     </aside>
   );
 }
