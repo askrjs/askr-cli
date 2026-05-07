@@ -16,4 +16,3 @@ npx @askrjs/cli create startkit my-app
 cd my-app
 npm run dev
 ```
-

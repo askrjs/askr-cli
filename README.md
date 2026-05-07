@@ -31,4 +31,3 @@ Templates are stored in `templates/`.
 npx @askrjs/cli create startkit my-app
 npx @askrjs/cli ssg --config ./ssg.config.ts --output ./dist/static
 ```
-

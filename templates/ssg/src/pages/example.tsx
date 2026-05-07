@@ -19,8 +19,8 @@ export default function Example() {
     <>
       <h1>Component Showcase</h1>
       <p class="text-muted">
-        askr-ui headless components styled by askr-themes â€” working together out
-        of the box.
+        askr-ui headless components styled by askr-themes â€” working together
+        out of the box.
       </p>
 
       <Counter />
@@ -126,4 +126,3 @@ export default function Example() {
     </>
   );
 }
-

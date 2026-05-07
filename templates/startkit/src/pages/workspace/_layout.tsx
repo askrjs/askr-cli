@@ -1,6 +1,6 @@
-﻿import { SidebarLayout } from "@askrjs/themes/default/sidebar-layout";
-import AppHeader from "../../components/app-header";
-import AppSidebar from "../../components/app-sidebar";
+﻿import { SidebarLayout } from '@askrjs/themes/default/sidebar-layout';
+import AppHeader from '../../components/app-header';
+import AppSidebar from '../../components/app-sidebar';
 
 export default function AppLayout(props: { children?: unknown }) {
   return (
@@ -15,4 +15,3 @@ export default function AppLayout(props: { children?: unknown }) {
     </SidebarLayout>
   );
 }
-

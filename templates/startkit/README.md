@@ -174,4 +174,3 @@ When integrating backend services:
 1. Keep API calls and data transforms in src/lib.
 2. Preserve AbortController signal forwarding in async operations.
 3. Keep route guards and layout boundaries explicit in src/router.tsx.
-

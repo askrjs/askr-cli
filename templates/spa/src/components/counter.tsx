@@ -44,4 +44,3 @@ export default function Counter() {
     </Card>
   );
 }
-

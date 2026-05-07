@@ -26,12 +26,17 @@ export default function Home() {
       <Hero>
         <div class="home-hero">
           <div class="home-hero__content">
-            <HeroEyebrow class="home-kicker">Build the app shape first</HeroEyebrow>
-            <HeroTitle>Components, charts, and theming that already feel like one product.</HeroTitle>
+            <HeroEyebrow class="home-kicker">
+              Build the app shape first
+            </HeroEyebrow>
+            <HeroTitle>
+              Components, charts, and theming that already feel like one
+              product.
+            </HeroTitle>
             <HeroDescription>
-              {"{{appName}}"} is a compact Askr app shell with a real landing flow, a
-              focused component page, and interactive charts that prove the
-              packages work together without turning into a giant demo site.
+              {'{{appName}}'} is a compact Askr app shell with a real landing
+              flow, a focused component page, and interactive charts that prove
+              the packages work together without turning into a giant demo site.
             </HeroDescription>
             <HeroActions class="home-hero__actions">
               <HeroButton href="/components" variant="primary">
@@ -63,7 +68,9 @@ export default function Home() {
               </div>
               <div class="home-hero__artifact-item">
                 <strong>Themes</strong>
-                <span>Layout, shell, and content patterns that stay coherent.</span>
+                <span>
+                  Layout, shell, and content patterns that stay coherent.
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -173,8 +180,8 @@ export default function Home() {
             <p class="home-kicker">Start somewhere concrete</p>
             <h2>Open the component demos, then look at the charts.</h2>
             <p class="text-muted">
-              That path shows the app shell first, then the UI surface, then
-              the data surface without making the landing page do all the work.
+              That path shows the app shell first, then the UI surface, then the
+              data surface without making the landing page do all the work.
             </p>
           </div>
           <div class="home-cta__actions">
@@ -190,4 +197,3 @@ export default function Home() {
     </>
   );
 }
-

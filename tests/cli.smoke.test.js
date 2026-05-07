@@ -50,7 +50,7 @@ test("runCreateCli defaults to startkit when template is omitted", async () => {
     const routerFile = await fs.readFile(path.join(appRoot, "src", "router.tsx"), "utf8");
 
     expect(packageJson).toMatch(/"name": "sample-app"/);
-    expect(packageJson).toMatch(/"@askrjs\/askr-lucide"/);
+    expect(packageJson).toMatch(/"@askrjs\/lucide"/);
     expect(landingFile).toMatch(/Production-ready starter/);
     expect(routesFile).toMatch(/auth:\s*'guest'/);
     expect(routesFile).toMatch(/auth:\s*true/);
@@ -83,7 +83,10 @@ test("runCreateCli scaffolds SPA with the compact four-page app shell", async ()
     const mainFile = await fs.readFile(path.join(appRoot, "src", "main.tsx"), "utf8");
     const stylesFile = await fs.readFile(path.join(appRoot, "src", "styles.css"), "utf8");
     const homeFile = await fs.readFile(path.join(appRoot, "src", "pages", "home.tsx"), "utf8");
-    const componentsFile = await fs.readFile(path.join(appRoot, "src", "pages", "components.tsx"), "utf8");
+    const componentsFile = await fs.readFile(
+      path.join(appRoot, "src", "pages", "components.tsx"),
+      "utf8",
+    );
     const chartsFile = await fs.readFile(path.join(appRoot, "src", "pages", "charts.tsx"), "utf8");
 
     expect(appFile).toMatch(/ThemeProvider/);
@@ -92,14 +95,14 @@ test("runCreateCli scaffolds SPA with the compact four-page app shell", async ()
     expect(appFile).toMatch(/@askrjs\/themes\/components/);
     expect(appFile).toMatch(/MoonIcon/);
     expect(appFile).toMatch(/SunIcon/);
-    expect(appFile).toMatch(/toggleThemes=\{\["light", "dark"\]\}/);
+    expect(appFile).toMatch(/toggleThemes=\{\['light', 'dark'\]\}/);
     expect(appFile).toMatch(/Toggle color theme/);
-    expect(packageJson).toMatch(/"@askrjs\/askr-charts"/);
+    expect(packageJson).toMatch(/"@askrjs\/charts"/);
     expect(routesFile).toMatch(/route\('\/components', Components\);/);
     expect(routesFile).toMatch(/route\('\/charts', Charts\);/);
-    expect(mainFile).toMatch(/@askrjs\/askr-charts/);
-    expect(stylesFile).toMatch(/@import "\.\/styles\/components\.css"/);
-    expect(homeFile).toMatch(/A small app shell with a few real parts/);
+    expect(mainFile).toMatch(/@askrjs\/charts/);
+    expect(stylesFile).toMatch(/@import '\.\/styles\/components\.css'/);
+    expect(homeFile).toMatch(/compact Askr app shell with a real landing\s+flow/);
     expect(componentsFile).toMatch(/Shared state/);
     expect(chartsFile).toMatch(/A few interactive charts, kept intentionally compact/);
   } finally {

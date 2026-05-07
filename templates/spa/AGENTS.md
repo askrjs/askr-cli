@@ -46,4 +46,3 @@ tests/               # Vitest tests
 - Keep the SPA template compact; it should feel like a small app, not a framework catalog
 - Style with `--ak-*` tokens, never `--pico-*` or hardcoded colors
 - Prettier + ESLint enforced
-

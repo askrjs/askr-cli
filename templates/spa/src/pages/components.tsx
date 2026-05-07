@@ -40,8 +40,8 @@ export default function Components() {
             <p class="marketing-eyebrow">Components</p>
             <h1>A few controls, a little state, nothing more.</h1>
             <p class="marketing-lead text-muted">
-              This page keeps the demo intentionally small: tabs, accordion,
-              and one shared state value driving two controls.
+              This page keeps the demo intentionally small: tabs, accordion, and
+              one shared state value driving two controls.
             </p>
           </div>
         </section>
@@ -84,8 +84,8 @@ export default function Components() {
                 </TabsList>
                 <TabsContent value="reactive">
                   <p>
-                    <code>state()</code> updates only the parts of the page
-                    that read the current value.
+                    <code>state()</code> updates only the parts of the page that
+                    read the current value.
                   </p>
                 </TabsContent>
                 <TabsContent value="composition">
@@ -117,7 +117,9 @@ export default function Components() {
               <Accordion type="single" collapsible>
                 <AccordionItem value="size">
                   <AccordionHeader>
-                    <AccordionTrigger>Why keep this page small?</AccordionTrigger>
+                    <AccordionTrigger>
+                      Why keep this page small?
+                    </AccordionTrigger>
                   </AccordionHeader>
                   <AccordionContent>
                     <p>
@@ -128,7 +130,9 @@ export default function Components() {
                 </AccordionItem>
                 <AccordionItem value="reactivity">
                   <AccordionHeader>
-                    <AccordionTrigger>Where is the reactivity?</AccordionTrigger>
+                    <AccordionTrigger>
+                      Where is the reactivity?
+                    </AccordionTrigger>
                   </AccordionHeader>
                   <AccordionContent>
                     <p>
@@ -139,7 +143,9 @@ export default function Components() {
                 </AccordionItem>
                 <AccordionItem value="styling">
                   <AccordionHeader>
-                    <AccordionTrigger>What provides the styling?</AccordionTrigger>
+                    <AccordionTrigger>
+                      What provides the styling?
+                    </AccordionTrigger>
                   </AccordionHeader>
                   <AccordionContent>
                     <p>
@@ -169,7 +175,10 @@ export default function Components() {
           </CardHeader>
           <CardContent>
             <div class="example-controls">
-              <Toggle pressed={bold()} onPress={() => bold.set((value) => !value)}>
+              <Toggle
+                pressed={bold()}
+                onPress={() => bold.set((value) => !value)}
+              >
                 Bold
               </Toggle>
               <Input

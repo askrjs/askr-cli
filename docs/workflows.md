@@ -45,4 +45,3 @@ npm run preview
 - [create](./create.md)
 - [add](./add.md)
 - [SSG guide](https://github.com/askrjs/askr/tree/main/docs/guides/ssg.md)
-

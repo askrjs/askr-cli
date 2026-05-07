@@ -17,8 +17,8 @@ export default function About() {
             <p class="marketing-eyebrow">About this app</p>
             <h1>A starter-sized demo, not a framework tour.</h1>
             <p class="marketing-lead text-muted">
-              The goal is to show how an Askr app can feel cohesive with a
-              small set of routes, components, and charts.
+              The goal is to show how an Askr app can feel cohesive with a small
+              set of routes, components, and charts.
             </p>
           </div>
         </div>
@@ -57,7 +57,9 @@ export default function About() {
           </Card>
           <Card class="about-card" variant="raised">
             <CardHeader>
-              <div class="feature-card__icon">{<BarChart3Icon size={16} />}</div>
+              <div class="feature-card__icon">
+                {<BarChart3Icon size={16} />}
+              </div>
               <CardTitle>Real packages</CardTitle>
               <CardDescription>
                 The demos use the actual askr-ui and askr-charts packages from
