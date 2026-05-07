@@ -13,13 +13,13 @@
     "fmt": "npx vite-plus fmt \"src/**/*.{ts,tsx,css}\" \"server.ts\" \"tests/**/*.{ts,tsx}\" \"*.md\""
   },
   "dependencies": {
-    "@askrjs/askr": "0.1.0",
-    "@askrjs/ui": "0.0.1",
-    "@askrjs/themes": "0.1.0",
+    "@askrjs/askr": ">=0.0.34 <0.1.0",
+    "@askrjs/themes": ">=0.0.3 <0.1.0",
+    "@askrjs/ui": ">=0.0.5 <0.1.0",
     "express": "^5.2.1"
   },
   "devDependencies": {
-    "@askrjs/vite": "0.0.1",
+    "@askrjs/vite": ">=0.0.2 <0.1.0",
     "@types/express": "^5.0.6",
     "@types/node": "^25.5.0",
     "cross-env": "^10.1.0",

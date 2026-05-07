@@ -1,20 +1,20 @@
-import { defineConfig } from 'vite-plus';
+import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   pack: {
     entry: {
-      cli: 'src/bin/cli.js',
-      create: 'src/bin/create.js',
-      ssg: 'src/bin/ssg.js',
+      cli: "src/bin/cli.js",
+      create: "src/bin/create.js",
+      ssg: "src/bin/ssg.js",
     },
-    format: ['esm'],
-    outDir: 'dist',
-    platform: 'node',
+    format: ["esm"],
+    outDir: "dist",
+    platform: "node",
     outExtensions: () => ({
-      js: '.js',
+      js: ".js",
     }),
     sourcemap: true,
-    copy: ['templates'],
+    copy: ["templates"],
     deps: {
       neverBundle: [/^@askrjs\/askr(?:\/.*)?$/],
     },

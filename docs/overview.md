@@ -70,4 +70,3 @@ Generated code follows the [conventions](https://github.com/askrjs/askr/tree/mai
 - [create](./create.md) - full `create` command reference
 - [add](./add.md) - generator command reference
 - [workflows](./workflows.md) - common CLI workflows end to end
-

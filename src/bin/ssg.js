@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-import { resolve } from 'node:path';
-import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 function toFileUrl(filePath) {
-  const normalized = resolve(filePath).replace(/\\/g, '/');
-  const leadingSlash = normalized.startsWith('/') ? '' : '/';
+  const normalized = resolve(filePath).replace(/\\/g, "/");
+  const leadingSlash = normalized.startsWith("/") ? "" : "/";
   return `file://${leadingSlash}${encodeURI(normalized)}`;
 }
 
@@ -39,17 +39,17 @@ const defaultDeps = {
 };
 
 async function loadCreateStaticGen() {
-  const mod = await import('@askrjs/askr/ssg');
-  if (typeof mod.createStaticGen !== 'function') {
-    throw new Error('Failed to load createStaticGen from @askrjs/askr/ssg');
+  const mod = await import("@askrjs/askr/ssg");
+  if (typeof mod.createStaticGen !== "function") {
+    throw new Error("Failed to load createStaticGen from @askrjs/askr/ssg");
   }
   return mod.createStaticGen;
 }
 
 export function parseCliArgs(args) {
   const parsed = {
-    configPath: '',
-    outputDir: '',
+    configPath: "",
+    outputDir: "",
     workers: 1,
     incremental: false,
     changedKeys: [],
@@ -59,26 +59,26 @@ export function parseCliArgs(args) {
   };
 
   for (let i = 0; i < args.length; i += 1) {
-    if (args[i] === '--config' && i + 1 < args.length) {
+    if (args[i] === "--config" && i + 1 < args.length) {
       parsed.configPath = args[i + 1];
       i += 1;
-    } else if (args[i] === '--output' && i + 1 < args.length) {
+    } else if (args[i] === "--output" && i + 1 < args.length) {
       parsed.outputDir = args[i + 1];
       i += 1;
-    } else if (args[i] === '--workers' && i + 1 < args.length) {
-      parsed.workers = args[i + 1] === 'auto' ? 'auto' : Number(args[i + 1]);
+    } else if (args[i] === "--workers" && i + 1 < args.length) {
+      parsed.workers = args[i + 1] === "auto" ? "auto" : Number(args[i + 1]);
       i += 1;
-    } else if (args[i] === '--changed-key' && i + 1 < args.length) {
+    } else if (args[i] === "--changed-key" && i + 1 < args.length) {
       parsed.changedKeys.push(args[i + 1]);
       i += 1;
-    } else if (args[i] === '--changed-route' && i + 1 < args.length) {
+    } else if (args[i] === "--changed-route" && i + 1 < args.length) {
       parsed.changedRoutes.push(args[i + 1]);
       i += 1;
-    } else if (args[i] === '--incremental') {
+    } else if (args[i] === "--incremental") {
       parsed.incremental = true;
-    } else if (args[i] === '--force-full') {
+    } else if (args[i] === "--force-full") {
       parsed.forceFull = true;
-    } else if (args[i] === '--help' || args[i] === '-h') {
+    } else if (args[i] === "--help" || args[i] === "-h") {
       parsed.help = true;
     }
   }
@@ -88,7 +88,7 @@ export function parseCliArgs(args) {
 
 function toGenerateOptions(args) {
   return {
-    mode: args.incremental ? 'incremental' : 'full',
+    mode: args.incremental ? "incremental" : "full",
     changedKeys: args.changedKeys,
     changedRoutes: args.changedRoutes,
     forceFull: args.forceFull,
@@ -96,7 +96,7 @@ function toGenerateOptions(args) {
 }
 
 function printSummary(io, outputDir, durationSeconds, result) {
-  io.log('');
+  io.log("");
   io.log(`Generation complete in ${durationSeconds}s`);
   io.log(`   Mode:      ${result.mode}`);
   io.log(`   Generated: ${result.successful}/${result.totalRoutes} routes`);
@@ -107,14 +107,10 @@ function printSummary(io, outputDir, durationSeconds, result) {
   io.log(`   CacheHit:  ${result.cacheHits} routes`);
   io.log(`   Output:    ${outputDir}`);
   io.log(`   Metadata:  ${outputDir}/metadata.json`);
-  io.log('');
+  io.log("");
 }
 
-export async function runSsgCli(
-  args = process.argv.slice(2),
-  deps = {},
-  io = console
-) {
+export async function runSsgCli(args = process.argv.slice(2), deps = {}, io = console) {
   const parsed = parseCliArgs(args);
   if (parsed.help) {
     io.log(helpText);
@@ -122,17 +118,17 @@ export async function runSsgCli(
   }
 
   if (!parsed.configPath) {
-    io.error('Error: --config argument is required');
+    io.error("Error: --config argument is required");
     return 1;
   }
 
-  if (!parsed.configPath.endsWith('.ts')) {
-    io.error('Error: --config must point to a TypeScript file (.ts)');
+  if (!parsed.configPath.endsWith(".ts")) {
+    io.error("Error: --config must point to a TypeScript file (.ts)");
     return 1;
   }
 
   if (!parsed.outputDir) {
-    io.error('Error: --output argument is required');
+    io.error("Error: --output argument is required");
     return 1;
   }
 
@@ -152,14 +148,14 @@ export async function runSsgCli(
     const config = configModule.default || configModule;
 
     if (!Array.isArray(config.routes)) {
-      io.error('Error: Config must export routes array');
+      io.error("Error: Config must export routes array");
       return 1;
     }
 
     io.log(`Generating ${config.routes.length} routes...`);
 
     const createStaticGen =
-      typeof resolvedDeps.createStaticGen === 'function'
+      typeof resolvedDeps.createStaticGen === "function"
         ? resolvedDeps.createStaticGen
         : await loadCreateStaticGen();
 
@@ -179,19 +175,19 @@ export async function runSsgCli(
     printSummary(io, resolvedOutputDir, duration, result);
 
     if (result.failed > 0) {
-      io.log('Errors encountered:');
+      io.log("Errors encountered:");
       for (const route of result.routes) {
-        if (route.status === 'error') {
+        if (route.status === "error") {
           io.log(`   ${route.path}: ${route.error}`);
         }
       }
-      io.log('');
+      io.log("");
       return 1;
     }
 
     return 0;
   } catch (error) {
-    io.error('Generation failed:');
+    io.error("Generation failed:");
     io.error(error instanceof Error ? error.message : String(error));
     if (error instanceof Error && error.stack) {
       io.error(error.stack);
@@ -205,7 +201,7 @@ async function main() {
   process.exit(code);
 }
 
-const invokedPath = process.argv[1] ? resolve(process.argv[1]) : '';
+const invokedPath = process.argv[1] ? resolve(process.argv[1]) : "";
 const thisPath = fileURLToPath(import.meta.url);
 if (invokedPath && thisPath === invokedPath) {
   void main();

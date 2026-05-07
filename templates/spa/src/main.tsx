@@ -15,4 +15,3 @@ createSPA({
 
 // Resolve initial route
 navigate(window.location.pathname);
-

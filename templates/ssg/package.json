@@ -14,12 +14,12 @@
     "fmt": "npx vite-plus fmt \"src/**/*.{ts,tsx,css}\" \"tests/**/*.{ts,tsx}\" \"*.md\""
   },
   "dependencies": {
-    "@askrjs/askr": "0.1.0",
-    "@askrjs/ui": "0.0.1",
-    "@askrjs/themes": "0.1.0"
+    "@askrjs/askr": ">=0.0.34 <0.1.0",
+    "@askrjs/themes": ">=0.0.3 <0.1.0",
+    "@askrjs/ui": ">=0.0.5 <0.1.0"
   },
   "devDependencies": {
-    "@askrjs/vite": "0.0.1",
+    "@askrjs/vite": ">=0.0.2 <0.1.0",
     "@types/node": "^25.5.0",
     "jiti": "^2.6.1",
     "jsdom": "^29.0.1",

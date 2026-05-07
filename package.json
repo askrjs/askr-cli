@@ -2,31 +2,28 @@
   "name": "@askrjs/cli",
   "version": "0.0.1",
   "description": "Unified CLI for the askr platform",
-  "type": "module",
-  "license": "Apache-2.0",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/askrjs/askr-cli.git"
-  },
   "homepage": "https://github.com/askrjs/askr-cli#readme",
   "bugs": {
     "url": "https://github.com/askrjs/askr-cli/issues"
   },
+  "license": "Apache-2.0",
   "author": {
     "name": "askrjs",
     "url": "https://github.com/askrjs"
   },
-  "engines": {
-    "node": ">=18"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/askrjs/askr-cli.git"
   },
   "bin": {
     "askr-cli": "./dist/cli.js",
-    "askr-ssg": "./dist/ssg.js",
-    "askr-create": "./dist/create.js"
+    "askr-create": "./dist/create.js",
+    "askr-ssg": "./dist/ssg.js"
   },
   "files": [
     "dist"
   ],
+  "type": "module",
   "publishConfig": {
     "access": "public"
   },
@@ -45,8 +42,11 @@
     "@askrjs/askr": ">=0.0.30 <0.1.0"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0",
     "@askrjs/vite": ">=0.0.1 <0.1.0",
+    "@types/node": "^25.6.0",
     "vite-plus": "^0.1.20"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

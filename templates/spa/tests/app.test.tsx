@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vite-plus/test";
+import { describe, it, expect } from 'vite-plus/test';
 
-describe("App Component", () => {
-  it("renders layout with navigation and a theme toggle", () => {
+describe('App Component', () => {
+  it('renders layout with navigation and a theme toggle', () => {
     const app = `
       <div data-slot="theme-provider" data-theme="light">
         <header data-slot="header">

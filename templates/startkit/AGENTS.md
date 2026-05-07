@@ -54,4 +54,3 @@ tests/               # Vitest tests
 - Prefer subtle borders over heavy shadows or decorative effects
 - Ensure consistent hover/focus-visible/disabled/empty/error treatment across components
 - Prettier + ESLint enforced
-

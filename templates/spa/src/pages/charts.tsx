@@ -92,8 +92,8 @@ export default function Charts() {
             <p class="marketing-eyebrow">Charts</p>
             <h1>A few interactive charts, kept intentionally compact.</h1>
             <p class="marketing-lead text-muted">
-              Switch the dataset and animation state to see the same page
-              update without turning into a chart catalog.
+              Switch the dataset and animation state to see the same page update
+              without turning into a chart catalog.
             </p>
           </div>
         </section>
