@@ -30,12 +30,12 @@ export default function App({ children }: { children?: unknown }) {
                 <strong>{'{{appName}}'}</strong>
               </Link>
             </NavBrand>
-            <NavGroup data-align="center">
+            <NavGroup align="center">
               <NavLink href="/components">Components</NavLink>
               <NavLink href="/charts">Charts</NavLink>
               <NavLink href="/about">About</NavLink>
             </NavGroup>
-            <NavGroup data-align="end">
+            <NavGroup align="end">
               <a
                 href="https://github.com/askrjs"
                 aria-label="GitHub repository"

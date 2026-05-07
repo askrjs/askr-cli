@@ -48,6 +48,10 @@ test("runCreateCli defaults to startkit when template is omitted", async () => {
     const landingFile = await fs.readFile(path.join(appRoot, "src", "pages", "home.tsx"), "utf8");
     const routesFile = await fs.readFile(path.join(appRoot, "src", "routes", "index.ts"), "utf8");
     const routerFile = await fs.readFile(path.join(appRoot, "src", "router.tsx"), "utf8");
+    const sidebarFile = await fs.readFile(
+      path.join(appRoot, "src", "components", "app-sidebar.tsx"),
+      "utf8",
+    );
 
     expect(packageJson).toMatch(/"name": "sample-app"/);
     expect(packageJson).toMatch(/"@askrjs\/lucide"/);
@@ -58,6 +62,9 @@ test("runCreateCli defaults to startkit when template is omitted", async () => {
     expect(routesFile).toMatch(/fallback\(/);
     expect(routerFile).toMatch(/registerRoutes/);
     expect(routerFile).toMatch(/auth:\s*routeAuth/);
+    expect(sidebarFile).toMatch(/Navbar orientation="vertical"/);
+    expect(sidebarFile).toMatch(/NavGroup id="workspace-nav-group" label="Workspace"/);
+    expect(sidebarFile).toMatch(/placement="bottom"/);
   } finally {
     process.chdir(previousCwd);
     await fs.rm(tempRoot, { recursive: true, force: true });
