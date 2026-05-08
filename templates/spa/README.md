@@ -93,7 +93,7 @@ function Counter() {
 
 - A shared app shell with `NavLink` navigation and theme toggle
 - Two small landing pages for home and about
-- A compact components page with tabs, accordion, toggle, input, and reactive counter
+- A compact components page with accordion, toggle, input, and reactive counter
 - A compact charts page with bar, donut, and heatmap demos
 
 ## Development Commands

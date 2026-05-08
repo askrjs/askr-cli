@@ -1,5 +1,4 @@
 ﻿import { state } from '@askrjs/askr';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@askrjs/ui/tabs';
 import {
   Accordion,
   AccordionItem,
@@ -26,36 +25,21 @@ export default function Example() {
       <Counter />
 
       <div class="showcase-section">
-        <h3>Tabs</h3>
-        <Tabs defaultValue="overview">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="code">Code</TabsTrigger>
-            <TabsTrigger value="api">API</TabsTrigger>
-          </TabsList>
-          <TabsContent value="overview">
-            <p>
-              Askr uses <code>state()</code> for reactive values that
-              automatically track dependencies and update only the DOM nodes
-              that need to change.
-            </p>
-          </TabsContent>
-          <TabsContent value="code">
-            <p>
-              Create reactive state with{' '}
-              <code>const [count, setCount] = state(0)</code>, read with{' '}
-              <code>count()</code>, and update with{' '}
-              <code>setCount(n =&gt; n + 1)</code>.
-            </p>
-          </TabsContent>
-          <TabsContent value="api">
-            <p>
-              Core primitives: <code>state()</code>, <code>derive()</code>,{' '}
-              <code>selector()</code>, <code>resource()</code>, and{' '}
-              <code>For</code>.
-            </p>
-          </TabsContent>
-        </Tabs>
+        <h3>Reactivity</h3>
+        <p>
+          Askr uses <code>state()</code> for reactive values that automatically
+          track dependencies and update only the DOM nodes that need to change.
+        </p>
+        <p>
+          Create reactive state with{' '}
+          <code>const [count, setCount] = state(0)</code>, read with{' '}
+          <code>count()</code>, and update with{' '}
+          <code>setCount(n =&gt; n + 1)</code>.
+        </p>
+        <p>
+          Core primitives: <code>state()</code>, <code>derive()</code>,{' '}
+          <code>selector()</code>, <code>resource()</code>, and <code>For</code>.
+        </p>
       </div>
 
       <div class="showcase-section">
