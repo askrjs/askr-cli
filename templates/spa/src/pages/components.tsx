@@ -1,5 +1,4 @@
 ﻿import { state } from '@askrjs/askr';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@askrjs/ui';
 import {
   Accordion,
   AccordionContent,
@@ -11,7 +10,6 @@ import { Input } from '@askrjs/ui/primitives/input';
 import { Toggle } from '@askrjs/ui/primitives/toggle';
 import {
   BookOpenIcon,
-  LayoutGridIcon,
   ListIcon,
   SparklesIcon,
   ToggleLeftIcon,
@@ -40,7 +38,7 @@ export default function Components() {
             <p class="marketing-eyebrow">Components</p>
             <h1>A few controls, a little state, nothing more.</h1>
             <p class="marketing-lead text-muted">
-              This page keeps the demo intentionally small: tabs, accordion, and
+              This page keeps the demo intentionally small: accordion, toggle, and
               one shared state value driving two controls.
             </p>
           </div>
@@ -55,52 +53,34 @@ export default function Components() {
             <CardHeader>
               <CardTitle>
                 <Inline as="span" align="center" gap="2">
-                  <LayoutGridIcon size={16} />
-                  <span>Tabs</span>
+                  <SparklesIcon size={16} />
+                  <span>Composition</span>
                 </Inline>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="reactive">
-                <TabsList>
-                  <TabsTrigger value="reactive">
-                    <Inline as="span" align="center" gap="1">
-                      <SparklesIcon size={14} />
-                      <span>Reactive</span>
-                    </Inline>
-                  </TabsTrigger>
-                  <TabsTrigger value="composition">
-                    <Inline as="span" align="center" gap="1">
-                      <BookOpenIcon size={14} />
-                      <span>Composition</span>
-                    </Inline>
-                  </TabsTrigger>
-                  <TabsTrigger value="theme">
-                    <Inline as="span" align="center" gap="1">
-                      <LayoutGridIcon size={14} />
-                      <span>Theme</span>
-                    </Inline>
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="reactive">
-                  <p>
-                    <code>state()</code> updates only the parts of the page that
-                    read the current value.
-                  </p>
-                </TabsContent>
-                <TabsContent value="composition">
-                  <p>
-                    askr-ui provides the structure while the app chooses how
-                    much UI to assemble.
-                  </p>
-                </TabsContent>
-                <TabsContent value="theme">
-                  <p>
-                    askr-themes styles the shared slots so the components look
-                    like part of the same app shell.
-                  </p>
-                </TabsContent>
-              </Tabs>
+              <div class="stack gap-3">
+                <p>
+                  <Inline as="span" align="center" gap="1">
+                    <SparklesIcon size={14} />
+                    <strong>Reactive</strong>
+                  </Inline>
+                </p>
+                <p>
+                  <code>state()</code> updates only the parts of the page that
+                  read the current value.
+                </p>
+                <p>
+                  <Inline as="span" align="center" gap="1">
+                    <BookOpenIcon size={14} />
+                    <strong>Composition</strong>
+                  </Inline>
+                </p>
+                <p>
+                  askr-ui provides the structure while the app chooses how much
+                  UI to assemble.
+                </p>
+              </div>
             </CardContent>
           </Card>
 

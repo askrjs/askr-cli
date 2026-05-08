@@ -61,7 +61,7 @@ export default function About() {
         </p>
         <p>
           <strong>askr-ui</strong> — headless, accessible UI components. Button,
-          Tabs, Accordion, Dialog, and 30+ more. All interaction logic, no
+          Accordion, Dialog, and 30+ more. All interaction logic, no
           opinions on style.
         </p>
         <p>
