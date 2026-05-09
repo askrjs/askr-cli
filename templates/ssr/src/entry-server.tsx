@@ -1,8 +1,8 @@
-import { renderToString } from '@askrjs/askr/ssr';
-import { getRoutes } from '@askrjs/askr/router';
+import { renderToString } from "@askrjs/askr/ssr";
+import { getRoutes } from "@askrjs/askr/router";
 
 // Import routes (they auto-register)
-import './routes';
+import "./routes";
 
 export async function render(url: string) {
   return renderToString({

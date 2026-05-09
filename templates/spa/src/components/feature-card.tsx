@@ -4,11 +4,7 @@ type FeatureCardProps = {
   children?: unknown;
 };
 
-export default function FeatureCard({
-  icon,
-  title,
-  children,
-}: FeatureCardProps) {
+export default function FeatureCard({ icon, title, children }: FeatureCardProps) {
   return (
     <article class="feature-card panel">
       <div class="feature-card__icon">{icon}</div>

@@ -70,7 +70,7 @@ vitest.config.ts    # Vitest config
 In `server.ts`, render the app on each request:
 
 ```tsx
-app.get('*', async (req, res) => {
+app.get("*", async (req, res) => {
   setServerLocation(req.url); // Tell currentRoute() the current URL
 
   const html = await renderToString(
@@ -82,10 +82,10 @@ app.get('*', async (req, res) => {
         <script type="module" src="/main.tsx"></script>
       </body>
     </html>,
-    { routes: getRoutes() }
+    { routes: getRoutes() },
   );
 
-  res.send('<!DOCTYPE html>' + html);
+  res.send("<!DOCTYPE html>" + html);
 });
 ```
 
@@ -94,10 +94,10 @@ app.get('*', async (req, res) => {
 In `src/main.tsx`, hydrate the pre-rendered HTML:
 
 ```tsx
-import { hydrateSPA, getRoutes } from '@askrjs/askr';
+import { hydrateSPA, getRoutes } from "@askrjs/askr";
 
 hydrateSPA({
-  root: 'app',
+  root: "app",
   routes: getRoutes(),
 });
 ```
@@ -109,11 +109,11 @@ This **attaches** to existing DOM instead of creating new DOM.
 Same as SPA - declarative route registration:
 
 ```tsx
-import { route } from '@askrjs/askr';
+import { route } from "@askrjs/askr";
 
-route('/', () => <Home />);
-route('/about', () => <About />);
-route('/users/{id}', ({ id }) => <UserDetail id={id} />);
+route("/", () => <Home />);
+route("/about", () => <About />);
+route("/users/{id}", ({ id }) => <UserDetail id={id} />);
 ```
 
 Read current route with `currentRoute()`:
@@ -130,7 +130,7 @@ function Page() {
 Same as SPA:
 
 ```tsx
-import { state } from '@askrjs/askr';
+import { state } from "@askrjs/askr";
 
 function Counter() {
   const count = state(0); // Works on server AND client
@@ -163,14 +163,14 @@ Example - fetch on server, pass to client:
 
 ```tsx
 // server.ts
-app.get('*', async (req, res) => {
-  const user = await fetch('/api/user').then((r) => r.json());
+app.get("*", async (req, res) => {
+  const user = await fetch("/api/user").then((r) => r.json());
 
   const html = await renderToString(
-    <App user={user} /> // Pass pre-fetched data
+    <App user={user} />, // Pass pre-fetched data
   );
 
-  res.send('<!DOCTYPE html>' + html);
+  res.send("<!DOCTYPE html>" + html);
 });
 ```
 
@@ -217,14 +217,14 @@ NODE_ENV=production npm run preview
 
 ```tsx
 // server.ts
-app.get('*', async (req, res) => {
-  const data = await fetch('/api/initial-data').then((r) => r.json());
+app.get("*", async (req, res) => {
+  const data = await fetch("/api/initial-data").then((r) => r.json());
 
   const html = await renderToString(<App initialData={data} />, {
     routes: getRoutes(),
   });
 
-  res.send('<!DOCTYPE html>' + html);
+  res.send("<!DOCTYPE html>" + html);
 });
 ```
 
@@ -232,11 +232,11 @@ app.get('*', async (req, res) => {
 
 ```tsx
 // src/pages/users.tsx
-import { resource } from '@askrjs/askr/resources';
+import { resource } from "@askrjs/askr/resources";
 
 export default function Users() {
   const users = resource(async ({ signal }) => {
-    const res = await fetch('/api/users', { signal });
+    const res = await fetch("/api/users", { signal });
     return res.json();
   }, []); // No deps = fetch once
 

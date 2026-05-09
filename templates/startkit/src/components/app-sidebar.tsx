@@ -1,24 +1,24 @@
-﻿import { Link } from '@askrjs/askr/router';
+import { Link } from "@askrjs/askr/router";
 import {
   LayoutDashboardIcon,
   UsersIcon,
   SettingsIcon,
   LayersIcon,
   ShieldCheckIcon,
-} from '@askrjs/lucide';
-import { NavBrand, NavGroup, NavLink, Navbar } from '@askrjs/themes/components';
+} from "@askrjs/lucide";
+import { NavBrand, NavGroup, NavLink, Navbar } from "@askrjs/themes/components";
 import {
   accountsRoute,
   dashboardRoute,
   landingRoute,
   loginRoute,
   settingsRoute,
-} from '../lib/routes';
+} from "../lib/routes";
 
 type NavItem = {
   href: string;
   label: string;
-  icon: (props: { size?: number; 'aria-hidden'?: boolean }) => unknown;
+  icon: (props: { size?: number; "aria-hidden"?: boolean }) => unknown;
 };
 
 const primaryNav: NavItem[] = [
@@ -40,8 +40,8 @@ const primaryNav: NavItem[] = [
 ];
 
 const secondaryNav: NavItem[] = [
-  { href: landingRoute.href, label: 'Marketing site', icon: LayersIcon },
-  { href: loginRoute.href, label: 'Auth entry', icon: ShieldCheckIcon },
+  { href: landingRoute.href, label: "Marketing site", icon: LayersIcon },
+  { href: loginRoute.href, label: "Auth entry", icon: ShieldCheckIcon },
 ];
 
 export default function AppSidebar() {
@@ -54,7 +54,7 @@ export default function AppSidebar() {
               A
             </span>
             <div>
-              <p class="sidebar-title">{'{{appName}}'}</p>
+              <p class="sidebar-title">{"{{appName}}"}</p>
               <p class="sidebar-subtitle">Starter Kit</p>
             </div>
           </Link>

@@ -33,19 +33,19 @@ Routes are registered declaratively at module load time:
 
 ```tsx
 // src/routes.tsx
-import { group, registerRoutes, route } from '@askrjs/askr/router';
-import AppLayout from './app';
-import Home from './pages/home';
-import About from './pages/about';
-import Components from './pages/components';
-import Charts from './pages/charts';
+import { group, registerRoutes, route } from "@askrjs/askr/router";
+import AppLayout from "./app";
+import Home from "./pages/home";
+import About from "./pages/about";
+import Components from "./pages/components";
+import Charts from "./pages/charts";
 
 registerRoutes(() => {
   group({ layout: AppLayout }, () => {
-    route('/', Home);
-    route('/about', About);
-    route('/components', Components);
-    route('/charts', Charts);
+    route("/", Home);
+    route("/about", About);
+    route("/components", Components);
+    route("/charts", Charts);
   });
 });
 ```
@@ -53,7 +53,7 @@ registerRoutes(() => {
 Navigate with the `Link` component:
 
 ```tsx
-import { Link } from '@askrjs/askr/router';
+import { Link } from "@askrjs/askr/router";
 
 <nav>
   <Link href="/">Home</Link>
@@ -68,7 +68,7 @@ import { Link } from '@askrjs/askr/router';
 Create reactive values that trigger re-renders when updated:
 
 ```tsx
-import { state } from '@askrjs/askr';
+import { state } from "@askrjs/askr";
 
 function Counter() {
   const count = state(0);
@@ -132,22 +132,16 @@ Deploy the `dist/` folder to any static host:
 
 ```tsx
 function Form() {
-  const email = state('');
+  const email = state("");
 
-  return (
-    <input
-      value={email()}
-      onInput={(e) => email.set(e.target.value)}
-      type="email"
-    />
-  );
+  return <input value={email()} onInput={(e) => email.set(e.target.value)} type="email" />;
 }
 ```
 
 ### Derived State
 
 ```tsx
-import { derive } from '@askrjs/askr';
+import { derive } from "@askrjs/askr";
 
 function Total() {
   const items = state([1, 2, 3]);

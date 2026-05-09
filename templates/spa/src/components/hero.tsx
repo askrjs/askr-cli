@@ -1,34 +1,28 @@
-﻿import { Link, type LinkProps } from '@askrjs/askr/router';
-import {
-  Button,
-  Flex,
-  Section,
-  Stack,
-  type ButtonProps,
-} from '@askrjs/themes/components';
+import { Link, type LinkProps } from "@askrjs/askr/router";
+import { Button, Flex, Section, Stack, type ButtonProps } from "@askrjs/themes/components";
 
 type HeroProps = {
   children?: unknown;
 };
 
-type HeroTextProps = Omit<JSX.IntrinsicElements['p'], 'children'> & {
+type HeroTextProps = Omit<JSX.IntrinsicElements["p"], "children"> & {
   children?: unknown;
 };
 
-type HeroTitleProps = Omit<JSX.IntrinsicElements['h1'], 'children'> & {
+type HeroTitleProps = Omit<JSX.IntrinsicElements["h1"], "children"> & {
   children?: unknown;
 };
 
-type HeroActionsProps = Omit<JSX.IntrinsicElements['div'], 'children'> & {
+type HeroActionsProps = Omit<JSX.IntrinsicElements["div"], "children"> & {
   children?: unknown;
 };
 
-type HeroButtonProps = Omit<LinkProps, 'children' | 'class'> & {
+type HeroButtonProps = Omit<LinkProps, "children" | "class"> & {
   href: string;
   children?: unknown;
   class?: string;
-  variant?: ButtonProps['variant'];
-  size?: ButtonProps['size'];
+  variant?: ButtonProps["variant"];
+  size?: ButtonProps["size"];
 };
 
 export default function Hero({ children }: HeroProps) {
@@ -47,13 +41,8 @@ export function HeroTitle({ children, ...rest }: HeroTitleProps) {
   return <h1 {...rest}>{children}</h1>;
 }
 
-export function HeroDescription({
-  children,
-  class: className,
-  ...rest
-}: HeroTextProps) {
-  const classes =
-    [className, 'text-muted'].filter(Boolean).join(' ') || undefined;
+export function HeroDescription({ children, class: className, ...rest }: HeroTextProps) {
+  const classes = [className, "text-muted"].filter(Boolean).join(" ") || undefined;
   return (
     <p {...rest} class={classes}>
       {children}
@@ -73,14 +62,12 @@ export function HeroButton({
   children,
   class: className,
   href,
-  variant = 'primary',
-  size = 'lg',
+  variant = "primary",
+  size = "lg",
   ...linkProps
 }: HeroButtonProps) {
   const variantClass = variant ? `hero-button--${variant}` : undefined;
-  const classes = ['hero-button', variantClass, className]
-    .filter(Boolean)
-    .join(' ');
+  const classes = ["hero-button", variantClass, className].filter(Boolean).join(" ");
 
   return (
     <Button asChild variant={variant} size={size}>

@@ -1,5 +1,5 @@
-﻿import { MoonIcon, SunIcon } from '@askrjs/lucide';
-import { Link } from '@askrjs/askr/router';
+import { MoonIcon, SunIcon } from "@askrjs/lucide";
+import { Link } from "@askrjs/askr/router";
 import {
   Badge,
   Container,
@@ -15,7 +15,7 @@ import {
   Stack,
   ThemeProvider,
   ThemeToggle,
-} from '@askrjs/themes/components';
+} from "@askrjs/themes/components";
 
 export default function App({ children }: { children?: unknown }) {
   const year = new Date().getFullYear();
@@ -27,7 +27,7 @@ export default function App({ children }: { children?: unknown }) {
           <Navbar aria-label="Primary">
             <NavBrand>
               <Link href="/">
-                <strong>{'{{appName}}'}</strong>
+                <strong>{"{{appName}}"}</strong>
               </Link>
             </NavBrand>
             <NavGroup align="center">
@@ -36,16 +36,13 @@ export default function App({ children }: { children?: unknown }) {
               <NavLink href="/about">About</NavLink>
             </NavGroup>
             <NavGroup align="end">
-              <a
-                href="https://github.com/askrjs"
-                aria-label="GitHub repository"
-              >
+              <a href="https://github.com/askrjs" aria-label="GitHub repository">
                 <GitHubLogo size={20} />
               </a>
               <ThemeToggle
                 variant="ghost"
                 size="icon"
-                toggleThemes={['light', 'dark']}
+                toggleThemes={["light", "dark"]}
                 aria-label="Toggle color theme"
                 lightIcon={<SunIcon size={20} aria-hidden="true" />}
                 darkIcon={<MoonIcon size={20} aria-hidden="true" />}
@@ -63,11 +60,11 @@ export default function App({ children }: { children?: unknown }) {
             <Stack gap="md">
               <p class="text-bold text-muted">Askr ecosystem</p>
               <Link href="/" class="text-bold">
-                <strong>{'{{appName}}'}</strong>
+                <strong>{"{{appName}}"}</strong>
               </Link>
               <p class="text-muted">
-                Fast, composable UI foundations for building apps, charts, and
-                themed interfaces with a small, coherent surface area.
+                Fast, composable UI foundations for building apps, charts, and themed interfaces
+                with a small, coherent surface area.
               </p>
               <Flex wrap="wrap" gap="sm" aria-label="Core packages">
                 <Badge class="gap-1">askr</Badge>
@@ -92,11 +89,7 @@ export default function App({ children }: { children?: unknown }) {
               <h3 class="text-bold">Project</h3>
               <Stack asChild gap="none">
                 <nav aria-label="Footer project">
-                  <a
-                    href="https://github.com/askrjs"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
+                  <a href="https://github.com/askrjs" target="_blank" rel="noreferrer">
                     GitHub
                   </a>
                   <a
@@ -106,11 +99,7 @@ export default function App({ children }: { children?: unknown }) {
                   >
                     Packages
                   </a>
-                  <a
-                    href="https://github.com/askrjs/repositories"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
+                  <a href="https://github.com/askrjs/repositories" target="_blank" rel="noreferrer">
                     Repositories
                   </a>
                 </nav>
@@ -123,7 +112,7 @@ export default function App({ children }: { children?: unknown }) {
           <Flex wrap="wrap" class="text-muted" justify="between" gap="sm">
             <span>Built with Askr.</span>
             <span>
-              &copy; {year} {'{{appName}}'}.
+              &copy; {year} {"{{appName}}"}.
             </span>
           </Flex>
         </Container>

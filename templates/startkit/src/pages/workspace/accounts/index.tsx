@@ -1,5 +1,5 @@
-﻿import { state } from '@askrjs/askr';
-import { resource } from '@askrjs/askr/resources';
+import { state } from "@askrjs/askr";
+import { resource } from "@askrjs/askr/resources";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,25 +10,25 @@ import {
   AlertDialogPortal,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@askrjs/ui/alert-dialog';
-import { Button } from '@askrjs/ui/button';
-import { Inline } from '@askrjs/ui/inline';
-import { Pagination } from '@askrjs/ui/pagination';
-import { ArchiveIcon, PlusIcon } from '@askrjs/lucide';
-import PageHeader from '../../../components/page-header';
-import AccountFilters from '../../../features/accounts/account-filters';
-import AccountTable from '../../../features/accounts/account-table';
+} from "@askrjs/ui/alert-dialog";
+import { Button } from "@askrjs/ui/button";
+import { Inline } from "@askrjs/ui/inline";
+import { Pagination } from "@askrjs/ui/pagination";
+import { ArchiveIcon, PlusIcon } from "@askrjs/lucide";
+import PageHeader from "../../../components/page-header";
+import AccountFilters from "../../../features/accounts/account-filters";
+import AccountTable from "../../../features/accounts/account-table";
 import {
   archiveAccounts,
   listAccounts,
   type AccountRecord,
   type AccountStatus,
-} from '../../../lib/mock-data';
-import { showToast } from '../../../toast';
+} from "../../../lib/mock-data";
+import { showToast } from "../../../toast";
 
 export default function AccountsPage() {
-  const [queryState, setQueryState] = state('');
-  const [statusState, setStatusState] = state<AccountStatus | 'all'>('all');
+  const [queryState, setQueryState] = state("");
+  const [statusState, setStatusState] = state<AccountStatus | "all">("all");
   const [pageState, setPageState] = state(1);
   const [selectedIdsState, setSelectedIdsState] = state<string[]>([]);
   const [archivingState, setArchivingState] = state(false);
@@ -44,7 +44,7 @@ export default function AccountsPage() {
         page: pageState(),
         pageSize,
       }),
-    [queryState(), statusState(), pageState()]
+    [queryState(), statusState(), pageState()],
   );
 
   const rows = () => accountsResource.value?.items ?? [];
@@ -52,15 +52,13 @@ export default function AccountsPage() {
 
   const toggleRow = (id: string) => {
     setSelectedIdsState((current) =>
-      current.includes(id)
-        ? current.filter((value) => value !== id)
-        : [...current, id]
+      current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
     );
   };
 
   const resetFilters = () => {
-    setQueryState('');
-    setStatusState('all');
+    setQueryState("");
+    setStatusState("all");
     setPageState(1);
   };
 
@@ -82,17 +80,14 @@ export default function AccountsPage() {
       const result = await archiveAccounts({ ids: selectedIdsState() });
       setSelectedIdsState([]);
       showToast({
-        title: 'Accounts archived',
+        title: "Accounts archived",
         description: `${result.archived} account records moved to archived status.`,
       });
       await accountsResource.refresh();
     } catch (error) {
       showToast({
-        title: 'Archive failed',
-        description:
-          error instanceof Error
-            ? error.message
-            : 'Could not archive selected rows.',
+        title: "Archive failed",
+        description: error instanceof Error ? error.message : "Could not archive selected rows.",
       });
     } finally {
       setArchivingState(false);
@@ -108,9 +103,8 @@ export default function AccountsPage() {
           <Button
             onPress={() =>
               showToast({
-                title: 'Create account',
-                description:
-                  'Wire this button into your real create-account form flow.',
+                title: "Create account",
+                description: "Wire this button into your real create-account form flow.",
               })
             }
           >
@@ -148,10 +142,7 @@ export default function AccountsPage() {
 
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button
-                disabled={selectedIdsState().length === 0}
-                class="button-secondary"
-              >
+              <Button disabled={selectedIdsState().length === 0} class="button-secondary">
                 <ArchiveIcon size={14} aria-hidden="true" /> Archive selected
               </Button>
             </AlertDialogTrigger>
@@ -167,11 +158,8 @@ export default function AccountsPage() {
                     <Button class="button-secondary">Cancel</Button>
                   </AlertDialogCancel>
                   <AlertDialogAction asChild>
-                    <Button
-                      onPress={() => void archiveSelected()}
-                      disabled={archivingState()}
-                    >
-                      {archivingState() ? 'Archiving...' : 'Confirm archive'}
+                    <Button onPress={() => void archiveSelected()} disabled={archivingState()}>
+                      {archivingState() ? "Archiving..." : "Confirm archive"}
                     </Button>
                   </AlertDialogAction>
                 </div>
@@ -179,11 +167,7 @@ export default function AccountsPage() {
             </AlertDialogPortal>
           </AlertDialog>
 
-          <Pagination
-            count={totalPages()}
-            page={pageState()}
-            onPageChange={setPageState}
-          />
+          <Pagination count={totalPages()} page={pageState()} onPageChange={setPageState} />
         </Inline>
       </section>
     </section>
