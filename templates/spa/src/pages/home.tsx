@@ -1,7 +1,7 @@
-﻿import { ArrowRightIcon } from '@askrjs/lucide/icons/arrow-right';
-import { BarChart3Icon } from '@askrjs/lucide';
-import { BoxesIcon } from '@askrjs/lucide';
-import { LayoutTemplateIcon } from '@askrjs/lucide';
+import { ArrowRightIcon } from "@askrjs/lucide/icons/arrow-right";
+import { BarChart3Icon } from "@askrjs/lucide";
+import { BoxesIcon } from "@askrjs/lucide";
+import { LayoutTemplateIcon } from "@askrjs/lucide";
 import {
   Card,
   CardContent,
@@ -10,15 +10,15 @@ import {
   CardTitle,
   Grid,
   Section,
-} from '@askrjs/themes/components';
-import FeatureCard from '../components/feature-card';
+} from "@askrjs/themes/components";
+import FeatureCard from "../components/feature-card";
 import Hero, {
   HeroActions,
   HeroButton,
   HeroDescription,
   HeroEyebrow,
   HeroTitle,
-} from '../components/hero';
+} from "../components/hero";
 
 export default function Home() {
   return (
@@ -26,17 +26,14 @@ export default function Home() {
       <Hero>
         <div class="home-hero">
           <div class="home-hero__content">
-            <HeroEyebrow class="home-kicker">
-              Build the app shape first
-            </HeroEyebrow>
+            <HeroEyebrow class="home-kicker">Build the app shape first</HeroEyebrow>
             <HeroTitle>
-              Components, charts, and theming that already feel like one
-              product.
+              Components, charts, and theming that already feel like one product.
             </HeroTitle>
             <HeroDescription>
-              {'{{appName}}'} is a compact Askr app shell with a real landing
-              flow, a focused component page, and interactive charts that prove
-              the packages work together without turning into a giant demo site.
+              {"{{appName}}"} is a compact Askr app shell with a real landing flow, a focused
+              component page, and interactive charts that prove the packages work together without
+              turning into a giant demo site.
             </HeroDescription>
             <HeroActions class="home-hero__actions">
               <HeroButton href="/components" variant="primary">
@@ -53,8 +50,8 @@ export default function Home() {
               <p class="home-kicker">Example stack</p>
               <CardTitle>One shell, three surfaces.</CardTitle>
               <CardDescription>
-                A predictable app frame with routes for components, charting,
-                and lightweight product copy.
+                A predictable app frame with routes for components, charting, and lightweight
+                product copy.
               </CardDescription>
             </CardHeader>
             <CardContent class="home-hero__artifact-grid">
@@ -68,9 +65,7 @@ export default function Home() {
               </div>
               <div class="home-hero__artifact-item">
                 <strong>Themes</strong>
-                <span>
-                  Layout, shell, and content patterns that stay coherent.
-                </span>
+                <span>Layout, shell, and content patterns that stay coherent.</span>
               </div>
             </CardContent>
           </Card>
@@ -83,27 +78,24 @@ export default function Home() {
             <p class="home-kicker">What you can explore</p>
             <h2>Three focused surfaces instead of one overloaded showcase.</h2>
             <p class="text-muted">
-              The structure stays simple: one clear landing page, one component
-              page, and one chart page with enough interactivity to feel real.
+              The structure stays simple: one clear landing page, one component page, and one chart
+              page with enough interactivity to feel real.
             </p>
           </div>
         </div>
 
         <div class="home-card-grid">
-          <FeatureCard
-            icon={<LayoutTemplateIcon size={16} />}
-            title="Themed app shell"
-          >
-            Header, container rhythm, section spacing, and footer composition
-            give the app a stable frame before individual pages get fancy.
+          <FeatureCard icon={<LayoutTemplateIcon size={16} />} title="Themed app shell">
+            Header, container rhythm, section spacing, and footer composition give the app a stable
+            frame before individual pages get fancy.
           </FeatureCard>
           <FeatureCard icon={<BoxesIcon size={16} />} title="Components">
-            Focus on a narrow set of primitives and patterns instead of turning
-            the app into a complete catalog.
+            Focus on a narrow set of primitives and patterns instead of turning the app into a
+            complete catalog.
           </FeatureCard>
           <FeatureCard icon={<BarChart3Icon size={16} />} title="Charts">
-            Show interactive data views with enough controls to prove the
-            runtime, without drifting into dashboard sprawl.
+            Show interactive data views with enough controls to prove the runtime, without drifting
+            into dashboard sprawl.
           </FeatureCard>
         </div>
       </Section>
@@ -121,24 +113,22 @@ export default function Home() {
             <span class="home-step__number">01</span>
             <CardTitle>Start with the frame</CardTitle>
             <CardDescription>
-              The shell establishes hierarchy fast so every route feels like it
-              belongs to the same product.
+              The shell establishes hierarchy fast so every route feels like it belongs to the same
+              product.
             </CardDescription>
           </Card>
           <Card class="home-step" variant="raised">
             <span class="home-step__number">02</span>
             <CardTitle>Show one capability clearly</CardTitle>
             <CardDescription>
-              Each page demonstrates a narrow slice instead of forcing every
-              feature into the hero.
+              Each page demonstrates a narrow slice instead of forcing every feature into the hero.
             </CardDescription>
           </Card>
           <Card class="home-step" variant="raised">
             <span class="home-step__number">03</span>
             <CardTitle>End with a clear next move</CardTitle>
             <CardDescription>
-              Components, charts, and about all lead naturally to the next
-              useful surface.
+              Components, charts, and about all lead naturally to the next useful surface.
             </CardDescription>
           </Card>
         </Grid>
@@ -148,13 +138,10 @@ export default function Home() {
         <Card class="home-proof" variant="raised">
           <div class="home-proof__copy">
             <p class="home-kicker">Why this shape works</p>
-            <h2>
-              Enough product structure to feel intentional, not enough to feel
-              bloated.
-            </h2>
+            <h2>Enough product structure to feel intentional, not enough to feel bloated.</h2>
             <p class="text-muted">
-              The app stays small, but the layout gives it momentum: strong
-              entry, useful middle, and a clear sense of where to go next.
+              The app stays small, but the layout gives it momentum: strong entry, useful middle,
+              and a clear sense of where to go next.
             </p>
           </div>
           <div class="home-proof__stats">
@@ -180,8 +167,8 @@ export default function Home() {
             <p class="home-kicker">Start somewhere concrete</p>
             <h2>Open the component demos, then look at the charts.</h2>
             <p class="text-muted">
-              That path shows the app shell first, then the UI surface, then the
-              data surface without making the landing page do all the work.
+              That path shows the app shell first, then the UI surface, then the data surface
+              without making the landing page do all the work.
             </p>
           </div>
           <div class="home-cta__actions">

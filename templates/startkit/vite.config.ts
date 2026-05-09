@@ -1,10 +1,10 @@
-﻿import { defineConfig } from 'vite-plus';
-import { askr } from '@askrjs/vite';
+import { defineConfig } from "vite-plus";
+import { askr } from "@askrjs/vite";
 
 export default defineConfig({
   plugins: [askr()],
   lint: {
-    ignorePatterns: ['dist/**', 'node_modules/**', 'coverage/**'],
+    ignorePatterns: ["dist/**", "node_modules/**", "coverage/**"],
     options: {
       typeAware: false,
       typeCheck: false,
@@ -13,24 +13,24 @@ export default defineConfig({
   fmt: {
     semi: true,
     singleQuote: true,
-    trailingComma: 'es5',
+    trailingComma: "es5",
     printWidth: 80,
     tabWidth: 2,
   },
   server: {
-    host: '127.0.0.1',
+    host: "127.0.0.1",
     port: 5173,
     strictPort: true,
     open: true,
     hmr: {
-      host: '127.0.0.1',
+      host: "127.0.0.1",
       port: 5173,
       clientPort: 5173,
-      protocol: 'ws',
+      protocol: "ws",
     },
   },
   build: {
-    outDir: 'dist',
+    outDir: "dist",
     sourcemap: true,
   },
 });

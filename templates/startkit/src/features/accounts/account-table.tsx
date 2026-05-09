@@ -1,9 +1,9 @@
-﻿import { Checkbox } from '@askrjs/ui/checkbox';
-import { Button } from '@askrjs/ui/button';
-import { EyeIcon } from '@askrjs/lucide';
-import DataTable, { type DataTableColumn } from '../../components/data-table';
-import type { AccountRecord } from '../../lib/mock-data';
-import { formatCurrency } from '../../lib/format';
+import { Checkbox } from "@askrjs/ui/checkbox";
+import { Button } from "@askrjs/ui/button";
+import { EyeIcon } from "@askrjs/lucide";
+import DataTable, { type DataTableColumn } from "../../components/data-table";
+import type { AccountRecord } from "../../lib/mock-data";
+import { formatCurrency } from "../../lib/format";
 
 export default function AccountTable(props: {
   rows: () => AccountRecord[];
@@ -15,9 +15,9 @@ export default function AccountTable(props: {
 }) {
   const columns: DataTableColumn<AccountRecord>[] = [
     {
-      key: 'select',
-      header: 'Select',
-      class: 'cell-select',
+      key: "select",
+      header: "Select",
+      class: "cell-select",
       render: (row) => (
         <Checkbox
           checked={props.selectedIds().includes(row.id)}
@@ -27,8 +27,8 @@ export default function AccountTable(props: {
       ),
     },
     {
-      key: 'account',
-      header: 'Account',
+      key: "account",
+      header: "Account",
       render: (row) => (
         <div class="entity-copy">
           <strong>{row.name}</strong>
@@ -37,26 +37,24 @@ export default function AccountTable(props: {
       ),
     },
     {
-      key: 'plan',
-      header: 'Plan',
+      key: "plan",
+      header: "Plan",
       render: (row) => row.plan,
     },
     {
-      key: 'mrr',
-      header: 'MRR',
+      key: "mrr",
+      header: "MRR",
       render: (row) => formatCurrency(row.mrr),
     },
     {
-      key: 'status',
-      header: 'Status',
-      render: (row) => (
-        <span class={`status-pill status-${row.status}`}>{row.status}</span>
-      ),
+      key: "status",
+      header: "Status",
+      render: (row) => <span class={`status-pill status-${row.status}`}>{row.status}</span>,
     },
     {
-      key: 'actions',
-      header: 'Actions',
-      class: 'cell-actions',
+      key: "actions",
+      header: "Actions",
+      class: "cell-actions",
       render: (row) => (
         <Button onPress={() => props.onOpenRow(row)}>
           <EyeIcon size={14} aria-hidden="true" /> View

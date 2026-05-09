@@ -1,25 +1,24 @@
-﻿import { state } from '@askrjs/askr';
+import { state } from "@askrjs/askr";
 import {
   Accordion,
   AccordionItem,
   AccordionHeader,
   AccordionTrigger,
   AccordionContent,
-} from '@askrjs/ui/accordion';
-import { Toggle } from '@askrjs/ui/toggle';
-import { Input } from '@askrjs/ui/input';
-import Counter from '../components/counter';
+} from "@askrjs/ui/accordion";
+import { Toggle } from "@askrjs/ui/toggle";
+import { Input } from "@askrjs/ui/input";
+import Counter from "../components/counter";
 
 export default function Example() {
-  const [name, setName] = state('');
+  const [name, setName] = state("");
   const [bold, setBold] = state(false);
 
   return (
     <>
       <h1>Component Showcase</h1>
       <p class="text-muted">
-        askr-ui headless components styled by askr-themes â€” working together
-        out of the box.
+        askr-ui headless components styled by askr-themes â€” working together out of the box.
       </p>
 
       <Counter />
@@ -27,18 +26,16 @@ export default function Example() {
       <div class="showcase-section">
         <h3>Reactivity</h3>
         <p>
-          Askr uses <code>state()</code> for reactive values that automatically
-          track dependencies and update only the DOM nodes that need to change.
+          Askr uses <code>state()</code> for reactive values that automatically track dependencies
+          and update only the DOM nodes that need to change.
         </p>
         <p>
-          Create reactive state with{' '}
-          <code>const [count, setCount] = state(0)</code>, read with{' '}
-          <code>count()</code>, and update with{' '}
-          <code>setCount(n =&gt; n + 1)</code>.
+          Create reactive state with <code>const [count, setCount] = state(0)</code>, read with{" "}
+          <code>count()</code>, and update with <code>setCount(n =&gt; n + 1)</code>.
         </p>
         <p>
-          Core primitives: <code>state()</code>, <code>derive()</code>,{' '}
-          <code>selector()</code>, <code>resource()</code>, and <code>For</code>.
+          Core primitives: <code>state()</code>, <code>derive()</code>, <code>selector()</code>,{" "}
+          <code>resource()</code>, and <code>For</code>.
         </p>
       </div>
 
@@ -47,15 +44,13 @@ export default function Example() {
         <Accordion type="single" collapsible>
           <AccordionItem value="reactivity">
             <AccordionHeader>
-              <AccordionTrigger>
-                What is fine-grained reactivity?
-              </AccordionTrigger>
+              <AccordionTrigger>What is fine-grained reactivity?</AccordionTrigger>
             </AccordionHeader>
             <AccordionContent>
               <p>
-                Fine-grained reactivity means updates are surgical. When a state
-                value changes, only the specific DOM nodes that read that value
-                are updated â€” no virtual DOM diffing, no component re-renders.
+                Fine-grained reactivity means updates are surgical. When a state value changes, only
+                the specific DOM nodes that read that value are updated â€” no virtual DOM diffing,
+                no component re-renders.
               </p>
             </AccordionContent>
           </AccordionItem>
@@ -65,9 +60,8 @@ export default function Example() {
             </AccordionHeader>
             <AccordionContent>
               <p>
-                Yes. Askr provides <code>renderToString()</code> and{' '}
-                <code>renderToStream()</code> for server-side rendering, plus{' '}
-                <code>hydrateSPA()</code> for client hydration.
+                Yes. Askr provides <code>renderToString()</code> and <code>renderToStream()</code>{" "}
+                for server-side rendering, plus <code>hydrateSPA()</code> for client hydration.
               </p>
             </AccordionContent>
           </AccordionItem>
@@ -77,9 +71,9 @@ export default function Example() {
             </AccordionHeader>
             <AccordionContent>
               <p>
-                askr-ui components emit <code>data-slot</code> attributes.
-                askr-themes provides CSS that targets these slots with design
-                tokens. Switch themes by changing a single CSS import.
+                askr-ui components emit <code>data-slot</code> attributes. askr-themes provides CSS
+                that targets these slots with design tokens. Switch themes by changing a single CSS
+                import.
               </p>
             </AccordionContent>
           </AccordionItem>
@@ -88,9 +82,7 @@ export default function Example() {
 
       <div class="showcase-section">
         <h3>Toggle &amp; Input</h3>
-        <p class="text-muted">
-          Reactive state driving UI updates in real time.
-        </p>
+        <p class="text-muted">Reactive state driving UI updates in real time.</p>
         <div style="display: flex; align-items: center; gap: var(--ak-space-md); margin-bottom: var(--ak-space-md);">
           <Toggle pressed={bold()} onPress={() => setBold((b) => !b)}>
             Bold
@@ -98,13 +90,11 @@ export default function Example() {
           <Input
             placeholder="Type your name..."
             value={name()}
-            onInput={(e: Event) =>
-              setName((e.target as HTMLInputElement).value)
-            }
+            onInput={(e: Event) => setName((e.target as HTMLInputElement).value)}
           />
         </div>
-        <p style={`font-weight: ${bold() ? '700' : '400'}`}>
-          {name() ? `Hello, ${name()}!` : 'Type something above...'}
+        <p style={`font-weight: ${bold() ? "700" : "400"}`}>
+          {name() ? `Hello, ${name()}!` : "Type something above..."}
         </p>
       </div>
     </>
