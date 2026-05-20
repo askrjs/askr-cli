@@ -1,8 +1,24 @@
 ﻿# @askrjs/cli
 
-Unified command-line interface for the Askr platform.
+Unified CLI for the Askr platform.
 
-Canonical docs live in [docs/README.md](./docs/README.md).
+`@askrjs/cli` bundles project scaffolding and static-site generation commands
+for Askr apps. Use it when you want a new project or when you need a repeatable
+SSG build path.
+
+## Install
+
+```bash
+npm install -D @askrjs/cli
+```
+
+## Quick Start
+
+```bash
+npx @askrjs/cli create startkit my-app
+cd my-app
+npm run dev
+```
 
 ## Commands
 
@@ -11,8 +27,8 @@ Canonical docs live in [docs/README.md](./docs/README.md).
 
 Direct command bins are also provided:
 
-- `askr-create` (alias for scaffolding)
-- `askr-ssg` (direct SSG entry)
+- `askr-create` for scaffolding
+- `askr-ssg` for direct SSG entry
 
 ## Templates
 
@@ -25,9 +41,7 @@ Supported templates for `create`:
 
 Templates are stored in `templates/`.
 
-## Recommended Usage
+## Docs
 
-```bash
-npx @askrjs/cli create startkit my-app
-npx @askrjs/cli ssg --config ./ssg.config.ts --output ./dist/static
-```
+- [CLI docs](./docs/README.md)
+
