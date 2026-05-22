@@ -22,7 +22,7 @@ Use this only when a task, sample, or codebase slice is React-shaped and must be
 
 ## Choose The Replacement
 
-- React `useState` -> Askr `state()`.
+- React `useState` -> Askr `state()` as a `[getter, setter]` pair.
 - React `useMemo` -> Askr `derive()` when a reactive computation is needed.
 - React `useEffect` data loading -> Askr `resource()` or `createQuery()` based on ownership.
 - React Router component routes -> Askr route registration with `group()`, `page()`, `route()`, and `fallback()`.

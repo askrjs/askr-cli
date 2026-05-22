@@ -22,7 +22,7 @@ Use this when local state, derived values, keyed identity, or runtime determinis
 
 ## Pick The Primitive
 
-- Local mutable value: `state()`.
+- Local mutable value: `state()` returns a `[getter, setter]` pair.
 - Computed value from reactive reads: `derive()`.
 - One reactive source fans out to many keyed readers: `selector()`.
 - Cross-tree shared value: `defineContext()` and `readContext()`.

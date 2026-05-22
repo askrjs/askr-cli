@@ -46,7 +46,7 @@ Routes compose the screen. Features own domain UI and workflow state. Adapters o
 ## Do This In Order
 
 1. Choose the async owner first: `resource()` for route-owned reads, `createQuery()` for shared keyed reads, and `createMutation()` for writes.
-2. Keep filters, pagination, dialog state, and selected IDs in local `state()` pairs.
+2. Keep filters, pagination, dialog state, and selected IDs in local `state()` pairs, and read or write each one through its `[getter, setter]` pair.
 3. Keep field validation and submit handling explicit in the feature layer.
 4. Confirm destructive actions before archive or delete.
 5. Refresh or invalidate after create, update, archive, or delete.
