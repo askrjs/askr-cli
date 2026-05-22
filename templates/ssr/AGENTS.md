@@ -21,7 +21,7 @@ npm run fmt        # Prettier
 - **Components:** askr-ui headless components. Props use `onPress` (not `onClick`), `asChild` for polymorphism, `data-slot` attributes for styling hooks.
 - **Styling:** askr-themes CSS via `[data-slot]` selectors. Design tokens use `--ak-*` prefix. Theme import in `src/styles.css`.
 - **Routing:** `registerRoutes()` composes `group()` and `route()` declarations in `src/routes.tsx`. Both server and client import the same routes file.
-- **State:** `state(initial)`, `derive()`, `resource()` - same primitives as SPA. SSR renders deterministically; hydration attaches interactivity.
+- **State:** `const [value, setValue] = state(initial)`, `derive()`, `resource()` - same primitives as SPA. SSR renders deterministically; hydration attaches interactivity.
 - **Vite plugin:** `askr()` from `@askrjs/vite` handles JSX transform.
 
 ## File Structure

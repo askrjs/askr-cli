@@ -20,7 +20,7 @@ npm run fmt        # Prettier
 - **Components:** askr-ui headless components (Button, Accordion, Toggle, Input, etc.). Props use `onPress` (not `onClick`), `asChild` for polymorphism, `data-slot` attributes for styling hooks.
 - **Styling:** askr-themes CSS via `[data-slot]` selectors. Keep `src/styles.css` as a thin entrypoint and organize styles in `src/styles/*` using layers (reset/tokens/theme/layout/components).
 - **Routing:** `registerRoutes()` composes `group()` and `route()` declarations in `src/router.tsx`. Use `currentRoute()` inside components and navigate with `<Link href="...">`.
-- **State:** Prefer `const [count, setCount] = state(initial)`. Read with `count()`, update with `setCount(v => v + 1)`. `derive()` for computed values. `resource()` for async data.
+- **State:** Prefer `const [value, setValue] = state(initial)`. Read with `value()`, update with `setValue(...)`. `derive()` for computed values. `resource()` for async data.
 - **Data flow:** Keep sample data in `src/lib/mock-data.ts`, not inline in pages. Read async data with `resource()` and keep mock mutations in the same lib boundary.
 - **Preferences:** Keep persistent appearance/session helpers in the lib boundary and initialize at app bootstrap.
 - **Vite plugin:** `askr()` from `@askrjs/vite` handles JSX transform - no manual esbuild config needed.
