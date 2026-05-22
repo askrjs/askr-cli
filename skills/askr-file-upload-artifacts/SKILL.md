@@ -40,13 +40,13 @@ Use this for uploads, downloads, previews, and generated files. The goal is one 
 
 ```ts
 type ArtifactStatus =
-	| "selected"
-	| "uploading"
-	| "processing"
-	| "ready"
-	| "failed-validation"
-	| "failed-upload"
-	| "failed-processing";
+  | "selected"
+  | "uploading"
+  | "processing"
+  | "ready"
+  | "failed-validation"
+  | "failed-upload"
+  | "failed-processing";
 ```
 
 ## Never Do These

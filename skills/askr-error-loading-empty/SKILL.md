@@ -43,25 +43,25 @@ Use this whenever a feature touches async data or failure states. The goal is on
 
 ```tsx
 if (accounts.pending && !accounts.value) {
-	return <p>Loading accounts...</p>;
+  return <p>Loading accounts...</p>;
 }
 
 if (accounts.error && !accounts.value) {
-	return <p role="alert">Unable to load accounts.</p>;
+  return <p role="alert">Unable to load accounts.</p>;
 }
 
 return (
-	<section>
-		<Show when={accounts.refreshing || accounts.consistency === "pending-write"}>
-			<p role="status">Saved, syncing...</p>
-		</Show>
+  <section>
+    <Show when={accounts.refreshing || accounts.consistency === "pending-write"}>
+      <p role="status">Saved, syncing...</p>
+    </Show>
 
-		<Show when={(accounts.value?.items.length ?? 0) === 0}>
-			<p>No accounts matched this filter.</p>
-		</Show>
+    <Show when={(accounts.value?.items.length ?? 0) === 0}>
+      <p>No accounts matched this filter.</p>
+    </Show>
 
-		<AccountsTable rows={accounts.value?.items ?? []} />
-	</section>
+    <AccountsTable rows={accounts.value?.items ?? []} />
+  </section>
 );
 ```
 

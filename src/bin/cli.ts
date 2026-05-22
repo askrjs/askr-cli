@@ -33,7 +33,10 @@ function printHelp(io: CliIo = console): void {
   io.log("  askr ssg --config ./ssg.config.ts --output ./dist/static");
 }
 
-export async function runCli(args: string[] = process.argv.slice(2), io: CliIo = console): Promise<number> {
+export async function runCli(
+  args: string[] = process.argv.slice(2),
+  io: CliIo = console,
+): Promise<number> {
   const command = args[0];
 
   if (!command || command === "--help" || command === "-h") {

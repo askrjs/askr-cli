@@ -214,8 +214,12 @@ const REVIEW_PROMPTS: ReviewPromptDefinition[] = [
     prompt:
       "Build a shared accounts query with an update mutation that preserves stale data while the projection catches up. Show a truthful syncing state after save.",
     assertions: [
-      requireAny("Uses createQuery() for shared reads.", [re("createQuery()", String.raw`\bcreateQuery\s*\(`)]),
-      requireAny("Uses createMutation() for writes.", [re("createMutation()", String.raw`\bcreateMutation\s*\(`)]),
+      requireAny("Uses createQuery() for shared reads.", [
+        re("createQuery()", String.raw`\bcreateQuery\s*\(`),
+      ]),
+      requireAny("Uses createMutation() for writes.", [
+        re("createMutation()", String.raw`\bcreateMutation\s*\(`),
+      ]),
       requireAny("Represents truthful syncing or stale states.", [
         re("syncing", String.raw`syncing`, "mi"),
         re("pending-write", String.raw`pending-write`, "mi"),
@@ -371,7 +375,8 @@ const REVIEW_PROMPTS: ReviewPromptDefinition[] = [
     relatedSkills: ["askr-error-loading-empty", "askr-query-mutation"],
     repairFocus:
       "Split initial load, refresh, pending-write, stale, and reconnecting into distinct UI states with truthful copy.",
-    prompt: "Use one loading spinner for initial load, refresh, pending save, and realtime reconnect.",
+    prompt:
+      "Use one loading spinner for initial load, refresh, pending save, and realtime reconnect.",
     assertions: [
       requireAny("Distinguishes truthful async states.", [
         re("refreshing", String.raw`refreshing`, "mi"),
@@ -379,7 +384,9 @@ const REVIEW_PROMPTS: ReviewPromptDefinition[] = [
         re("reconnecting", String.raw`reconnecting`, "mi"),
         re("stale", String.raw`stale`, "mi"),
       ]),
-      forbid("Does not only model async state as isLoading.", [re("isLoading only", String.raw`\bisLoading\b`)]),
+      forbid("Does not only model async state as isLoading.", [
+        re("isLoading only", String.raw`\bisLoading\b`),
+      ]),
     ],
   },
   {
@@ -449,7 +456,9 @@ async function collectReviewFiles(targetPath: string, files: string[]): Promise<
   }
 }
 
-async function loadReviewFiles(targetPath: string): Promise<{ files: ReviewFile[]; targetPath: string }> {
+async function loadReviewFiles(
+  targetPath: string,
+): Promise<{ files: ReviewFile[]; targetPath: string }> {
   const resolvedTarget = path.resolve(targetPath);
   if (!(await pathExists(resolvedTarget))) {
     throw new Error(`Review target not found: ${resolvedTarget}`);
@@ -519,31 +528,41 @@ function evaluateAssertion(assertion: ReviewAssertion, files: ReviewFile[]): Rev
   }
 
   const matchedPatterns = patterns.filter((pattern) => pattern.matches.length > 0);
-  const passed = assertion.match === "all" ? matchedPatterns.length === patterns.length : matchedPatterns.length > 0;
+  const passed =
+    assertion.match === "all"
+      ? matchedPatterns.length === patterns.length
+      : matchedPatterns.length > 0;
 
   return {
     description: assertion.description,
     passed,
     matchedFiles: uniquePaths(matchedPatterns.flatMap((pattern) => pattern.matches)),
     matchedPatterns: matchedPatterns.map((pattern) => pattern.label),
-    missingPatterns: patterns.filter((pattern) => pattern.matches.length === 0).map((pattern) => pattern.label),
+    missingPatterns: patterns
+      .filter((pattern) => pattern.matches.length === 0)
+      .map((pattern) => pattern.label),
     mode: assertion.mode,
   };
 }
 
 export function listSkillReviewPrompts(): Array<{
   id: string;
+  prompt: string;
   title: string;
   relatedSkills: string[];
 }> {
-  return REVIEW_PROMPTS.map(({ id, title, relatedSkills }) => ({
+  return REVIEW_PROMPTS.map(({ id, prompt, title, relatedSkills }) => ({
     id,
+    prompt,
     title,
     relatedSkills,
   }));
 }
 
-export async function runSkillReview(promptId: string, options: { cwd?: string } = {}): Promise<SkillReviewResult> {
+export async function runSkillReview(
+  promptId: string,
+  options: { cwd?: string } = {},
+): Promise<SkillReviewResult> {
   const prompt = getReviewPrompt(promptId);
   if (!prompt) {
     const error = new Error(`Unknown review prompt: ${promptId}`) as Error & { code?: string };

@@ -152,8 +152,13 @@ async function copyDir(src: string, dest: string): Promise<void> {
   }
 }
 
-async function removeManagedSkillArtifacts(targetSkillsDir: string, bundledNames: string[]): Promise<void> {
-  const entries = await fs.readdir(targetSkillsDir, { withFileTypes: true }).catch(() => [] as fs.Dirent[]);
+async function removeManagedSkillArtifacts(
+  targetSkillsDir: string,
+  bundledNames: string[],
+): Promise<void> {
+  const entries = await fs
+    .readdir(targetSkillsDir, { withFileTypes: true })
+    .catch(() => [] as fs.Dirent[]);
   const bundled = new Set(bundledNames);
 
   for (const entry of entries) {
@@ -224,7 +229,10 @@ export async function syncBundledSkills(
 
 async function installSkills(parsed: ParsedArgs, io: CliIo): Promise<number> {
   try {
-    const { bundledNames, targetSkillsDir } = await installBundledSkills({ cwd: parsed.cwd, force: parsed.force });
+    const { bundledNames, targetSkillsDir } = await installBundledSkills({
+      cwd: parsed.cwd,
+      force: parsed.force,
+    });
     io.log(`Installed ${bundledNames.length} Askr skills to ${targetSkillsDir}`);
     return 0;
   } catch (error) {
@@ -267,7 +275,10 @@ async function reviewSkills(parsed: ParsedArgs, io: CliIo): Promise<number> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     io.error(message);
-    const errorCode = typeof error === "object" && error && "code" in error ? String((error as { code?: string }).code) : "";
+    const errorCode =
+      typeof error === "object" && error && "code" in error
+        ? String((error as { code?: string }).code)
+        : "";
     if (errorCode === "UNKNOWN_REVIEW_PROMPT") {
       io.error("Run `askr skills review list` to see available prompt ids.");
     }
@@ -275,7 +286,10 @@ async function reviewSkills(parsed: ParsedArgs, io: CliIo): Promise<number> {
   }
 }
 
-export async function runSkillsCli(args: string[] = process.argv.slice(2), io: CliIo = console): Promise<number> {
+export async function runSkillsCli(
+  args: string[] = process.argv.slice(2),
+  io: CliIo = console,
+): Promise<number> {
   const parsed = parseArgs(args);
 
   if (parsed.command === "review" && parsed.help) {

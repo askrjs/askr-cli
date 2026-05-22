@@ -99,38 +99,97 @@ const TEMPLATE_PROMPT_RULES: Array<{
   {
     template: "ssg",
     reason: "Prompt emphasizes static content or documentation publishing.",
-    terms: ["blog", "content", "docs", "documentation", "knowledge base", "landing page", "marketing", "static"],
+    terms: [
+      "blog",
+      "content",
+      "docs",
+      "documentation",
+      "knowledge base",
+      "landing page",
+      "marketing",
+      "static",
+    ],
     weight: 4,
   },
   {
     template: "ssr",
     reason: "Prompt emphasizes server rendering or request-time HTML.",
-    terms: ["edge render", "personalized seo", "request-time", "server render", "server rendered", "server-rendered", "ssr"],
+    terms: [
+      "edge render",
+      "personalized seo",
+      "request-time",
+      "server render",
+      "server rendered",
+      "server-rendered",
+      "ssr",
+    ],
     weight: 4,
   },
   {
     template: "spa",
     reason: "Prompt emphasizes interactive workflows, control planes, or agent operations.",
-    terms: ["agent", "approval", "assistant", "console", "control plane", "dashboard", "operations", "realtime", "stream", "workflow"],
+    terms: [
+      "agent",
+      "approval",
+      "assistant",
+      "console",
+      "control plane",
+      "dashboard",
+      "operations",
+      "realtime",
+      "stream",
+      "workflow",
+    ],
     weight: 3,
   },
   {
     template: "startkit",
     reason: "Prompt emphasizes auth, workspace, or back-office product surfaces.",
-    terms: ["account", "admin", "auth", "billing", "login", "portal", "settings", "tenant", "workspace"],
+    terms: [
+      "account",
+      "admin",
+      "auth",
+      "billing",
+      "login",
+      "portal",
+      "settings",
+      "tenant",
+      "workspace",
+    ],
     weight: 3,
   },
 ];
 const CAPABILITY_RULES: Array<{ capability: Capability; terms: string[] }> = [
-  { capability: "agent-workflows", terms: ["agent", "approval", "artifact", "assistant", "prompt", "run", "tool", "workflow"] },
+  {
+    capability: "agent-workflows",
+    terms: ["agent", "approval", "artifact", "assistant", "prompt", "run", "tool", "workflow"],
+  },
   { capability: "api-integration", terms: ["api", "backend", "graphql", "rest", "sdk", "webhook"] },
-  { capability: "auth-access", terms: ["access", "auth", "login", "permission", "role", "session", "tenant", "workspace"] },
-  { capability: "dashboard-charts", terms: ["analytics", "chart", "dashboard", "kpi", "metric", "report"] },
-  { capability: "file-upload-artifacts", terms: ["artifact", "attachment", "document", "file", "upload"] },
+  {
+    capability: "auth-access",
+    terms: ["access", "auth", "login", "permission", "role", "session", "tenant", "workspace"],
+  },
+  {
+    capability: "dashboard-charts",
+    terms: ["analytics", "chart", "dashboard", "kpi", "metric", "report"],
+  },
+  {
+    capability: "file-upload-artifacts",
+    terms: ["artifact", "attachment", "document", "file", "upload"],
+  },
   { capability: "forms-tables-crud", terms: ["crud", "edit", "form", "record", "table"] },
-  { capability: "query-mutation", terms: ["cache", "data", "mutation", "query", "resource", "sync"] },
-  { capability: "realtime-streaming", terms: ["event", "live", "realtime", "stream", "subscription", "websocket"] },
-  { capability: "ssr-ssg", terms: ["content", "docs", "seo", "server render", "ssg", "ssr", "static"] },
+  {
+    capability: "query-mutation",
+    terms: ["cache", "data", "mutation", "query", "resource", "sync"],
+  },
+  {
+    capability: "realtime-streaming",
+    terms: ["event", "live", "realtime", "stream", "subscription", "websocket"],
+  },
+  {
+    capability: "ssr-ssg",
+    terms: ["content", "docs", "seo", "server render", "ssg", "ssr", "static"],
+  },
 ];
 const CAPABILITY_LABELS: Record<Capability, string> = {
   "agent-workflows": "Agent workflows",
@@ -207,9 +266,12 @@ const SKILL_SUMMARIES: Record<string, string> = {
   "askr-dashboard-charts": "Add charts without bypassing route, state, or theming conventions.",
   "askr-design-system": "Use only when shaping reusable product patterns beyond one screen.",
   "askr-env-config": "Keep environment-specific configuration and secrets handling outside UI.",
-  "askr-error-loading-empty": "Represent loading, empty, stale, retry, and pending-write truthfully.",
-  "askr-file-upload-artifacts": "Add uploads and artifact flows without breaking ownership boundaries.",
-  "askr-forms-tables-crud": "Build forms, tables, filters, and destructive actions with stable ownership.",
+  "askr-error-loading-empty":
+    "Represent loading, empty, stale, retry, and pending-write truthfully.",
+  "askr-file-upload-artifacts":
+    "Add uploads and artifact flows without breaking ownership boundaries.",
+  "askr-forms-tables-crud":
+    "Build forms, tables, filters, and destructive actions with stable ownership.",
   "askr-mental-model": "Choose native Askr primitives and reject React-shaped defaults.",
   "askr-observability-debugging": "Preserve correlation IDs and diagnosable failure context.",
   "askr-project-structure": "Place routes, features, shared helpers, and adapters predictably.",
@@ -219,18 +281,35 @@ const SKILL_SUMMARIES: Record<string, string> = {
   "askr-routing-layouts": "Keep one obvious route tree, shell boundary, and navigation path.",
   "askr-runtime-reactivity": "Apply state(), derive(), selector(), and For with stable call order.",
   "askr-ssr-ssg": "Keep routes deterministic and render paths hydration-safe.",
-  "askr-testing-determinism": "Finish with the narrowest executable check for the changed contract.",
+  "askr-testing-determinism":
+    "Finish with the narrowest executable check for the changed contract.",
   "askr-theming": "Apply the theme layer, tokens, and shell primitives before custom styling.",
   "askr-ui-composition": "Use askr-ui behavior primitives before inventing local components.",
 };
 const TEMPLATE_INSPECT_PATHS: Record<TemplateType, string[]> = {
-  spa: ["AGENTS.md", "src/main.tsx", "src/pages/_routes.tsx", "src/pages/public/_routes.tsx", "src/pages/app/_layout.tsx"],
+  spa: [
+    "AGENTS.md",
+    "src/main.tsx",
+    "src/pages/_routes.tsx",
+    "src/pages/public/_routes.tsx",
+    "src/pages/app/_layout.tsx",
+  ],
   ssr: ["AGENTS.md", "src/main.tsx", "src/server-entry.tsx", "src/pages/_routes.tsx", "server.ts"],
   ssg: ["AGENTS.md", "src/main.tsx", "src/pages/_routes.tsx", "ssg.config.ts", "ssg-build.ts"],
-  startkit: ["AGENTS.md", "src/main.tsx", "src/router.tsx", "src/routes/index.ts", "src/pages/workspace/_layout.tsx"],
+  startkit: [
+    "AGENTS.md",
+    "src/main.tsx",
+    "src/router.tsx",
+    "src/routes/index.ts",
+    "src/pages/workspace/_layout.tsx",
+  ],
 };
 const TEMPLATE_GOLDEN_EXAMPLES: Record<TemplateType, string[]> = {
-  spa: ["src/pages/public/home.tsx", "src/pages/app/admin-home.tsx", "src/features/operations/operations.query.ts"],
+  spa: [
+    "src/pages/public/home.tsx",
+    "src/pages/app/admin-home.tsx",
+    "src/features/operations/operations.query.ts",
+  ],
   ssr: ["src/main.tsx", "src/pages/_routes.tsx", "server.ts"],
   ssg: ["src/main.tsx", "src/pages/_routes.tsx", "ssg.config.ts"],
   startkit: [
@@ -297,7 +376,11 @@ function detectPm(): PackageManager {
   return "npm";
 }
 
-async function copyDir(src: string, dest: string, replacements: { appName: string }): Promise<void> {
+async function copyDir(
+  src: string,
+  dest: string,
+  replacements: { appName: string },
+): Promise<void> {
   const entries = await fs.readdir(src, { withFileTypes: true });
   await fs.mkdir(dest, { recursive: true });
 
@@ -382,7 +465,10 @@ function normalizePromptText(promptText: string): string {
 }
 
 function normalizeSearchText(value: string): string {
-  return ` ${value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
+  return ` ${value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()} `;
 }
 
 function scoreTerms(text: string, terms: string[]): string[] {
@@ -421,7 +507,8 @@ function inferTemplateFromPrompt(promptText: string): {
     ssg: [],
   };
   const templateReasons: Record<TemplateType, string> = {
-    startkit: "No stronger prompt signal was detected, so the CLI defaulted to the full app startkit.",
+    startkit:
+      "No stronger prompt signal was detected, so the CLI defaulted to the full app startkit.",
     spa: "Prompt emphasizes interactive workflows, control planes, or agent operations.",
     ssr: "Prompt emphasizes server rendering or request-time HTML.",
     ssg: "Prompt emphasizes static content or documentation publishing.",
@@ -488,10 +575,15 @@ function buildCapabilities(templateType: TemplateType, promptText: string): Capa
     }
   }
 
-  return (Object.keys(CAPABILITY_LABELS) as Capability[]).filter((capability) => capabilities.has(capability));
+  return (Object.keys(CAPABILITY_LABELS) as Capability[]).filter((capability) =>
+    capabilities.has(capability),
+  );
 }
 
-function buildRecommendedSkills(options: { capabilities: Capability[]; promptText: string }): string[] {
+function buildRecommendedSkills(options: {
+  capabilities: Capability[];
+  promptText: string;
+}): string[] {
   const { capabilities, promptText } = options;
   const recommendedSkills = new Set<string>(CORE_RECOMMENDED_SKILLS);
 
@@ -526,7 +618,11 @@ function pickSkills(source: string[], allowed: string[]): string[] {
 }
 
 function pickWorkflowSkills(skills: string[]): string[] {
-  const excluded = new Set([...FOUNDATION_SKILL_SEQUENCE, ...VALIDATION_SKILLS, ...BROAD_PLANNING_SKILLS]);
+  const excluded = new Set([
+    ...FOUNDATION_SKILL_SEQUENCE,
+    ...VALIDATION_SKILLS,
+    ...BROAD_PLANNING_SKILLS,
+  ]);
   return skills.filter((skill) => !excluded.has(skill));
 }
 
@@ -542,26 +638,38 @@ function buildFollowUpPrompts(capabilities: Capability[]): string[] {
   const suggestions: string[] = [];
 
   if (capabilities.includes("agent-workflows")) {
-    suggestions.push("Add an agent run detail screen with prompt, timeline, approvals, and artifact history.");
+    suggestions.push(
+      "Add an agent run detail screen with prompt, timeline, approvals, and artifact history.",
+    );
   }
 
   if (capabilities.includes("dashboard-charts")) {
-    suggestions.push("Connect dashboard metrics through adapters and queries while preserving loading, empty, and error states.");
+    suggestions.push(
+      "Connect dashboard metrics through adapters and queries while preserving loading, empty, and error states.",
+    );
   }
 
   if (capabilities.includes("auth-access")) {
-    suggestions.push("Wire route access and session state without moving auth logic into page components.");
+    suggestions.push(
+      "Wire route access and session state without moving auth logic into page components.",
+    );
   }
 
   if (capabilities.includes("forms-tables-crud")) {
-    suggestions.push("Add a CRUD feature using feature-scoped forms, tables, and deterministic tests.");
+    suggestions.push(
+      "Add a CRUD feature using feature-scoped forms, tables, and deterministic tests.",
+    );
   }
 
   if (capabilities.includes("ssr-ssg")) {
-    suggestions.push("Extend SSR or SSG routes while keeping route registration deterministic and environment-safe.");
+    suggestions.push(
+      "Extend SSR or SSG routes while keeping route registration deterministic and environment-safe.",
+    );
   }
 
-  suggestions.push("Use the bundled Askr skills before adding new features so generated code stays idiomatic.");
+  suggestions.push(
+    "Use the bundled Askr skills before adding new features so generated code stays idiomatic.",
+  );
   return suggestions.slice(0, 4);
 }
 
@@ -621,9 +729,15 @@ function renderBuilderBrief(blueprint: Blueprint): string {
     "",
     "## Skill Execution Order",
     ...renderListSection("### Start here", renderSkillBullets(foundationSkills)),
-    ...renderListSection("### Pull in next when the task needs it", renderSkillBullets(workflowSkills)),
+    ...renderListSection(
+      "### Pull in next when the task needs it",
+      renderSkillBullets(workflowSkills),
+    ),
     ...renderListSection("### Finish with validation", renderSkillBullets(validationSkills)),
-    ...renderListSection("### Use only for broad multi-surface planning", renderSkillBullets(planningSkills)),
+    ...renderListSection(
+      "### Use only for broad multi-surface planning",
+      renderSkillBullets(planningSkills),
+    ),
     "## All Recommended Skills",
     ...blueprint.recommendedSkills.map((skill) => `- ${skill}`),
     "",
@@ -642,11 +756,22 @@ function renderBuilderBrief(blueprint: Blueprint): string {
 async function writeBlueprintFiles(target: string, blueprint: Blueprint): Promise<void> {
   const blueprintRoot = path.join(target, ".askr");
   await fs.mkdir(blueprintRoot, { recursive: true });
-  await fs.writeFile(path.join(blueprintRoot, "blueprint.json"), `${JSON.stringify(blueprint, null, 2)}\n`, "utf8");
-  await fs.writeFile(path.join(blueprintRoot, "builder-brief.md"), renderBuilderBrief(blueprint), "utf8");
+  await fs.writeFile(
+    path.join(blueprintRoot, "blueprint.json"),
+    `${JSON.stringify(blueprint, null, 2)}\n`,
+    "utf8",
+  );
+  await fs.writeFile(
+    path.join(blueprintRoot, "builder-brief.md"),
+    renderBuilderBrief(blueprint),
+    "utf8",
+  );
 }
 
-export async function runCreateCli(args: string[] = process.argv.slice(2), io: CliIo = console): Promise<number> {
+export async function runCreateCli(
+  args: string[] = process.argv.slice(2),
+  io: CliIo = console,
+): Promise<number> {
   const parsed = parseArgs(args);
 
   if (parsed.errors.length > 0) {
@@ -665,7 +790,8 @@ export async function runCreateCli(args: string[] = process.argv.slice(2), io: C
   let name = "";
   let templateSelection: TemplateSelection = {
     mode: "default",
-    reason: "No stronger prompt signal was detected, so the CLI defaulted to the full app startkit.",
+    reason:
+      "No stronger prompt signal was detected, so the CLI defaulted to the full app startkit.",
   };
   const explicitTemplate = parsed.positional.length > 0 && isTemplateType(parsed.positional[0]);
 
@@ -702,7 +828,8 @@ export async function runCreateCli(args: string[] = process.argv.slice(2), io: C
       io.log("Available templates: startkit, spa, ssr, ssg");
       io.log("");
 
-      const selectedTemplate = ((await prompt("Template type (startkit/spa/ssr/ssg) [startkit]: ")).trim() || "startkit");
+      const selectedTemplate =
+        (await prompt("Template type (startkit/spa/ssr/ssg) [startkit]: ")).trim() || "startkit";
       if (!isTemplateType(selectedTemplate)) {
         io.error("Invalid template type");
         return 1;
@@ -758,7 +885,10 @@ export async function runCreateCli(args: string[] = process.argv.slice(2), io: C
   if (parsed.promptText) {
     io.log(`Prompt profile selected ${TEMPLATE_LABELS[templateType]} for ${name}.`);
     io.log(`Reason: ${templateSelection.reason}`);
-    if (Array.isArray(templateSelection.matchedTerms) && templateSelection.matchedTerms.length > 0) {
+    if (
+      Array.isArray(templateSelection.matchedTerms) &&
+      templateSelection.matchedTerms.length > 0
+    ) {
       io.log(`Matched prompt terms: ${templateSelection.matchedTerms.join(", ")}`);
     }
     io.log("");

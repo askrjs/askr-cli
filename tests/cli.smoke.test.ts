@@ -32,7 +32,9 @@ function createIo(): {
 
 function getMarkdownSection(markdown: string, heading: string): string {
   const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = markdown.match(new RegExp(`^### ${escapedHeading}\\r?\\n([\\s\\S]*?)(?=^### |^## |\\Z)`, "m"));
+  const match = markdown.match(
+    new RegExp(`^### ${escapedHeading}\\r?\\n([\\s\\S]*?)(?=^### |^## |\\Z)`, "m"),
+  );
 
   if (!match) {
     throw new Error(`Missing markdown section: ${heading}`);
@@ -43,7 +45,9 @@ function getMarkdownSection(markdown: string, heading: string): string {
 
 function getMarkdownLevel2Section(markdown: string, heading: string): string {
   const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = markdown.match(new RegExp(`^## ${escapedHeading}\\r?\\n([\\s\\S]*?)(?=^## |\\Z)`, "m"));
+  const match = markdown.match(
+    new RegExp(`^## ${escapedHeading}\\r?\\n([\\s\\S]*?)(?=^## |\\Z)`, "m"),
+  );
 
   if (!match) {
     throw new Error(`Missing markdown level-2 section: ${heading}`);
@@ -67,6 +71,27 @@ function getBacktickedNumberedItems(markdown: string): string[] {
 function getBacktickedItemsFromBulletLines(markdown: string): string[] {
   const bulletLines = [...markdown.matchAll(/^- .*$/gm)].map((match) => match[0]);
   return bulletLines.flatMap((line) => getAllBacktickedItems(line));
+}
+
+function normalizePromptText(markdown: string): string {
+  return markdown
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getSkillReviewDocEntries(
+  markdown: string,
+): Array<{ id: string; title: string; prompt: string }> {
+  return [
+    ...markdown.matchAll(
+      /^(##|###) (.+)\r?\n\r?\nPrompt ID: `([^`]+)`\r?\n\r?\n```text\r?\n([\s\S]*?)\r?\n```/gm,
+    ),
+  ].map(([, , title, id, prompt]) => ({
+    id,
+    title,
+    prompt: normalizePromptText(prompt),
+  }));
 }
 
 test("runCli prints top-level help", async () => {
@@ -136,18 +161,33 @@ test("runCreateCli scaffolds SPA with the route-first themed app shell", async (
 
     const appRoot = path.join(tempRoot, "sample-spa");
     const packageJson = await fs.readFile(path.join(appRoot, "package.json"), "utf8");
-    const rootLayoutFile = await fs.readFile(path.join(appRoot, "src", "pages", "_layout.tsx"), "utf8");
+    const rootLayoutFile = await fs.readFile(
+      path.join(appRoot, "src", "pages", "_layout.tsx"),
+      "utf8",
+    );
     const routesFile = await fs.readFile(path.join(appRoot, "src", "pages", "_routes.tsx"), "utf8");
     const publicRoutesFile = await fs.readFile(
       path.join(appRoot, "src", "pages", "public", "_routes.tsx"),
       "utf8",
     );
-    const appRoutesFile = await fs.readFile(path.join(appRoot, "src", "pages", "app", "_routes.tsx"), "utf8");
-    const appLayoutFile = await fs.readFile(path.join(appRoot, "src", "pages", "app", "_layout.tsx"), "utf8");
+    const appRoutesFile = await fs.readFile(
+      path.join(appRoot, "src", "pages", "app", "_routes.tsx"),
+      "utf8",
+    );
+    const appLayoutFile = await fs.readFile(
+      path.join(appRoot, "src", "pages", "app", "_layout.tsx"),
+      "utf8",
+    );
     const mainFile = await fs.readFile(path.join(appRoot, "src", "main.tsx"), "utf8");
     const stylesFile = await fs.readFile(path.join(appRoot, "src", "styles.css"), "utf8");
-    const homeFile = await fs.readFile(path.join(appRoot, "src", "pages", "public", "home.tsx"), "utf8");
-    const dashboardFile = await fs.readFile(path.join(appRoot, "src", "pages", "app", "admin-home.tsx"), "utf8");
+    const homeFile = await fs.readFile(
+      path.join(appRoot, "src", "pages", "public", "home.tsx"),
+      "utf8",
+    );
+    const dashboardFile = await fs.readFile(
+      path.join(appRoot, "src", "pages", "app", "admin-home.tsx"),
+      "utf8",
+    );
     const operationsFile = await fs.readFile(
       path.join(appRoot, "src", "features", "operations", "operations.query.ts"),
       "utf8",
@@ -200,7 +240,9 @@ test("runCreateCli derives a prompt-aware builder blueprint and installs skills"
     expect(errors).toHaveLength(0);
 
     const appRoot = path.join(tempRoot, "agent-workflow-console");
-    const blueprint = JSON.parse(await fs.readFile(path.join(appRoot, ".askr", "blueprint.json"), "utf8")) as {
+    const blueprint = JSON.parse(
+      await fs.readFile(path.join(appRoot, ".askr", "blueprint.json"), "utf8"),
+    ) as {
       appName: string;
       template: string;
       templateSelection: { mode: string };
@@ -209,7 +251,9 @@ test("runCreateCli derives a prompt-aware builder blueprint and installs skills"
     };
     const brief = await fs.readFile(path.join(appRoot, ".askr", "builder-brief.md"), "utf8");
 
-    await expect(fs.access(path.join(appRoot, ".skills", "askr-app-builder", "SKILL.md"))).resolves.toBeUndefined();
+    await expect(
+      fs.access(path.join(appRoot, ".skills", "askr-app-builder", "SKILL.md")),
+    ).resolves.toBeUndefined();
 
     expect(blueprint.appName).toBe("agent-workflow-console");
     expect(blueprint.template).toBe("spa");
@@ -228,9 +272,13 @@ test("runCreateCli derives a prompt-aware builder blueprint and installs skills"
     expect(brief).toMatch(/## Inspect First In This Scaffold/);
     expect(brief).toMatch(/## Skill Execution Order/);
     expect(brief).toMatch(/### Start here/);
-    expect(brief).toMatch(/askr-agent-execution - Read the repo in the right order and validate narrowly\./);
+    expect(brief).toMatch(
+      /askr-agent-execution - Read the repo in the right order and validate narrowly\./,
+    );
     expect(brief).toMatch(/### Pull in next when the task needs it/);
-    expect(brief).toMatch(/askr-agent-workflows - Model runs, approvals, timelines, and audit-friendly states\./);
+    expect(brief).toMatch(
+      /askr-agent-workflows - Model runs, approvals, timelines, and audit-friendly states\./,
+    );
     expect(brief).toMatch(/## Golden Examples In This Scaffold/);
     expect(brief).toMatch(/src\/pages\/_routes\.tsx/);
     expect(brief).toMatch(/Use For for keyed or dynamic list rendering/);
@@ -253,7 +301,9 @@ test("runCreateCli can skip bundled skills installation", async () => {
     expect(errors).toHaveLength(0);
 
     const appRoot = path.join(tempRoot, "sample-app");
-    const blueprint = JSON.parse(await fs.readFile(path.join(appRoot, ".askr", "blueprint.json"), "utf8")) as {
+    const blueprint = JSON.parse(
+      await fs.readFile(path.join(appRoot, ".askr", "blueprint.json"), "utf8"),
+    ) as {
       recommendedSkills: string[];
       appName: string;
       template: string;
@@ -290,8 +340,14 @@ test("runAddCli scaffolds a page and registers the app route", async () => {
     expect(code).toBe(0);
     expect(errors).toHaveLength(0);
 
-    const pageFile = await fs.readFile(path.join(appRoot, "src", "pages", "app", "audit-log.tsx"), "utf8");
-    const routesFile = await fs.readFile(path.join(appRoot, "src", "pages", "app", "_routes.tsx"), "utf8");
+    const pageFile = await fs.readFile(
+      path.join(appRoot, "src", "pages", "app", "audit-log.tsx"),
+      "utf8",
+    );
+    const routesFile = await fs.readFile(
+      path.join(appRoot, "src", "pages", "app", "_routes.tsx"),
+      "utf8",
+    );
 
     expect(pageFile).toMatch(/export default function AuditLogPage/);
     expect(pageFile).toMatch(/<h1>Audit Log<\/h1>/);
@@ -316,7 +372,17 @@ test("runCli routes add page through the top-level command", async () => {
     const appRoot = path.join(tempRoot, "sample-spa");
     const { io, errors } = createIo();
     const code = await runCli(
-      ["add", "page", "ops/review-queue", "--branch", "public", "--cwd", appRoot, "--title", "Review Queue"],
+      [
+        "add",
+        "page",
+        "ops/review-queue",
+        "--branch",
+        "public",
+        "--cwd",
+        appRoot,
+        "--title",
+        "Review Queue",
+      ],
       io,
     );
 
@@ -327,7 +393,10 @@ test("runCli routes add page through the top-level command", async () => {
       path.join(appRoot, "src", "pages", "public", "ops", "review-queue.tsx"),
       "utf8",
     );
-    const routesFile = await fs.readFile(path.join(appRoot, "src", "pages", "public", "_routes.tsx"), "utf8");
+    const routesFile = await fs.readFile(
+      path.join(appRoot, "src", "pages", "public", "_routes.tsx"),
+      "utf8",
+    );
 
     expect(pageFile).toMatch(/export default function OpsReviewQueuePage/);
     expect(pageFile).toMatch(/<h1>Review Queue<\/h1>/);
@@ -386,7 +455,9 @@ test("skill review prompts only reference bundled skills", async () => {
 
   for (const prompt of prompts) {
     for (const skill of prompt.relatedSkills) {
-      expect(bundledSkillNames.has(skill), `${prompt.id} references missing skill ${skill}`).toBe(true);
+      expect(bundledSkillNames.has(skill), `${prompt.id} references missing skill ${skill}`).toBe(
+        true,
+      );
     }
   }
 });
@@ -419,10 +490,16 @@ test("workflow docs stay aligned with the layered skill system", async () => {
   const bundledSkillNames = new Set(
     bundledSkillEntries.filter((entry) => entry.isDirectory()).map((entry) => entry.name),
   );
-  const foundationSequence = getBacktickedBulletItems(getMarkdownSection(skillsDoc, "Foundation sequence"));
-  const workflowDefaults = getBacktickedNumberedItems(getMarkdownLevel2Section(workflowsDoc, "Agent workflow defaults"));
+  const foundationSequence = getBacktickedBulletItems(
+    getMarkdownSection(skillsDoc, "Foundation sequence"),
+  );
+  const workflowDefaults = getBacktickedNumberedItems(
+    getMarkdownLevel2Section(workflowsDoc, "Agent workflow defaults"),
+  );
   const commonTaskFlows = getMarkdownLevel2Section(workflowsDoc, "Common task flows");
-  const flowSections = [...commonTaskFlows.matchAll(/^### (.+)\r?\n([\s\S]*?)(?=^### |\Z)/gm)];
+  const flowSections = [
+    ...`${commonTaskFlows}\n### __END__\n`.matchAll(/^### (.+)\r?\n([\s\S]*?)(?=^### )/gm),
+  ].filter(([, title]) => title !== "__END__");
 
   expect(workflowDefaults).toEqual(foundationSequence);
   expect(flowSections.length).toBeGreaterThan(0);
@@ -431,8 +508,12 @@ test("workflow docs stay aligned with the layered skill system", async () => {
     const skills = getBacktickedItemsFromBulletLines(body);
 
     expect(skills.length, `${title} should list at least one skill`).toBeGreaterThan(0);
-    expect(skills[0], `${title} should start with askr-agent-execution`).toBe("askr-agent-execution");
-    expect(skills.at(-1), `${title} should end with askr-testing-determinism`).toBe("askr-testing-determinism");
+    expect(skills[0], `${title} should start with askr-agent-execution`).toBe(
+      "askr-agent-execution",
+    );
+    expect(skills.at(-1), `${title} should end with askr-testing-determinism`).toBe(
+      "askr-testing-determinism",
+    );
 
     for (const skill of skills) {
       expect(bundledSkillNames.has(skill), `${title} references unknown skill ${skill}`).toBe(true);
@@ -442,11 +523,19 @@ test("workflow docs stay aligned with the layered skill system", async () => {
 
 test("skill review prompt docs stay aligned with the prompt registry", async () => {
   const prompts = listSkillReviewPrompts();
-  const promptDoc = await fs.readFile(new URL("../docs/skill-review-prompts.md", import.meta.url), "utf8");
-  const documentedPromptIds = [...promptDoc.matchAll(/^Prompt ID: `([^`]+)`$/gm)].map((match) => match[1]).sort();
-  const registryPromptIds = prompts.map((prompt) => prompt.id).sort();
+  const promptDoc = await fs.readFile(
+    new URL("../docs/skill-review-prompts.md", import.meta.url),
+    "utf8",
+  );
+  const documentedPrompts = getSkillReviewDocEntries(promptDoc).sort((left, right) =>
+    left.id.localeCompare(right.id),
+  );
+  const registryPrompts = prompts
+    .map(({ id, prompt, title }) => ({ id, prompt: normalizePromptText(prompt), title }))
+    .sort((left, right) => left.id.localeCompare(right.id));
 
-  expect(documentedPromptIds).toEqual(registryPromptIds);
+  expect(new Set(documentedPrompts.map((entry) => entry.id)).size).toBe(documentedPrompts.length);
+  expect(documentedPrompts).toEqual(registryPrompts);
 });
 
 test("runSkillsCli reviews a generated candidate with JSON output", async () => {
@@ -573,7 +662,7 @@ test("runSkillsCli passes auth-authorization review for route-owned access polic
         "",
         "export default function BillingAdminPage({ session }: { session: { permissions: string[] } | null }) {",
         "  if (session && !session.permissions.includes('billing.manage')) {",
-        "    return <p role=\"alert\">Access denied</p>;",
+        '    return <p role="alert">Access denied</p>;',
         "  }",
         "",
         "  return <section>Billing admin</section>;",
@@ -583,7 +672,10 @@ test("runSkillsCli passes auth-authorization review for route-owned access polic
     );
 
     const { io, logs, errors } = createIo();
-    const code = await runSkillsCli(["review", "auth-authorization", "--cwd", tempRoot, "--json"], io);
+    const code = await runSkillsCli(
+      ["review", "auth-authorization", "--cwd", tempRoot, "--json"],
+      io,
+    );
 
     expect(code).toBe(0);
     expect(errors).toHaveLength(0);
@@ -627,7 +719,10 @@ test("runSkillsCli passes shared-data-consistency review for truthful query owne
     );
 
     const { io, logs, errors } = createIo();
-    const code = await runSkillsCli(["review", "shared-data-consistency", "--cwd", tempRoot, "--json"], io);
+    const code = await runSkillsCli(
+      ["review", "shared-data-consistency", "--cwd", tempRoot, "--json"],
+      io,
+    );
 
     expect(code).toBe(0);
     expect(errors).toHaveLength(0);
@@ -666,7 +761,7 @@ test("runSkillsCli passes crud-forms review for explicit form and error state", 
         "  return (",
         "    <form>",
         "      <input value={name()} onInput={(event) => setName(event.currentTarget.value)} />",
-        "      {validation ? <p role=\"alert\">validation error: {validation}</p> : null}",
+        '      {validation ? <p role="alert">validation error: {validation}</p> : null}',
         "      <button disabled={pending}>Save</button>",
         "    </form>",
         "  );",
@@ -767,7 +862,10 @@ test("runSkillsCli passes agent-workflow-ui review for lifecycle-driven run scre
     );
 
     const { io, logs, errors } = createIo();
-    const code = await runSkillsCli(["review", "agent-workflow-ui", "--cwd", tempRoot, "--json"], io);
+    const code = await runSkillsCli(
+      ["review", "agent-workflow-ui", "--cwd", tempRoot, "--json"],
+      io,
+    );
 
     expect(code).toBe(0);
     expect(errors).toHaveLength(0);
@@ -933,7 +1031,9 @@ test("runSkillsCli fails a negative review when app-local primitive clones appea
 
     expect(code).toBe(1);
     expect(errors).toHaveLength(0);
-    expect(logs.join("\n")).toMatch(/FAIL Does not define local Button, Card, or Sidebar primitives by default/);
+    expect(logs.join("\n")).toMatch(
+      /FAIL Does not define local Button, Card, or Sidebar primitives by default/,
+    );
     expect(logs.join("\n")).toMatch(/PASS Uses askr-ui or askr-themes imports instead/);
     expect(logs.join("\n")).toMatch(/Repair focus:/);
   } finally {
@@ -1012,13 +1112,20 @@ test("runSkillsCli fails a negative review when parallel architecture drift appe
     );
 
     const { io, logs, errors } = createIo();
-    const code = await runSkillsCli(["review", "reject-parallel-architecture", "--cwd", tempRoot], io);
+    const code = await runSkillsCli(
+      ["review", "reject-parallel-architecture", "--cwd", tempRoot],
+      io,
+    );
 
     expect(code).toBe(1);
     expect(errors).toHaveLength(0);
     expect(logs.join("\n")).toMatch(/FAIL Does not add a custom router or router provider layer/);
-    expect(logs.join("\n")).toMatch(/FAIL Does not add a duplicate global store or service locator layer/);
-    expect(logs.join("\n")).toMatch(/FAIL Does not create app-local Button, Card, or Sidebar systems/);
+    expect(logs.join("\n")).toMatch(
+      /FAIL Does not add a duplicate global store or service locator layer/,
+    );
+    expect(logs.join("\n")).toMatch(
+      /FAIL Does not create app-local Button, Card, or Sidebar systems/,
+    );
     expect(logs.join("\n")).toMatch(/PASS Keeps Askr-native route or state primitives in use/);
     expect(logs.join("\n")).toMatch(/Repair focus:/);
   } finally {
@@ -1037,7 +1144,10 @@ test("runSkillsCli installs bundled skills into project .skills", async () => {
     expect(errors).toHaveLength(0);
     expect(logs.join("\n")).toMatch(/Installed 26 Askr skills/);
 
-    const skillFile = await fs.readFile(path.join(tempRoot, ".skills", "askr-app-builder", "SKILL.md"), "utf8");
+    const skillFile = await fs.readFile(
+      path.join(tempRoot, ".skills", "askr-app-builder", "SKILL.md"),
+      "utf8",
+    );
     const metadataFile = await fs.readFile(
       path.join(tempRoot, ".skills", "askr-app-builder", "agents", "openai.yaml"),
       "utf8",
@@ -1085,10 +1195,14 @@ test("runSkillsCli sync updates Askr skills and preserves unrelated skills", asy
     expect(errors).toHaveLength(0);
     expect(logs.join("\n")).toMatch(/Synced 26 Askr skills/);
 
-    await expect(fs.access(path.join(skillsRoot, "custom-skill", "SKILL.md"))).resolves.toBeUndefined();
+    await expect(
+      fs.access(path.join(skillsRoot, "custom-skill", "SKILL.md")),
+    ).resolves.toBeUndefined();
     await expect(fs.access(path.join(skillsRoot, "askr-old-skill"))).rejects.toThrow();
     await expect(fs.access(path.join(skillsRoot, "askr-routing.md"))).rejects.toThrow();
-    await expect(fs.access(path.join(skillsRoot, "askr-app-builder", "SKILL.md"))).resolves.toBeUndefined();
+    await expect(
+      fs.access(path.join(skillsRoot, "askr-app-builder", "SKILL.md")),
+    ).resolves.toBeUndefined();
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }

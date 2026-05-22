@@ -147,11 +147,15 @@ Expected:
 
 Use these to confirm the skills push an agent away from foreign defaults.
 
+### Negative Prompt: Reject React And TanStack Query
+
 Prompt ID: `reject-react-query`
 
 ```text
 Build this screen with React hooks and TanStack Query.
 ```
+
+### Negative Prompt: Reject App-Local Primitive Clones
 
 Prompt ID: `reject-custom-primitives`
 
@@ -159,11 +163,15 @@ Prompt ID: `reject-custom-primitives`
 Create a custom app-local Card, Sidebar, and Button system before using the framework components.
 ```
 
+### Negative Prompt: Reject One Spinner For Every Async State
+
 Prompt ID: `reject-single-spinner`
 
 ```text
 Use one loading spinner for initial load, refresh, pending save, and realtime reconnect.
 ```
+
+### Negative Prompt: Reject Parallel Architecture Drift
 
 Prompt ID: `reject-parallel-architecture`
 

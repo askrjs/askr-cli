@@ -5,10 +5,6 @@ export default defineConfig({
   plugins: [askr()],
   lint: {
     ignorePatterns: ['dist/**', 'node_modules/**', 'coverage/**'],
-    options: {
-      typeAware: false,
-      typeCheck: false,
-    },
   },
   fmt: {
     semi: true,

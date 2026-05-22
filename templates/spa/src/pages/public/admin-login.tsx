@@ -45,7 +45,9 @@ export default function AdminLoginPage() {
                     id="email"
                     type="email"
                     value={email()}
-                    onInput={(event: Event) => setEmail((event.currentTarget as HTMLInputElement).value)}
+                    onInput={(event: Event) =>
+                      setEmail((event.currentTarget as HTMLInputElement).value)
+                    }
                   />
                 </InputGroup>
                 <FieldHint>

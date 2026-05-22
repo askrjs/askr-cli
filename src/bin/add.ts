@@ -168,7 +168,9 @@ function buildRoutePath(branch: BranchName, segments: string[], overridePath = "
 
   const normalized = overridePath.startsWith("/") ? overridePath : `/${overridePath}`;
   if (branch === "app") {
-    return normalized === "/app" || normalized.startsWith("/app/") ? normalized : `/app${normalized}`;
+    return normalized === "/app" || normalized.startsWith("/app/")
+      ? normalized
+      : `/app${normalized}`;
   }
 
   if (normalized === "/app" || normalized.startsWith("/app/")) {
@@ -203,7 +205,7 @@ function createUpdatedRouteFile(
   if (
     normalized.includes(importLine) ||
     normalized.includes(`route('${options.routePath}',`) ||
-    normalized.includes(`route(\"${options.routePath}\",`)
+    normalized.includes(`route("${options.routePath}",`)
   ) {
     throw new Error(`Route '${options.routePath}' is already registered.`);
   }
@@ -293,7 +295,9 @@ async function addPage(parsed: ParsedArgs, io: CliIo): Promise<number> {
   const routesFile = path.join(projectRoot, ...branchConfig.routesFile);
   if (!(await pathExists(routesFile))) {
     io.error(`Unsupported project layout. Expected route file: ${routesFile}`);
-    io.error("askr add page currently supports route-first SPA projects created by `askr create spa`.");
+    io.error(
+      "askr add page currently supports route-first SPA projects created by `askr create spa`.",
+    );
     return 1;
   }
 
@@ -354,7 +358,10 @@ async function addPage(parsed: ParsedArgs, io: CliIo): Promise<number> {
   return 0;
 }
 
-export async function runAddCli(args: string[] = process.argv.slice(2), io: CliIo = console): Promise<number> {
+export async function runAddCli(
+  args: string[] = process.argv.slice(2),
+  io: CliIo = console,
+): Promise<number> {
   const parsed = parseArgs(args);
 
   if (parsed.errors.length > 0) {
