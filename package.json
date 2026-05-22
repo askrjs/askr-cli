@@ -16,9 +16,7 @@
     "url": "https://github.com/askrjs/askr-cli.git"
   },
   "bin": {
-    "cli": "./dist/cli.js",
     "askr": "./dist/cli.js",
-    "askr-cli": "./dist/cli.js",
     "askr-create": "./dist/create.js",
     "askr-ssg": "./dist/ssg.js"
   },
