@@ -6,17 +6,17 @@
     "dev": "vp dev",
     "build": "vp build",
     "preview": "vp preview",
-    "test": "npx vite-plus test run",
+    "test": "vp test run",
     "type-check": "tsc --noEmit",
     "lint": "npx vite-plus lint src tests",
     "lint:fix": "npx vite-plus lint --fix src tests",
     "fmt": "npx vite-plus fmt \"src/**/*.{ts,tsx,css}\" \"tests/**/*.{ts,tsx}\" \"*.md\""
   },
   "dependencies": {
-    "@askrjs/askr": ">=0.0.34 <0.1.0",
+    "@askrjs/askr": ">=0.0.38 <0.1.0",
     "@askrjs/charts": ">=0.0.1 <0.1.0",
     "@askrjs/lucide": ">=0.0.1 <0.1.0",
-    "@askrjs/themes": ">=0.0.3 <0.1.0",
+    "@askrjs/themes": ">=0.0.5 <0.1.0",
     "@askrjs/ui": ">=0.0.5 <0.1.0"
   },
   "devDependencies": {

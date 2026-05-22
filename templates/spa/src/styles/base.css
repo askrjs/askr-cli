@@ -4,56 +4,47 @@
 
 :where(html) {
   background: var(--ak-color-bg);
-}
-
-body {
-  min-height: 100vh;
-  margin: 0;
-  background:
-    radial-gradient(
-      72rem 38rem at 50% -6%,
-      color-mix(in srgb, var(--ak-color-primary-soft) 95%, transparent) 0%,
-      transparent 60%
-    ),
-    var(--ak-color-bg);
   color: var(--ak-color-fg);
   font-family: var(--ak-font-family);
 }
 
-a {
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--ak-color-bg);
+  color: var(--ak-color-fg);
+}
+
+:where(button, input, textarea, select) {
+  font: inherit;
+}
+
+:where(a) {
   color: inherit;
 }
 
-h1,
-h2,
-h3 {
+:where(h1, h2, h3, p) {
   margin: 0;
+}
+
+:where(h1, h2, h3) {
   color: var(--ak-color-fg);
   text-wrap: balance;
 }
 
-p {
-  margin: 0;
+:where(p) {
   max-inline-size: 68ch;
-  line-height: 1.7;
+  color: var(--ak-color-text-muted);
+  line-height: 1.65;
 }
 
-code {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.16em 0.45em;
-  border: 1px solid color-mix(in srgb, var(--ak-color-border) 86%, white 14%);
-  border-radius: calc(var(--ak-radius-sm) - 2px);
-  background: color-mix(in srgb, var(--ak-color-surface-muted) 88%, white 12%);
-  color: var(--ak-color-text);
-  font-size: 0.88em;
-}
-
-svg {
+:where(svg) {
   display: block;
+  flex: 0 0 auto;
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--ak-color-primary-soft) 88%, transparent);
+  background: color-mix(in srgb, var(--ak-color-primary-soft) 82%, transparent);
   color: var(--ak-color-text);
 }

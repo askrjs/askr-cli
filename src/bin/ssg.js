@@ -11,10 +11,10 @@ function toFileUrl(filePath) {
 }
 
 const helpText = `
-askr-ssg - Static Site Generation for Askr
+askr ssg - Static Site Generation for Askr
 
 Usage:
-  askr-ssg --config <path> --output <dir> [--incremental]
+  askr ssg --config <path> --output <dir> [--incremental]
 
 Options:
   --config <path>         Path to SSG config file (TypeScript module)
@@ -27,8 +27,8 @@ Options:
   --help                  Show this help message
 
 Examples:
-  askr-ssg --config ./ssg.config.ts --output ./dist/static
-  askr-cli ssg --config ./ssg.config.ts --output ./dist/static --incremental
+  askr ssg --config ./ssg.config.ts --output ./dist/static
+  askr ssg --config ./ssg.config.ts --output ./dist/static --incremental
 `;
 
 const defaultDeps = {

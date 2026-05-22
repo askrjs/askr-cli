@@ -28,8 +28,8 @@ in the app router.
 
 Expected output:
 
-- `src/routes/<name>.tsx`
-- Route registration in `src/router.tsx`
+- `src/pages/<branch>/<name>.tsx`
+- Route registration in `src/pages/<branch>/_routes.tsx`
 
 ## `add crud`
 
@@ -38,8 +38,8 @@ delete UI for a model.
 
 Expected output:
 
-- `src/routes/<model>.tsx`
-- `src/routes/<model>.detail.tsx`
+- `src/pages/app/<model>.tsx`
+- `src/pages/app/<model>-detail.tsx`
 - `src/features/<model>/<model>-table.tsx`
 - `src/features/<model>/<model>-form.tsx`
 

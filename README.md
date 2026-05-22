@@ -3,32 +3,55 @@
 Unified CLI for the Askr platform.
 
 `@askrjs/cli` bundles project scaffolding and static-site generation commands
-for Askr apps. Use it when you want a new project or when you need a repeatable
-SSG build path.
+for Askr apps. It also installs the agent skills that teach AI assistants how to
+build idiomatic Askr code. Use it when you want a new project, repeatable SSG
+builds, or project-local `.skills` guidance.
 
 ## Install
 
 ```bash
-npm install -D @askrjs/cli
+npm install -g @askrjs/cli
 ```
 
 ## Quick Start
 
 ```bash
-npx @askrjs/cli create startkit my-app
+npm install -g @askrjs/cli
+askr create startkit my-app
 cd my-app
 npm run dev
 ```
 
 ## Commands
 
-- `askr-cli create [template] <name> [--no-install]`
-- `askr-cli ssg --config <path> --output <dir> [--incremental]`
 
-Direct command bins are also provided:
+- `askr create [template] <name> [--no-install]`
+- `askr skills list`
+- `askr skills install [--cwd <dir>] [--force]`
+- `askr skills sync [--cwd <dir>]`
+- `askr ssg --config <path> --output <dir> [--incremental]`
 
-- `askr-create` for scaffolding
-- `askr-ssg` for direct SSG entry
+The canonical installed command is `askr`. Compatibility aliases `askr-cli`, `askr-create`, and `askr-ssg` are also provided.
+
+## Agent skills
+
+Install the bundled Askr skills into a project:
+
+```bash
+askr skills install
+```
+
+Use `sync` to update an existing project. It overwrites bundled `askr-*` skill
+folders and removes obsolete `askr-*` folders, while preserving unrelated
+custom skills.
+
+```bash
+askr skills sync
+```
+
+The bundled skills include guidance for route-first project structure, API
+integration, auth/access, agent workflows, realtime/event-sourced UX, eventual
+consistency, observability, accessibility, and file/artifact flows.
 
 ## Templates
 
@@ -44,4 +67,3 @@ Templates are stored in `templates/`.
 ## Docs
 
 - [CLI docs](./docs/README.md)
-

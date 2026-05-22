@@ -5,6 +5,7 @@ export default defineConfig({
     entry: {
       cli: "src/bin/cli.js",
       create: "src/bin/create.js",
+      skills: "src/bin/skills.js",
       ssg: "src/bin/ssg.js",
     },
     format: ["esm"],
@@ -14,7 +15,7 @@ export default defineConfig({
       js: ".js",
     }),
     sourcemap: true,
-    copy: ["templates"],
+    copy: ["templates", "skills"],
     deps: {
       neverBundle: [/^@askrjs\/askr(?:\/.*)?$/],
     },
