@@ -11,6 +11,7 @@ The CLI exists to:
 - Standardize structure - every generated project starts from the same foundation
 - Accelerate feature creation - generators produce the right files in the right places
 - Install agent skills - `.skills` guidance teaches AI agents the same conventions
+- Turn prompts into build-ready repos - prompt-aware scaffolding emits deterministic app blueprints for builders
 
 Generated code has no runtime dependency on the CLI. Once scaffolded, the CLI is a dev-time
 tool only. You can read and modify every generated file without affecting how the CLI works.
@@ -36,6 +37,8 @@ Compatibility aliases are also exposed:
 
 ```bash
 askr create [template] <name>   # Scaffold a new project
+askr create --prompt "..."     # Infer a template and emit a builder blueprint
+askr add page <name>            # Generate a route page into an existing SPA app
 askr skills install             # Install bundled Askr agent skills
 askr skills sync                # Update bundled Askr agent skills
 askr ssg --config <path>        # Run static site generation
@@ -53,14 +56,30 @@ askr ssg --config <path>        # Run static site generation
 ```bash
 askr create startkit my-app
 askr create spa my-dashboard
+askr create --prompt "Agent workflow console with approvals and analytics"
 ```
 
-### Planned generators
+When you use `--prompt`, the CLI deterministically selects the best template,
+writes `.askr/blueprint.json` and `.askr/builder-brief.md`, and installs the
+bundled Askr skills into `.skills/` unless you opt out with `--no-skills`.
 
-These commands are on the roadmap. They will scaffold feature code into an existing project.
+### Generators
+
+Shipped today:
 
 ```bash
-askr add page <name>    # Add a new route + page component
+askr add page <name>
+askr add page ops/audit-log --branch public
+```
+
+`askr add page` currently targets route-first SPA projects created by
+`askr create spa` and updates the owning `_routes.tsx` file directly.
+
+Still planned:
+
+These commands are still on the roadmap. They will scaffold feature code into an existing project.
+
+```bash
 askr add route <path>   # Register a new route in the router
 askr add crud <model>   # Scaffold full CRUD UI for a model
 askr add table <name>   # Generate a data table component
@@ -80,6 +99,10 @@ askr skills sync
 Skills are copied into `.skills/` as project-local dev-time guidance. `install`
 is conservative for new projects; `sync` updates bundled `askr-*` skills while
 preserving unrelated custom skills.
+
+`askr create` now performs the equivalent of a bundled skill install for new
+projects by default so agentic builders can work immediately against the local
+Askr guidance.
 
 ## See also
 

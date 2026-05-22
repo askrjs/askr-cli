@@ -5,34 +5,39 @@ description: Use when scaffolding Askr projects with @askrjs/cli, choosing spa/s
 
 # Askr CLI Vite
 
-Use this for project creation and build integration.
+Use this only when the task is scaffold choice, initial project setup, or repair of Vite and transform wiring. It is not a normal feature-work skill after the app is already on the canonical path.
+
+## Use This When
+
+- Choosing between `spa`, `ssr`, `ssg`, and `startkit`.
+- Fixing `@askrjs/vite` plugin wiring or JSX import-source setup.
+- Repairing generated `package.json`, `vite.config.ts`, or `tsconfig` settings.
+- Adjusting scaffolded build integration without changing runtime architecture.
 
 ## Inspect First
 
-- `askr-cli/docs/create.md`
-- `askr-cli/docs/workflows.md`
-- `askr-vite/README.md`
-- Existing `package.json`, `vite.config.ts`, and `tsconfig.json`.
+- `docs/create.md`
+- `docs/workflows.md`
+- Existing `package.json`, `vite.config.ts`, and `tsconfig.json`
+- The nearest matching template under `templates/`
 
-## Template Choice
+## Start From The Closest Template
 
 - `startkit`: default for new product apps with dashboard, accounts, settings, login, themes, icons, and common checks.
 - `spa`: minimal client-rendered interactive app.
 - `ssr`: server-rendered app boundary.
 - `ssg`: static generation scaffold with `ssg.config.ts`.
 
-## CLI Pattern
+## Do This In Order
 
-```bash
-npm install -g @askrjs/cli
-askr create startkit my-app
-cd my-app
-npm run dev
-```
+1. Choose the closest template instead of starting from raw Vite.
+2. Preserve generated Vite wiring unless the app has a concrete build requirement.
+3. Keep `askr()` as the owning plugin for Askr JSX and transforms.
+4. Keep runtime route, data, and component decisions out of build config.
+5. Treat generated files as app-owned after scaffold, not immutable.
+6. Validate scripts and transforms before moving on to feature work.
 
-Use `askr <command> [args]` after installation. Use `--no-install` only when dependency installation is managed elsewhere.
-
-## Vite Pattern
+## Copy This Shape
 
 ```ts
 import { defineConfig } from "vite";
@@ -43,33 +48,29 @@ export default defineConfig({
 });
 ```
 
-The plugin owns Askr JSX and template transforms. Keep Vite config focused on build/dev integration.
+## Never Do These
 
-## Decision Rules
-
-- Preserve generated Vite wiring unless the app has a specific build requirement.
-- Use package-owned entrypoints instead of hand-written JSX transform config.
-- Keep runtime behavior out of Vite config.
-- After scaffolding, generated code is app-owned and should be customized consistently.
-
-## Avoid
-
-- Duplicating JSX transform setup in Vite, tsconfig, and custom esbuild config.
+- Duplicating JSX transform setup in Vite, `tsconfig`, and custom esbuild config.
 - Choosing `startkit` for a tiny isolated demo when `spa` fits better.
 - Treating CLI-generated files as immutable.
 - Adding runtime route or data decisions to build config.
 
-## Checks
+## Validate
 
 - `vite.config.ts` uses `askr()`.
 - `package.json` scripts match the selected template.
-- `tsconfig` JSX settings match askr template conventions.
+- `tsconfig` JSX settings match template conventions.
 - `npm run dev`, `npm run build`, and available checks pass after setup.
 
-## Source Files
+## Done When
 
-- `askr-cli/docs/create.md`
-- `askr-cli/docs/workflows.md`
-- `askr-vite/README.md`
-- `askr-cli/templates/startkit/package.json`
-- `askr-cli/templates/startkit/vite.config.ts`
+- The template matches the runtime boundary the app actually needs.
+- Vite wiring stays package-owned and minimal.
+- Generated files are ready for normal workflow skills.
+- No runtime architecture leaked into build config.
+
+## Handoff
+
+- Use `askr-app-builder` only when the task is still a broad app brief.
+- Use `askr-ssr-ssg` when the render boundary is the hard part.
+- Use the normal route, data, or UI workflow skills once the scaffold exists.

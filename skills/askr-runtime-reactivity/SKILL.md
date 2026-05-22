@@ -5,17 +5,30 @@ description: Use when writing askr reactive runtime code with state, derive, sel
 
 # Askr Runtime Reactivity
 
-Use this when local state, derived values, keyed selection, context, control flow, or render determinism matters.
+Use this when local state, derived values, keyed identity, or runtime determinism matters. The goal is stable helper call order and correct primitive use.
+
+## Use This When
+
+- You are adding local UI state.
+- You need a computed value from reactive reads.
+- You are rendering keyed lists, selections, or filters.
+- You need to keep call order stable across renders.
 
 ## Inspect First
 
-- `askr/docs/core/data.md`
-- `askr/docs/guides/state.md`
-- `askr/docs/concepts/determinism.md`
-- `askr/docs/concepts/runtime-enforcement.md`
-- Existing component state patterns.
+- The nearest existing component with similar state or list behavior.
+- Existing tests that already cover toggles, selection, or filtering.
+- The nearest feature owner if local state may need to become shared later.
 
-## Core Pattern
+## Pick The Primitive
+
+- Local mutable value: `state()`.
+- Computed value from reactive reads: `derive()`.
+- One reactive source fans out to many keyed readers: `selector()`.
+- Cross-tree shared value: `defineContext()` and `readContext()`.
+- Keyed or identity-sensitive list: `For`.
+
+## Copy This Shape
 
 ```tsx
 import { derive, selector, state } from "@askrjs/askr";
@@ -27,16 +40,7 @@ const doubled = derive(() => count() * 2);
 const isSelected = selector(selectedId);
 ```
 
-`state()` returns a `[getter, setter]` pair. Read with the getter call and update with the setter.
-
-## Decision Rules
-
-- Use `state()` for local mutable UI state, always as a `[getter, setter]` pair.
-- Use `derive()` for computed values from reactive reads.
-- Use `selector()` when one source fans out to many keyed readers, especially tables and lists.
-- Use `defineContext()` and `readContext()` for cross-tree values.
-- Use `For`, `Show`, `Case`, and `Match` for JSX control flow when they make identity or branching clearer.
-- Keep runtime helper call order stable across renders.
+`state()` returns a `[getter, setter]` pair. Read with `getter()` and update with `setter(...)`.
 
 ## Determinism Rules
 
@@ -45,7 +49,24 @@ const isSelected = selector(selectedId);
 - Batch related updates in the event handler that owns the user action.
 - Preserve stable keys in `For` for rows and reorderable lists.
 
-## Avoid
+## Reject This Shape
+
+```tsx
+function BadList({ rows }) {
+	if (rows.length > 0) {
+		const [selected, setSelected] = state(rows[0].id);
+		return rows.map((row, index) => (
+			<button key={index} onClick={() => setSelected(row.id)}>
+				{selected === row.id ? "Selected" : row.label}
+			</button>
+		));
+	}
+
+	return null;
+}
+```
+
+Reject this shape. It creates state conditionally, treats getter/setter values like plain variables, and uses index keys where stable identity matters.
 
 - Reading a getter without calling it.
 - React hooks or `useState` in Askr app code.
@@ -53,18 +74,19 @@ const isSelected = selector(selectedId);
 - Index keys for data with stable IDs.
 - Derived state that performs side effects.
 
-## Checks
+## Validate
 
 - Runtime helpers are top-level and unconditional.
+- Getter calls are explicit.
 - Lists have stable identity.
-- Event handlers serialize intent clearly.
-- Tests cover branch toggles, list selection, and state updates that matter to the feature.
+- Existing or new tests cover the state change that matters.
 
-## Source Files
+## Done When
 
-- `askr/docs/guides/state.md`
-- `askr/docs/core/data.md`
-- `askr/docs/concepts/determinism.md`
-- `askr/src/runtime/state.ts`
-- `askr/src/runtime/derive.ts`
-- `askr/src/runtime/selector.ts`
+- No React-style state shape or conditional helper creation slipped in.
+
+## Handoff
+
+- Use `askr-query-mutation` when the next step is shared keyed state.
+- Use `askr-resources-data` when the next step is async lifecycle ownership.
+- Use `askr-testing-determinism` before closing runtime-sensitive changes.

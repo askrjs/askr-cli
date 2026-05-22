@@ -5,28 +5,37 @@ description: Use when composing Askr UI with @askrjs/ui headless primitives, acc
 
 # Askr UI Composition
 
-Use this when building interactive UI from `@askrjs/ui` primitives or reviewing app-local components for idiomatic composition.
+Use this when the hard part is behavior and composition rather than theming. The goal is to reuse `@askrjs/ui` for focus, keyboard, dismissal, and ARIA behavior instead of rebuilding it locally.
 
 ## Inspect First
 
-- `askr-ui/docs/askr-ui.md`
-- `askr-ui/docs/components.md`
-- `askr-ui/docs/composition.md`
-- Existing component imports and slot naming.
+- Existing component imports and slot naming
+- The nearest shared component with similar behavior
+- Existing theme usage to decide whether headless or themed primitives fit better
+- Existing tests for keyboard or focus behavior
 
-## Ownership Model
+## Use This When
 
-- `@askrjs/ui` owns behavior, focus, keyboard support, ARIA, dismissal, and headless structure.
-- `@askrjs/themes` owns optional visual wrappers and default styling.
-- App components own product composition, copy, data, and workflow state.
+- You need dialog, popover, menu, select, toggle, checkbox, or other interactive behavior.
+- The app needs headless primitives or already owns its own CSS.
+- You are tempted to rebuild keyboard, focus, or dismissal logic locally.
+- Themed primitives are not enough because behavior composition is the real problem.
 
 ## Choose UI Or Theme
 
-- Use `@askrjs/ui` directly when the app has its own CSS/design system or needs a headless behavior primitive.
-- Use `@askrjs/themes/controls`, `surfaces`, `feedback`, `shells`, `navs`, and `overlays` when the default Askr visual system should style the primitive.
+- Use `@askrjs/ui` directly when the app has its own CSS or needs a headless behavior primitive.
+- Use `@askrjs/themes` when the existing visual system should also style the primitive.
 - Do not create app-local wrappers for solved theme surfaces unless the wrapper adds product semantics.
 
-## Canonical Pattern
+## Do This In Order
+
+1. Pick the primitive family that already owns the behavior.
+2. Keep coordination state in the root component that owns the interaction.
+3. Use `asChild` only when caller markup must be preserved.
+4. Use `data-slot` on app structure that needs stable styling hooks.
+5. Validate keyboard, pointer, and ARIA behavior.
+
+## Copy This Shape
 
 ```tsx
 import {
@@ -55,16 +64,7 @@ import {
 </AlertDialog>;
 ```
 
-## Decision Rules
-
-- Use `Button`, `Input`, `Checkbox`, `Select`, `Switch`, `Toggle`, `Dialog`, `AlertDialog`, `Popover`, `Menu`, `Menubar`, `Dropdown`, `Tooltip`, and related families before raw interactive HTML.
-- Use themed `Button`, `Field`, `InputGroup`, `Card`, `Alert`, `EmptyState`, `Spinner`, `Nav`, `Sidebar`, `Navbar`, and `DropdownContent` when visual styling should come from `@askrjs/themes`.
-- Keep coordination state in the root component that owns the interaction, using a local `[getter, setter]` pair from `state()`.
-- Use `asChild` when a primitive part should preserve caller markup.
-- Use `data-slot` on structural app nodes for stable styling hooks.
-- Use direct subpaths for focused imports and root imports when the module already imports several families.
-
-## Avoid
+## Never Do These
 
 - Reimplementing keyboard, focus, or dismissal behavior already owned by a primitive.
 - Styling or business logic inside behavior primitives.
@@ -72,15 +72,21 @@ import {
 - Silent invalid composition when a part requires a root scope.
 - Prop bloat where composition would be clearer.
 
-## Checks
+## Validate
 
 - Keyboard and pointer behavior match the primitive contract.
 - ARIA labels, names, and roles are present where required.
 - `asChild` preserves expected markup and events.
-- Interactive behavior has jsdom or browser coverage when user-facing.
+- User-facing interaction has jsdom or browser coverage.
 
-## Source Files
+## Done When
 
-- `askr-ui/docs/composition.md`
-- `askr-ui/docs/components.md`
-- `askr-cli/templates/startkit/src/pages/workspace/accounts/index.tsx`
+- The app reused the primitive that already owns the behavior.
+- Product composition stayed in the app, while behavior stayed in the primitive.
+- No local behavior clone was introduced.
+
+## Handoff
+
+- Use `askr-theming` when the next step is visual styling and shell coherence.
+- Use `askr-accessibility` when the next step is announcement, focus, or semantic review.
+- Use `askr-testing-determinism` before closing user-facing interaction changes.

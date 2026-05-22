@@ -2,6 +2,13 @@
 
 Client-side SPA built with Askr, askr-ui, and askr-themes.
 
+## Agent Workflow
+
+- Read `package.json`, `src/main.tsx`, `src/router.tsx`, the nearest route file, and the nearest feature folder before editing.
+- Use Askr skills in this order when scope is unclear: `askr-app-builder`, `askr-mental-model`, `askr-project-structure`, then the specialized skill for the touched surface.
+- Prefer the smallest change that matches the existing route, feature, shell, and style conventions.
+- Validate with the narrowest relevant executable check first, then widen only if needed.
+
 ## Commands
 
 ```bash
@@ -24,6 +31,13 @@ npm run fmt        # Prettier
 - **Data flow:** Keep sample data in `src/lib/mock-data.ts`, not inline in pages. Read async data with `resource()` and keep mock mutations in the same lib boundary.
 - **Preferences:** Keep persistent appearance/session helpers in the lib boundary and initialize at app bootstrap.
 - **Vite plugin:** `askr()` from `@askrjs/vite` handles JSX transform - no manual esbuild config needed.
+
+## Do Not Invent By Default
+
+- React hooks, React Router patterns, or `useEffect`-style data loading.
+- Generic query-client or global-store abstractions when `resource()`, `createQuery()`, or `createMutation()` already fit.
+- App-local `Button`, `Card`, `Panel`, `Sidebar`, `Navbar`, `EmptyState`, `HStack`, or `VStack` clones before checking `@askrjs/ui` and `@askrjs/themes`.
+- Route-local API clients or DTO mapping inside page components.
 
 ## File Structure
 
@@ -54,3 +68,10 @@ tests/               # Vitest tests
 - Prefer subtle borders over heavy shadows or decorative effects
 - Ensure consistent hover/focus-visible/disabled/empty/error treatment across components
 - Prettier + ESLint enforced
+
+## Validation
+
+- Run the narrowest relevant test first.
+- Run `npm run type-check` for type-sensitive changes.
+- Run `npm run build` when app boot, routing, or packaging changes.
+- Confirm loading, empty, error, stale, and pending states remain truthful for user-visible flows.

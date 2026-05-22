@@ -5,7 +5,7 @@ description: Use when creating product-grade Askr interfaces, design-system rule
 
 # Askr Design System
 
-Use this when making an Askr app feel coherent and production-ready.
+Use this only when a repeated product pattern must become shared across multiple screens. This is not the default starting skill for a single UI task.
 
 ## Inspect First
 
@@ -13,6 +13,13 @@ Use this when making an Askr app feel coherent and production-ready.
 - `src/components/shared` before adding new UI building blocks.
 - `@askrjs/themes` primitives already in use.
 - Target product audience and primary workflows.
+
+## Use This When
+
+- The same pattern repeats across three or more screens.
+- Theme primitives alone are not enough to express a product-specific shared pattern.
+- You need consistent density, hierarchy, and action placement across the app.
+- You are about to create a reusable product component, not just style one page.
 
 ## Product UI Defaults
 
@@ -23,7 +30,15 @@ Use this when making an Askr app feel coherent and production-ready.
 - Use tokens and semantic slots rather than one-off visual styles.
 - Before inventing a component, check `@askrjs/themes` layout, control, surface, feedback, shell, nav, and overlay exports.
 
-## Use Existing Theme Primitives
+## Do This In Order
+
+1. Prove the pattern is repeated enough to deserve extraction.
+2. Start from existing theme primitives and shared styles.
+3. Extract the smallest product-specific shared component or CSS recipe that removes repetition.
+4. Keep tokens in CSS and keep workflow logic out of design-system components.
+5. Validate the pattern in light, dark, responsive, empty, error, and disabled states.
+
+## Start From These Primitives
 
 - Page width/rhythm: `Container`, `Section`.
 - Vertical and horizontal composition: `Stack`, `Inline`, `Flex`.
@@ -36,7 +51,7 @@ Use this when making an Askr app feel coherent and production-ready.
 - Navigation: `Nav`, `NavLink`, `NavGroup`, `NavBrand`, `Breadcrumb`, `Pagination`.
 - Menus: themed `Dropdown`, `Menu`, and `Menubar` from `@askrjs/themes/overlays`.
 
-## Layout Rules
+## Never Do These
 
 - Route layouts own shell chrome.
 - Shared components own repeatable product surfaces.
@@ -44,9 +59,6 @@ Use this when making an Askr app feel coherent and production-ready.
 - Do not wrap cards inside cards; use `Section`, `Container`, `Stack`, and `Block` for page-level composition.
 - Tables and forms should be compact but readable.
 - Long labels must wrap or truncate intentionally.
-
-## Avoid
-
 - Marketing-page composition for operational apps.
 - Decorative gradients, oversized hero panels, or low-density cards in work surfaces.
 - Hardcoded colors and spacing outside tokens.
@@ -54,9 +66,21 @@ Use this when making an Askr app feel coherent and production-ready.
 - App-local design-system clones of theme primitives.
 - Custom CSS grids or flex wrappers when `Block`, `Flex`, `Inline`, or `Stack` already express the layout.
 
-## Checks
+## Validate
 
 - Mobile, tablet, desktop, light, and dark modes are considered.
 - Focus, hover, disabled, loading, empty, and error states feel consistent.
 - Text does not overflow buttons, cards, navs, tables, or overlays.
 - The interface optimizes repeated use, not only first impression.
+
+## Done When
+
+- A repeated product pattern became shared without creating a second component catalog.
+- Theme primitives still provide the baseline behavior and styling model.
+- The extracted pattern improves coherence across real repeated screens.
+
+## Handoff
+
+- Use `askr-theming` when the next step is token or shell styling.
+- Use `askr-ui-composition` when the next step is interactive behavior.
+- Use `askr-testing-determinism` before closing broad visual-system changes.

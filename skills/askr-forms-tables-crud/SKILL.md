@@ -5,17 +5,30 @@ description: Use when building askr CRUD screens, forms, validation, filters, ta
 
 # Askr Forms Tables CRUD
 
-Use this for create, read, update, delete, search, filter, and table workflows.
+Use this for create, read, update, archive, filter, paginate, and edit workflows. The goal is a predictable split between route composition, feature workflow state, and transport boundaries.
 
 ## Inspect First
 
-- `askr/docs/guides/crud.md`
-- `askr/docs/guides/forms.md`
-- `askr/docs/guides/tables.md`
-- `askr-cli/templates/startkit/src/pages/workspace/accounts/index.tsx`
-- `askr-cli/templates/startkit/src/features/accounts/*`
+- The nearest page that owns a table or form.
+- The nearest feature folder for the same domain.
+- The adapter or service that owns transport.
+- Existing tests that cover filtering, submission, or destructive actions.
 
-## Structure
+## Use This When
+
+- You are adding a list, detail, create, edit, archive, or bulk-action flow.
+- You need filters, pagination, selection, or row actions.
+- You need field validation and server validation errors.
+- You need a safe destructive action flow.
+
+## Pick The Owner
+
+- The route or page composes the screen.
+- The feature folder owns filters, form state, table columns, queries, and mutations.
+- The adapter owns fetch, update, archive, and DTO mapping.
+- Shared helpers own cross-cutting formatting and validation helpers when reused.
+
+## Copy This Shape
 
 ```text
 src/pages/app/users.tsx
@@ -28,15 +41,15 @@ src/adapters/users-client.ts
 src/shared/format.ts
 ```
 
-Routes compose the page. Feature modules own domain UI and workflows. `src/adapters` owns generated clients and raw transport. `src/shared` owns cross-cutting formatting and error helpers.
+Routes compose the screen. Features own domain UI and workflow state. Adapters own transport. Shared helpers own cross-cutting formatting or validation utilities.
 
-## Data Flow
+## Do This In Order
 
-- Use `resource()` for route-owned async reads that need lifecycle cancellation.
-- Use `createQuery()` when list/detail data is shared across screens.
-- Use `createMutation()` or explicit feature-owned async state for writes.
-- Refresh or invalidate after create, update, archive, or delete.
-- Keep filters, pagination, selected IDs, and dialog open state in `const [value, setValue] = state(initial)` pairs, then read with the getter and update through the setter.
+1. Choose the async owner first: `resource()` for route-owned reads, `createQuery()` for shared keyed reads, and `createMutation()` for writes.
+2. Keep filters, pagination, dialog state, and selected IDs in local `state()` pairs.
+3. Keep field validation and submit handling explicit in the feature layer.
+4. Confirm destructive actions before archive or delete.
+5. Refresh or invalidate after create, update, archive, or delete.
 
 ## Table Rules
 
@@ -53,23 +66,33 @@ Routes compose the page. Feature modules own domain UI and workflows. `src/adapt
 - Use `@askrjs/ui` form controls for behavior and accessibility.
 - Disable submit while pending and surface field or form errors explicitly.
 
-## Avoid
-
 - API clients in table, form, or generic UI components.
+- Bound live or frequently updating rows so tables and timelines do not churn the whole DOM.
+- Keep filtering, sorting, and pagination state together in the feature workflow instead of scattering it across route files.
 - Business rules in reusable primitives.
 - Hidden destructive actions without confirmation.
 - Duplicated pagination/filter logic across route files.
+- A table component that imports a raw API client and mutates records directly from row actions.
+- A form that shows only a toast on submit failure and never maps field errors back to inputs.
+- Pagination, sorting, and filter state duplicated in multiple route pages.
 
-## Checks
+## Validate
 
 - CRUD ownership boundaries are obvious.
-- Every async path has loading/error/retry or disabled feedback.
+- Every async path has loading, error, retry, or disabled feedback.
 - Selection, bulk actions, and destructive actions are keyboard reachable.
-- Tests cover filtering, selection, submit success, submit failure, and empty state.
+- Submit handlers preserve pending state and field or form errors.
+- Record rows use stable keys.
 
-## Source Files
+## Done When
 
-- `askr/docs/guides/crud.md`
-- `askr/docs/guides/forms.md`
-- `askr/docs/guides/tables.md`
-- `askr-cli/templates/startkit/src/pages/workspace/accounts/index.tsx`
+- Form, table, mutation, and adapter ownership are separated.
+- Field errors, form errors, pending state, and success state are all visible.
+- Selection, filters, sorting, and destructive actions are keyboard reachable.
+- Rows keep stable identity and large updates do not force whole-list churn.
+
+## Handoff
+
+- Use `askr-query-mutation` when the form or table state becomes shared keyed state across screens.
+- Use `askr-accessibility` when validation, focus, or destructive-action UX is the hard part.
+- Use `askr-testing-determinism` to validate submit, retry, selection, and list identity behavior.

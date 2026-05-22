@@ -5,16 +5,23 @@ description: Use when designing Askr loading, empty, error, stale, refreshing, p
 
 # Askr Error Loading Empty
 
-Use this whenever a feature touches async data or non-happy-path UI.
+Use this whenever a feature touches async data or failure states. The goal is one truthful UI meaning per async state.
+
+## Use This When
+
+- You added a `resource()`, `createQuery()`, or `createMutation()` path.
+- The screen can load, refresh, fail, be empty, or lag behind a write.
+- The UX currently hides too much behind one spinner or one toast.
+- The user needs truthful state during eventual consistency.
 
 ## Inspect First
 
-- The route/container that owns the resource, query, or mutation.
-- Existing shared empty state, alert, toast, skeleton, and error components.
-- Query consistency fields: `loading`, `refreshing`, `stale`, `consistency`.
-- Mutation state: `pending`, `error`, `result`, `status`.
+- The owner of the async state.
+- Existing shared alert, empty-state, skeleton, toast, and status components.
+- Query fields such as `loading`, `refreshing`, `stale`, and `consistency`.
+- Mutation fields such as `pending`, `error`, `result`, and `status`.
 
-## State Vocabulary
+## Use This Vocabulary
 
 - Initial loading: no usable data yet.
 - Refreshing: old data is visible while new data loads.
@@ -24,25 +31,59 @@ Use this whenever a feature touches async data or non-happy-path UI.
 - Pending write: command accepted but read model may not reflect it yet.
 - Stale: current read model is known or suspected to be behind.
 
-## Eventual Consistency UX
+## Do This In Order
 
-- Keep stale data visible when it is safer than blanking the screen.
-- Use "syncing", "saving", "processing", or "updating" copy for projection lag.
-- Disable only actions that would conflict; keep safe navigation available.
-- Show reconciliation failures as recoverable stale/error states.
-- Prefer narrow row-level status over global page blocking when only one record is pending.
+1. Render a distinct state for initial load, empty, error, refresh, and pending write.
+2. Keep useful old data visible during refresh when it is safe to do so.
+3. Use truthful copy such as `refreshing`, `saved, syncing`, or `reconnecting`.
+4. Disable only the actions that are actually unsafe.
+5. Prefer row-level or local status when only one record is stale or pending.
 
-## Avoid
+## Copy This Shape
+
+```tsx
+if (accounts.pending && !accounts.value) {
+	return <p>Loading accounts...</p>;
+}
+
+if (accounts.error && !accounts.value) {
+	return <p role="alert">Unable to load accounts.</p>;
+}
+
+return (
+	<section>
+		<Show when={accounts.refreshing || accounts.consistency === "pending-write"}>
+			<p role="status">Saved, syncing...</p>
+		</Show>
+
+		<Show when={(accounts.value?.items.length ?? 0) === 0}>
+			<p>No accounts matched this filter.</p>
+		</Show>
+
+		<AccountsTable rows={accounts.value?.items ?? []} />
+	</section>
+);
+```
 
 - One spinner for every async state.
 - Empty states that hide errors.
 - Toast-only errors for important failed workflows.
 - Claiming a write is fully complete before the read side confirms it.
 - Clearing useful data during refresh.
+- Global blocking UI when only one row or one mutation is actually stale.
 
-## Checks
+## Validate
 
-- Initial, refresh, empty, error, stale, and pending-write states are represented.
-- Retry paths call the owning `refresh()` or mutation action.
-- Screen-reader relevant failures use `role="alert"` where appropriate.
+- Initial, refresh, empty, error, stale, and pending-write states are distinct.
+- Retry paths call the real owner.
+- Important failures are visible without depending only on color or toast.
 - Copy tells the truth about eventual consistency.
+
+## Done When
+
+- The screen no longer hides multiple async truths behind one spinner.
+
+## Handoff
+
+- Use `askr-query-mutation` or `askr-resources-data` when the owning state model is still unclear.
+- Use `askr-accessibility` when announcements, focus, or row-level status semantics need review.

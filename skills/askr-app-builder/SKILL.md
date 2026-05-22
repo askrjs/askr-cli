@@ -5,73 +5,95 @@ description: Use when building or substantially extending an Askr application, c
 
 # Askr App Builder
 
-Use this as the first skill for real application work. Choose the smallest Askr path that can produce a polished, deterministic product surface.
+Use this only when a task spans multiple owned workflows and no single narrower skill is enough. This is a planning and dispatch skill, not the default starting point for everyday feature work.
+
+## Use This When
+
+- A new feature spans routing, data ownership, UI composition, and validation together.
+- You need to choose a scaffold or template path before implementation.
+- You need to break a broad feature into smaller owned slices.
+- The task touches multiple branches, features, and render surfaces at once.
+
+## Do Not Use This First When
+
+- The task is only about one route, one component, one async owner, or one UI surface.
+- File ownership is unclear but still local; use `askr-project-structure` instead.
+- The hard problem is already clearly routing, state, theming, auth, or validation.
 
 ## Inspect First
 
-- `askr-cli/templates/startkit/AGENTS.md` for the canonical product-app baseline.
-- `askr/docs/reference/package-map.md` for package ownership.
-- `askr/docs/reference/project-structure.md` and `askr/docs/reference/conventions.md` for file placement.
-- Existing `src/main.tsx`, `src/pages/**/_routes.tsx`, `src/pages/**/_layout.tsx`, `src/features/`, `src/components/shared/`, `src/shared/`, `src/adapters/`, and `src/styles/`.
+- `AGENTS.md` when it exists
+- `package.json`
+- `src/main.tsx`
+- The top-level route registry and nearest branch layout
+- Existing `src/features`, `src/adapters`, `src/shared`, and `src/styles` ownership
+- Existing tests for the surfaces involved
 
-## Choose The Path
+## Plan The Slice
 
-- New product app: start from `npx @askrjs/cli create startkit <name>`.
-- Minimal interactive app: use the `spa` template.
-- Server-rendered app: use `ssr`.
-- Static/documentation site: use `ssg`.
+1. Pick the template or existing app baseline.
+2. Identify the route owner, layout owner, feature owner, adapter owner, and validation owner.
+3. Split the work into smaller slices that can each be guided by one narrower skill.
+4. Apply those narrower skills in sequence instead of keeping the whole task under this one.
+5. End with `askr-testing-determinism` once the slices are implemented.
+
+## Choose The Baseline
+
+- New product app: `askr create startkit <name>`.
+- Minimal interactive app: `spa`.
+- Server-rendered app: `ssr`.
+- Static or docs site: `ssg`.
 - Existing app: follow its current route, layout, style, and test conventions before introducing new ones.
 
-## Canonical Layers
+## Route The Work To Narrower Skills
 
-- `@askrjs/askr`: runtime, reactivity, routing, resources, query/mutation, SSR, SSG.
-- `@askrjs/ui`: headless behavior and accessibility primitives.
-- `@askrjs/themes`: optional visual layer, tokens, shell/nav/layout wrappers.
-- `@askrjs/charts`: CSS-first dashboard chart visuals.
-- `@askrjs/vite`: Vite JSX and template transform wiring.
-- `@askrjs/cli`: scaffolding and SSG workflow tooling.
+- File placement or ownership: `askr-project-structure`.
+- Route tree, metadata, shell boundaries, navigation: `askr-routing-layouts`.
+- Local state or keyed rendering: `askr-runtime-reactivity`.
+- Route-owned async reads: `askr-resources-data`.
+- Shared keyed reads and writes: `askr-query-mutation`.
+- Async truth states: `askr-error-loading-empty`.
+- CRUD workflow: `askr-forms-tables-crud`.
+- Auth and access: `askr-auth-access`.
+- Theming and UI composition: `askr-theming` and `askr-ui-composition`.
+- Realtime or event streams: `askr-realtime-streaming`.
+- SSR or SSG: `askr-ssr-ssg`.
+- Final validation: `askr-testing-determinism`.
 
-## Build Order
+## Copy This Shape
 
-1. Scaffold with `askr-cli create` and install bundled skills with `askr-cli skills install`.
-2. Establish the route-first `src/pages` branch structure before page internals.
-3. Register top-level route groups in `_routes.tsx`; use `route()` for leaf screens and `page()` only for pathful shells that render child route content.
-4. Put app-wide providers and branch chrome in `_layout.tsx` files.
-5. Put feature logic, queries, mutations, and workflows in `src/features`.
-6. Put generated clients and raw transport in `src/adapters`; put cross-cutting helpers in `src/shared`.
-7. Load lifecycle-owned async work with `resource()` at route/container boundaries, or use `createQuery()`/`createMutation()` for shared server state.
-8. Compose behavior with `@askrjs/ui`; style with tokens, `data-slot`, and `@askrjs/themes`.
-9. Verify type checks, tests, browser behavior, and consistency states for user-visible flows.
-
-## Minimal Imports
-
-```tsx
-import { createSPA } from "@askrjs/askr/boot";
-import { fallback, getManifest, group, registerRoutes, route } from "@askrjs/askr/router";
-import { askr } from "@askrjs/vite";
+```text
+route owner      -> src/pages/app/_routes.tsx
+layout owner     -> src/pages/app/_layout.tsx
+feature owner    -> src/features/agents/
+adapter owner    -> src/adapters/agents-client.ts
+validation owner -> tests/ or nearest package test script
 ```
 
-Import the top-level route registry from `src/main.tsx`. Register routes at module load, keep route handlers synchronous, and do async work inside components with `resource()` or shared query primitives.
-
-## Avoid
+## Never Do These
 
 - React-shaped defaults such as `useEffect` data loading or implicit mutable state.
 - Mixing route registration, data transport, layout shell, and visual theme logic in one component.
+- Treating this skill as a substitute for narrower workflow skills.
 - Raw interactive HTML when an `@askrjs/ui` primitive owns the behavior.
 - App-local layout, shell, card, nav, feedback, or form primitives when `@askrjs/themes` already owns the surface.
 - Hardcoded `--ak-*` token literals in runtime TypeScript or JavaScript.
 
-## Checks
+## Validate
 
 - The app has one clear route tree.
 - Route branches, layouts, feature workflows, adapters, shared helpers, UI behavior, and theme concerns sit in separate layers.
 - Loading, empty, error, disabled, and narrow-screen states are explicit.
 - `npm run check` or the closest available project check passes.
 
-## Source Files
+## Done When
 
-- `askr/docs/getting-started/platform-overview.md`
-- `askr/docs/reference/package-map.md`
-- `askr/docs/reference/project-structure.md`
-- `askr-cli/templates/startkit/AGENTS.md`
-- `askr-cli/docs/create.md`
+- The chosen template path still matches the app surface.
+- Each slice is routed to one narrower skill.
+- Route, layout, feature, adapter, shared, and theme concerns are separated.
+- No foreign framework defaults or invented primitives slipped in.
+
+## Handoff
+
+- Use the narrower skill that owns the next slice.
+- Use `askr-testing-determinism` before finalizing the assembled result.

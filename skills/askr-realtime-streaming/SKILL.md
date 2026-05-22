@@ -5,38 +5,49 @@ description: Use when building Askr realtime UX with SSE, WebSocket, event strea
 
 # Askr Realtime Streaming
 
-Use this for live data, event streams, and projection-driven UI.
+Use this for live data, event streams, and projection-driven UI. The goal is one clear stream owner, safe reconnect behavior, and bounded DOM and memory cost.
+
+## Use This When
+
+- You need SSE, WebSocket, or long-lived event streaming.
+- The UI depends on reconnect, cursor, or projection-lag behavior.
+- A timeline, operator log, or live table needs bounded updates.
+- You need to reconcile stream events with queries or feature-owned state.
 
 ## Inspect First
 
-- Adapter support for SSE, WebSocket, polling, or long-running requests.
-- Event schema: event ID, sequence, aggregate ID, type, timestamp, and payload.
-- Query keys and mutation invalidation affected by streamed events.
-- Reconnect and resume requirements.
+- Adapter support for SSE, WebSocket, polling, or long-running requests
+- Event schema: event ID, sequence, aggregate ID, type, timestamp, and payload
+- Query keys and mutation invalidation affected by streamed events
+- Reconnect and resume requirements
 
-## Event Stream Rules
+## Do This In Order
 
-- Treat events as append-only facts.
-- Apply events idempotently by event ID or sequence.
-- Store `lastEventId` or cursor for reconnect.
-- Handle gaps by refetching the affected query or projection.
-- Separate optimistic local intent from confirmed events.
+1. Own the stream lifecycle in a route or feature container, not a leaf row or list item.
+2. Preserve `lastEventId` or cursor for reconnect.
+3. Apply events idempotently by event ID or sequence.
+4. Detect gaps and refetch or invalidate the affected read model instead of guessing.
+5. Bound long-running buffers so memory and DOM cost stay predictable.
+6. Show `connected`, `reconnecting`, `stale`, or `failed` state when freshness matters.
 
-## Askr Ownership
+## Copy This Shape
 
-- Use route or feature containers to own stream lifecycle.
-- Forward `AbortSignal` through stream setup and teardown when supported.
-- Update query/read-model state through explicit refresh, invalidation, or feature-owned state.
-- Keep leaf components as timeline/list renderers, not stream owners.
+```ts
+const MAX_EVENTS = 200;
 
-## UX Rules
+function applyEvent(nextEvent: StreamEvent) {
+	setEvents((current) => {
+		if (current.some((event) => event.id === nextEvent.id)) {
+			return current;
+		}
 
-- Show connected, reconnecting, stale, and failed states when the workflow depends on freshness.
-- Keep old data visible during reconnect when safe.
-- Use row-level pending/syncing indicators for targeted updates.
-- Provide manual refresh when automatic catch-up fails.
+		return [...current, nextEvent].slice(-MAX_EVENTS);
+	});
+	setLastEventId(nextEvent.id);
+}
+```
 
-## Avoid
+## Never Do These
 
 - Assuming streamed events arrive exactly once or in order.
 - Clearing the screen during reconnect.
@@ -44,9 +55,22 @@ Use this for live data, event streams, and projection-driven UI.
 - Mixing transport code into pages or components.
 - Treating command success as projection success.
 
-## Checks
+## Validate
 
 - Reconnect resumes from a cursor or falls back to refetch.
 - Duplicate and out-of-order events are safe.
 - Projection lag has visible UI.
 - Stream teardown happens on navigation or unmount.
+
+## Done When
+
+- Stream ownership is clear and not buried in leaf components.
+- Reconnect, duplicate, gap, and teardown paths are handled.
+- Memory and DOM cost stay bounded for long-running screens.
+- Projection success is never inferred from command success alone.
+
+## Handoff
+
+- Use `askr-query-mutation` when stream events reconcile shared queries.
+- Use `askr-api-integration` when cursor, event ID, or transport shape is unclear.
+- Use `askr-observability-debugging` when reconnect failures or duplicate events need operator diagnostics.

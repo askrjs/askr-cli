@@ -5,23 +5,32 @@ description: Use when building Askr authentication, session loading, public/app 
 
 # Askr Auth Access
 
-Use this for authentication and authorization in route-first Askr apps.
+Use this for authentication and authorization in route-first Askr apps. The goal is explicit route policy, explicit session resolution, and no token or permission logic leaking into pages.
 
 ## Inspect First
 
-- `src/pages/_routes.tsx`, `src/pages/public/_routes.tsx`, and `src/pages/app/_routes.tsx`.
-- `src/pages/public/_layout.tsx` and `src/pages/app/_layout.tsx`.
-- Existing session, token, and user helpers in `src/shared` or `src/features/auth`.
-- Router auth resolver configuration.
+- `src/pages/_routes.tsx`, `src/pages/public/_routes.tsx`, and `src/pages/app/_routes.tsx`
+- `src/pages/public/_layout.tsx` and `src/pages/app/_layout.tsx`
+- Existing session, token, and user helpers in `src/shared` or `src/features/auth`
+- Router auth resolver configuration
 
-## Route Model
+## Use This When
 
-- Public branch: landing, login, recovery, invite acceptance, guest-only pages.
-- App branch: authenticated product routes wrapped by the app layout.
-- Put auth metadata on route groups when the whole branch shares policy.
-- Put role/permission metadata on the narrowest route group or leaf that needs it.
+- You need guest-only and authenticated route branches.
+- You need route-level auth or permission metadata.
+- You need login, logout, redirect, or forbidden behavior.
+- You need to keep access checks out of page-local component logic.
 
-## Canonical Pattern
+## Do This In Order
+
+1. Keep public and authenticated branches explicit in the route tree.
+2. Put `auth`, role, or permission metadata on the narrowest route group or route that owns the policy.
+3. Resolve session state before rendering protected data or destructive controls.
+4. Redirect unauthenticated users to login with a return target when useful.
+5. Show a signed-in forbidden state when the user is authenticated but lacks permission.
+6. Keep token storage, refresh, and header policy in auth helpers or adapters, not components.
+
+## Copy This Shape
 
 ```tsx
 group({ layout: PublicLayout, auth: "guest" }, () => {
@@ -33,24 +42,31 @@ group({ layout: AppLayout, auth: true }, () => {
 });
 ```
 
-## UX Rules
-
-- Session loading should block protected app chrome until the app knows whether a user exists.
-- Redirect unauthenticated users to login with a return target when useful.
-- Redirect authenticated users away from guest-only login screens.
-- Show explicit forbidden/unauthorized states when the user is signed in but lacks access.
-- Keep sign-out behavior in the authenticated shell or auth feature workflow.
-
-## Avoid
+## Never Do These
 
 - Per-page auth checks duplicated across protected routes.
 - Rendering protected app data before session resolution.
 - Putting token storage or API auth header logic in components.
 - Treating roles and permissions as visual-only state.
+- Client-only authorization decisions for sensitive server actions.
+- Silent redirects when the user is signed in but lacks access.
 
-## Checks
+## Validate
 
 - Public and app branches are explicit.
 - Protected routes have auth policy in route metadata.
 - Access-denied, loading, and redirect behavior are tested.
 - Auth state is available to adapters without leaking transport details into UI.
+
+## Done When
+
+- Session resolution is explicit before protected data renders.
+- Auth and authorization live in route metadata or auth workflows, not scattered through pages.
+- Unauthorized, redirect, and signed-out states are all covered.
+- Sensitive transport or token logic did not leak into UI components.
+
+## Handoff
+
+- Use `askr-routing-layouts` when auth changes also reshape the route tree.
+- Use `askr-api-integration` when auth headers, session refresh, or adapter policy is changing.
+- Use `askr-observability-debugging` when denial reasons or audit trails must stay visible.

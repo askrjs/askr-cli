@@ -5,103 +5,49 @@ description: Use when styling Askr apps with @askrjs/themes, tokens, data-theme,
 
 # Askr Theming
 
-Use this when applying or extending the optional Askr visual layer. Prefer solved `@askrjs/themes` primitives before inventing app-local wrappers.
+Use this when styling an Askr app with the theme layer. The goal is one obvious shell, one obvious token strategy, and no app-local clones of solved surfaces.
 
 ## Inspect First
 
-- `askr-themes/docs/askr-themes.md`
-- `askr-themes/docs/theming.md`
-- `askr-themes/docs/tokens.md`
-- Existing `src/styles.css` and `src/styles/*`.
+- `src/styles.css` and `src/styles/*`
+- The root layout or app shell that imports the theme
+- Existing shared components and `@askrjs/themes` imports
+- The nearest screen with the same layout or surface pattern
 
-## Layer Model
+## Use This When
 
-- Import the default theme once at the app boundary or stylesheet entry.
-- Override semantic tokens in app CSS.
-- Use `data-theme` on `<html>` or `ThemeProvider` for runtime switching.
-- Use `data-slot` and documented alias classes as selectors.
-- Keep runtime TS/JS free of hardcoded `--ak-*` token literals.
+- You are styling a new product surface.
+- You need dark mode, shell chrome, or token overrides.
+- You want the default Askr admin or SaaS visual language.
+- You are tempted to create local `Card`, `Panel`, `Sidebar`, `Toolbar`, or `EmptyState` components.
 
-## Canonical Imports
+## Choose The Layer
+
+- Use `@askrjs/themes` when the existing app already uses the default visual layer.
+- Use `@askrjs/ui` directly only when the app already owns its own visual system and just needs headless behavior.
+- Create an app-local wrapper only when it adds clear product semantics beyond one screen.
+
+## Do This In Order
+
+1. Import the theme once at the app boundary or stylesheet entry.
+2. Reuse existing theme primitives for shells, navigation, layout, surfaces, feedback, and forms.
+3. Override semantic `--ak-*` tokens in CSS, not runtime TypeScript.
+4. Use `data-slot` or documented selectors for local CSS hooks.
+5. Check the result in mobile, desktop, light, dark, empty, error, and disabled states.
+
+## Copy This Shape
 
 ```ts
 import "@askrjs/themes/default";
-import { ThemeProvider, ThemePicker } from "@askrjs/themes/theme";
-import {
-  AspectRatio,
-  Block,
-  Box,
-  Container,
-  Flex,
-  Inline,
-  Section,
-  Spacer,
-  Stack,
-} from "@askrjs/themes/layouts";
-import {
-  Button,
-  ButtonGroup,
-  Field,
-  FieldError,
-  FieldHint,
-  InputGroup,
-} from "@askrjs/themes/controls";
-import {
-  Alert,
-  Badge,
-  Card,
-  CardActions,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Skeleton,
-} from "@askrjs/themes/surfaces";
-import { EmptyState, Spinner } from "@askrjs/themes/feedback";
-import { Header, Shell, ShellMain, ShellNav } from "@askrjs/themes/shells";
-import { Breadcrumb, Nav, NavGroup, NavLink, Pagination, Sidebar } from "@askrjs/themes/navs";
+import { ThemeProvider } from "@askrjs/themes/theme";
+import { Container, Section, Stack } from "@askrjs/themes/layouts";
+import { Button } from "@askrjs/themes/controls";
+import { Card, CardContent, CardHeader, CardTitle } from "@askrjs/themes/surfaces";
+import { EmptyState } from "@askrjs/themes/feedback";
+import { Shell, ShellMain, ShellNav } from "@askrjs/themes/shells";
 ```
 
-## Solved Surface Area
-
-Use these before creating new primitives:
-
-- Layout: `Box`, `Flex`, `Inline`, `Stack`, `Block`, `Container`, `Section`, `Spacer`, `AspectRatio`.
-- Controls/forms: themed `Button`, `ButtonGroup`, `Close`, `Field`, `FieldHint`, `FieldError`, `InputGroup`, `InputGroupText`.
-- Surfaces: `Alert`, `Badge`, `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`, `CardActions`, `ListGroup`, `ListGroupItem`, `Separator`, `Divider`, `Skeleton`.
-- Feedback: `EmptyState`, `Spinner`.
-- Shells/navs: `Header`, `Shell`, `ShellNav`, `ShellMain`, `Sidebar`, `SidebarPanel`, `SidebarToggle`, `Navbar`, `Nav`, `NavBrand`, `NavGroup`, `NavItem`, `NavLink`, `NavToggle`, `Breadcrumb`, `Pagination`.
-- Overlays: use `@askrjs/themes/overlays` for themed `Dropdown`, `Menu`, and `Menubar` composition.
-
-## Layout Decision Rules
-
-- Use `Container` for page width and gutters.
-- Use `Container size="fluid"` for full-width app content.
-- Use `Section` for major page rhythm.
-- Use `Stack` for vertical flow.
-- Use `Block` for responsive card or tile groups.
-- Use `Flex` for explicit one-dimensional flex layout.
-- Use `Inline` for horizontal inline groups such as button rows, filter chips, and metadata.
-- Use `Box` for low-level layout props, spacing, dimensions, overflow, and positioning when no semantic primitive fits.
-- Use `Spacer` only for deliberate layout separation that should remain structural.
-- Use `AspectRatio` for media, embeds, and fixed-ratio preview regions.
-- Use `Sidebar` for vertical app navigation.
-- Use `Navbar` for horizontal topbars.
-- Use `Shell`/`ShellNav`/`ShellMain` for app frame composition.
-- Use themed controls, surfaces, and feedback primitives when you want the default admin visual language.
-- Compose product-specific page recipes in userland.
-
-## Token Rules
-
-- Override semantic `--ak-*` tokens in CSS after importing the default theme.
-- Prefer color, spacing, density, layout, focus, elevation, motion, z-index, and state tokens before custom CSS values.
-- Keep app token overrides in CSS; do not place raw token names or values in runtime TypeScript.
-- Use component-level CSS only when a semantic token cannot express the app surface.
-
-## Visual Standard
-
-Aim for compact, readable, low-noise SaaS/admin UI. Check mobile, tablet, desktop, light, and dark states. Long labels must wrap or truncate intentionally in navs, cards, tables, badges, overlays, and dense rows.
-
-## Avoid
+## Never Do These
 
 - Moving runtime behavior into theme files.
 - Treating theme components as app state containers.
@@ -111,16 +57,21 @@ Aim for compact, readable, low-noise SaaS/admin UI. Check mobile, tablet, deskto
 - Inventing app-local `Panel`, `HStack`, `VStack`, `Page`, `Toolbar`, `Badge`, `Card`, or `EmptyState` components before checking the theme surface.
 - Recreating shell, nav, feedback, form field, or responsive layout primitives already exported by `@askrjs/themes`.
 
-## Checks
+## Validate
 
-- No clipped text, horizontal overflow, or misaligned icons.
-- Focus, hover, disabled, empty, and error states are styled.
-- Dark mode has deliberate contrast and depth.
-- App-specific CSS remains override-friendly.
+- No clipped text, horizontal overflow, or broken shell composition.
+- Focus, hover, disabled, empty, and error states are styled deliberately.
+- Dark mode is intentional, not inverted by accident.
+- App CSS remains override-friendly and token-based.
 
-## Source Files
+## Done When
 
-- `askr-themes/docs/askr-themes.md`
-- `askr-themes/docs/theming.md`
-- `askr-themes/visual-check.html`
-- `askr-cli/templates/startkit/src/styles/tokens.css`
+- The surface reuses the existing theme layer instead of inventing a second one.
+- Tokens live in CSS and behavior stays in components.
+- The interface remains coherent across responsive and state changes.
+
+## Handoff
+
+- Use `askr-ui-composition` when the hard part is behavior and composition, not visual styling.
+- Use `askr-accessibility` when announcements, focus, or semantic behavior need review.
+- Use `askr-testing-determinism` before closing visible UI changes.

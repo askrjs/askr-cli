@@ -5,26 +5,39 @@ description: Use when defining Askr routes, route groups, page shells, index rou
 
 # Askr Routing Layouts
 
-Use this for URL structure, route registration, app shells, and navigation.
+Use this for route registration, shell ownership, route metadata, and navigation. The goal is one obvious route tree that is registered before boot.
+
+## Use This When
+
+- You are adding, moving, or protecting a route.
+- You are changing a shell or layout boundary.
+- You need to attach auth or permission metadata.
+- You need to add route-aware navigation.
 
 ## Inspect First
 
-- `askr/docs/reference/router.md`
-- `askr/docs/guides/router.md`
-- `askr/docs/guides/layouts.md`
-- Existing `src/pages/_routes.tsx`, branch `_routes.tsx` files, and branch layouts.
-- Existing `src/pages/**/_layout.tsx` components before adding a new shell.
+- `src/main.tsx`
+- The app's route registry file
+- The nearest branch route file and `_layout.tsx`
+- Existing navigation components for the same branch
+- Tests that already cover routing or layout retention
 
-## Route-First Shape
+## Choose The Owner
 
-- `src/main.tsx` imports `src/pages/_routes.tsx` before app boot.
-- `src/pages/_routes.tsx` composes public and authenticated branches.
-- `src/pages/_layout.tsx` wraps app-wide providers and global styling.
-- `src/pages/public/_routes.tsx` registers guest routes under `src/pages/public/_layout.tsx`.
-- `src/pages/app/_routes.tsx` registers authenticated routes under `src/pages/app/_layout.tsx`.
-- Leaf screens live inside their branch, such as `src/pages/public/home.tsx` or `src/pages/app/admin-home.tsx`.
+- `group()` for inherited layout, auth, permission, or policy without a path segment.
+- `page()` for a pathful shell that renders child route content.
+- `route()` for a leaf route.
+- `index()` only inside a `page()` scope.
+- `fallback()` at the root or inside a `page()` scope that owns the fallback.
 
-## Canonical Pattern
+## Do This In Order
+
+1. Register the route in the existing route tree before app boot.
+2. Put auth and permission metadata on the narrowest route or group that owns the policy.
+3. Keep route components synchronous and put async work inside route-owned components or features.
+4. Keep navigation in `Link`, `navigate()`, and `currentRoute()` instead of local copies of route state.
+
+## Copy This Shape
 
 ```tsx
 import { fallback, group, index, page, registerRoutes, route } from "@askrjs/askr/router";
@@ -42,24 +55,24 @@ registerRoutes(() => {
 });
 ```
 
-## Decision Rules
+## Nested Example
 
-- Use `route(path, Component, options?)` for leaves.
-- Use `group(options, fn)` for inherited layout, auth, role, permission, and policy behavior without a path segment.
-- Use `page(path, Component, fn)` when a pathful shell renders child route content with `Outlet`.
-- Use `index(Component)` only inside a `page()` scope.
-- Use `fallback(Component)` at root or directly inside a `page()` scope.
-- Use `{param}` path syntax, not `:param`.
-- Keep route handlers synchronous; use `resource()` or query primitives inside route components.
+```tsx
+import { fallback, index, page, route } from "@askrjs/askr/router";
 
-## Navigation
+export function registerWorkspaceRoutes(): void {
+  page("/workspaces/{workspaceId}", WorkspaceLayout, () => {
+    index(WorkspaceOverviewPage);
+    route("settings", WorkspaceSettingsPage, { auth: true, permission: "workspace.manage" });
+    route("members", WorkspaceMembersPage, { auth: true, permission: "workspace.read" });
+    fallback(WorkspaceNotFoundPage);
+  });
+}
+```
 
-- Use `Link` from `@askrjs/askr/router` for route links.
-- Use `navigate()` for imperative navigation after an action.
-- Use `currentRoute()` inside components that need active route state.
-- Keep navigation state in the router rather than duplicating it in page state.
+Use relative child paths inside `page()`. Put metadata on the narrowest route or group that owns the policy.
 
-## Avoid
+## Never Do These
 
 - Registering routes during render.
 - Calling `route()` inside components; use `currentRoute()` there.
@@ -67,19 +80,22 @@ registerRoutes(() => {
 - Absolute child route paths inside `page()`.
 - Treating `group()` as a fallback scope.
 - Putting theme styling decisions in route registration.
+- Building a second router or page-local auth gate when route metadata already owns it.
 
-## Checks
+## Validate
 
-- The route tree is imported and registered before app startup.
-- Shared route behavior is in `group`, not duplicated per route.
-- Public and authenticated branches have explicit route and layout files.
-- Page-local children use relative paths.
+- The route tree is registered before boot.
+- Shared route behavior lives in `group()` instead of repeated route-local checks.
+- Child routes under `page()` use relative paths.
 - Fallback scope is explicit.
-- Auth metadata has a resolver in `registerRoutes(..., { auth })` when used.
+- Navigation uses router primitives instead of local state copies.
 
-## Source Files
+## Done When
 
-- `askr/docs/reference/router.md`
-- `askr/docs/core/routing.md`
-- `askr-cli/templates/startkit/src/routes/index.ts`
-- `askr-cli/templates/startkit/src/router.tsx`
+- The route tree is still the only route tree in the app.
+
+## Handoff
+
+- Use `askr-auth-access` when the next step is session or permission behavior.
+- Use `askr-project-structure` when routing work also adds new files.
+- Use `askr-testing-determinism` to validate route identity, fallback behavior, and layout retention.
