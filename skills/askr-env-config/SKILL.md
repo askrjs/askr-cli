@@ -5,45 +5,70 @@ description: Use when configuring Askr apps with environment variables, API base
 
 # Askr Env Config
 
-Use this for environment-specific application configuration.
+Use this for environment-specific application configuration. The goal is one typed config boundary, explicit public values, and no env reads scattered through UI code.
+
+## Use This When
+
+- You need API base URLs, feature flags, deployment config, or client configuration.
+- The app has local mocks, staging behavior, or environment-specific stream endpoints.
+- You need missing required config to fail early.
+- You want tests to override config deterministically.
 
 ## Inspect First
 
-- Existing Vite environment usage and app config helpers.
-- Generated API client configuration.
-- Local mock data and development-only switches.
-- Deployment target requirements.
+- Existing Vite or runtime environment usage and app config helpers
+- Generated API client configuration
+- Local mock data and development-only switches
+- Deployment target requirements
 
-## Placement
+## Put Config In One Boundary
 
-- Put config parsing and defaults in `src/shared/config` or an existing shared config module.
+- Parse and validate config in `src/shared/config` or the repo's existing shared config module.
 - Pass API base URLs and auth providers into `src/adapters`.
 - Keep feature flags readable from features and pages without coupling them to transport details.
 - Keep secrets out of client bundles.
 
-## Rules
+## Do This In Order
 
-- Validate required public env values at app startup.
-- Prefix and document public client-side variables according to the build system in use.
-- Prefer typed config objects over ad hoc `import.meta.env` reads throughout the app.
-- Make local mocks explicit and easy to disable.
+1. Define a typed config object for the public values the client needs.
+2. Validate required values at app startup.
+3. Pass config into adapters and shared helpers instead of reading env values ad hoc.
+4. Keep local mocks explicit and easy to disable.
+5. Name and document reconnect intervals, stale thresholds, or polling settings centrally when the app is event-driven.
 
-## Event-Sourced Apps
+## Copy This Shape
 
-- Configure projection polling, stream endpoints, and reconnect intervals centrally.
-- Keep consistency timeouts and stale thresholds named and documented.
-- Make event-stream fallback behavior explicit.
+```ts
+export const appConfig = {
+	apiBaseUrl: requireEnv("VITE_API_BASE_URL"),
+	enableMocks: import.meta.env.VITE_ENABLE_MOCKS === "true",
+	streamReconnectMs: Number(import.meta.env.VITE_STREAM_RECONNECT_MS ?? 3000),
+};
+```
 
-## Avoid
+## Never Do These
 
 - Reading env variables directly in many components.
 - Shipping server secrets to the browser.
 - Hidden dev mocks that change production behavior.
 - Feature flags that fork route structure unpredictably.
 
-## Checks
+## Validate
 
 - Missing required config fails early with a useful message.
 - API adapters receive config through one boundary.
 - Local, staging, and production config paths are obvious.
 - Tests can override config deterministically.
+
+## Done When
+
+- Public config is typed and centralized.
+- Env reads no longer leak through UI files.
+- Event-driven timing or fallback config is explicit where relevant.
+- Secret and public config boundaries are clear.
+
+## Handoff
+
+- Use `askr-api-integration` when config shapes adapter behavior.
+- Use `askr-realtime-streaming` when reconnect or polling config is the hard part.
+- Use `askr-testing-determinism` when config override behavior needs validation.

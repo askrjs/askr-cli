@@ -5,36 +5,48 @@ description: Use when building askr server-rendered or static-generated apps, wo
 
 # Askr SSR SSG
 
-Use this when the app renders outside the browser or produces static output.
+Use this when the app renders outside the browser or produces static output. The goal is one shared route tree, environment-safe render paths, and hydration-safe output.
 
 ## Inspect First
 
-- `askr/docs/guides/ssr.md`
-- `askr/docs/guides/ssg.md`
-- `askr/docs/core/rendering.md`
-- `askr/docs/advanced/selective-hydration.md`
-- Template files under `askr-cli/templates/ssr` or `askr-cli/templates/ssg`.
+- `src/main.tsx`
+- The shared route registry
+- SSR entry files such as `server.ts` or `entry-server.tsx`
+- SSG files such as `ssg.config.ts` or `ssg-build.ts`
+- Existing build and preview scripts in `package.json`
 
-## Ownership
+## Use This When
 
-- `@askrjs/askr/ssr` owns server rendering helpers.
-- `@askrjs/askr/ssg` owns static generation helpers.
-- `@askrjs/cli` owns project templates and SSG command workflow.
-- The route tree should be shared across SPA, SSR, and SSG where possible.
+- You are adding SSR or SSG routes.
+- You need parameterized static entries.
+- You need to keep browser-only code out of server render paths.
+- You need to verify hydration safety after changing render behavior.
 
-## Routing Rules
+## Do This In Order
 
-- Register routes at module load.
-- Pass the route manifest into the boot/rendering path.
-- Keep route definitions deterministic and environment-safe.
-- Use route `entries` for generated parameter sets where SSG needs them.
+1. Keep the route tree shared across browser, server, and static output where possible.
+2. Register routes at module load before boot or render.
+3. Keep render paths deterministic and environment-safe.
+4. Use route `entries` or the template's static config for parameterized SSG paths.
+5. Build and preview after changes that cross the render boundary.
 
-## Async Rules
+## Copy This Shape
 
-- Keep route handlers and render components synchronous.
-- Use framework-supported data resolution paths for SSR/SSG templates.
-- Do not read browser-only globals during server render.
-- Keep hydration markup stable between server and client.
+```ts
+registerRoutes(() => {
+	page("/docs/{slug}", DocsPage, {
+		entries: async () => [{ slug: "getting-started" }, { slug: "routing" }],
+	});
+});
+```
+
+## Never Do These
+
+- Async components in render paths.
+- Route registration that depends on request-time mutation.
+- Browser-only globals in server or static render paths without guards.
+- Divergent route trees for client, server, and static output.
+- Random values or time reads that change initial markup across server and client.
 
 ## Static Generation Pattern
 
@@ -44,25 +56,21 @@ npm run build
 npx @askrjs/cli ssg --config ./ssg.config.ts --output ./dist/static
 ```
 
-## Avoid
+## Validate
 
-- Async components.
-- Route registration that depends on request-time mutation.
-- Browser-only APIs in render paths without guards.
-- Divergent route trees for client, server, and static output.
-- Hydration-affecting random values or time reads in initial render.
-
-## Checks
-
-- SSR/SSG build output is deterministic for the same inputs.
+- SSR or SSG build output is deterministic for the same inputs.
 - Hydration has no structural mismatch warnings.
 - Generated static routes cover expected params.
 - Browser preview still navigates correctly after hydration.
 
-## Source Files
+## Done When
 
-- `askr/docs/guides/ssr.md`
-- `askr/docs/guides/ssg.md`
-- `askr/docs/core/rendering.md`
-- `askr-cli/templates/ssr/`
-- `askr-cli/templates/ssg/`
+- The same route tree still owns navigation across environments.
+- Server and static render paths are environment-safe.
+- Parameterized routes have explicit static coverage where needed.
+- Build and preview prove the render boundary still works.
+
+## Handoff
+
+- Use `askr-routing-layouts` when the hard part is route ownership.
+- Use `askr-testing-determinism` when hydration, preview, or build verification is the real blocker.

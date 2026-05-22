@@ -3,10 +3,11 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   pack: {
     entry: {
-      cli: "src/bin/cli.js",
-      create: "src/bin/create.js",
-      skills: "src/bin/skills.js",
-      ssg: "src/bin/ssg.js",
+      add: "src/bin/add.ts",
+      cli: "src/bin/cli.ts",
+      create: "src/bin/create.ts",
+      skills: "src/bin/skills.ts",
+      ssg: "src/bin/ssg.ts",
     },
     format: ["esm"],
     outDir: "dist",

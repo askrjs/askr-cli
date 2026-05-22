@@ -5,16 +5,37 @@ description: Use when modeling shared server state in Askr with createQuery, cre
 
 # Askr Query Mutation
 
-Use this for shared read/write state that should outlive one render or coordinate across features.
+Use this for shared keyed reads and writes that must coordinate across screens or survive beyond one render. The goal is deliberate keys, narrow invalidation, and truthful write reconciliation.
+
+## Use This When
+
+- Multiple screens need the same keyed server state.
+- A write must invalidate or reconcile shared reads.
+- The UI needs pending, error, stale, or pending-write truth after a mutation.
+- Event-sourced or eventually consistent data needs explicit reconciliation.
 
 ## Inspect First
 
-- `askr/docs/core/data.md`
-- `askr/src/data/index.ts`
-- Existing `src/features`, `src/shared`, and `src/adapters` boundaries.
 - Existing query keys and invalidation prefixes.
+- The nearest feature owner for the data.
+- The adapter or service boundary that should receive `signal`.
+- Existing stale, syncing, or pending-write UI on the same surface.
 
-## Query Pattern
+## Pick The Data Owner First
+
+- One route or container owns the read and no other screen shares it: use `askr-resources-data`.
+- Shared keyed read that multiple screens can refresh or invalidate: use `createQuery()`.
+- Write with visible pending, error, result, and invalidation behavior: use `createMutation()`.
+
+## Do This In Order
+
+1. Design a stable, prefix-friendly query key.
+2. Keep fetch and mutation transport in an adapter or service boundary.
+3. Use `createQuery()` for the shared read and `createMutation()` for the write.
+4. Invalidate only the affected key or prefix after success.
+5. Preserve version, event ID, cursor, or command metadata when the UI must reason about projection lag.
+
+## Copy This Shape
 
 ```ts
 import { createQuery, invalidate } from "@askrjs/askr/data";
@@ -28,9 +49,7 @@ await user.refresh();
 invalidate("user:");
 ```
 
-Query state includes `data`, `error`, `loading`, `refreshing`, `stale`, `consistency`, and `refresh()`.
-
-## Mutation Pattern
+## Mutation Shape
 
 ```ts
 import { createMutation } from "@askrjs/askr/data";
@@ -44,9 +63,11 @@ const saveUser = createMutation({
 await saveUser.execute({ id, name });
 ```
 
-Mutation state includes `status`, `pending`, `error`, `result`, `execute`, `abort`, and `reset`.
+- Only use optimistic updates when rollback or refetch behavior is explicit.
+- If the backend is event-sourced, prefer truthful `pending-write` or `syncing` UI over pretending the projection already caught up.
+- Keep optimistic local intent separate from confirmed read-model state.
 
-## Event-Sourced Consistency Pattern
+## Event-Sourced Consistency
 
 Use this pattern when writes append events and reads come from projections:
 
@@ -67,42 +88,28 @@ const account = createQuery({
 });
 ```
 
-## Layering
-
-- Component owns user intent and display states.
-- Query/mutation owns cache and read/write state.
-- Feature service/query/mutation owns app workflow state and app-level models.
-- Adapter owns generated clients and raw protocol details.
-
-## Decision Rules
-
-- Use `resource()` for isolated lifecycle reads.
-- Use `createQuery()` for shared keyed reads.
-- Use `createMutation()` for writes with pending/error/result state.
-- Use prefix invalidation for affected query groups.
-- Keep invalidation explicit and narrow.
-- Surface `pending-write`, `refreshing`, and `stale` when the UX needs consistency feedback.
-- Prefer truthful copy such as "saved, syncing" or "changes pending" when projections lag.
-
-## Avoid
-
 - Fetching directly in many leaf components.
 - Hiding writes inside presentational UI.
 - Cache keys that cannot be invalidated predictably.
 - Generic query clients or global state abstractions unless the app already owns one.
 - Optimistic updates without rollback or refetch.
 - Treating write acknowledgement as read-model convergence in event-sourced systems.
+- Cache keys that mix route-local UI state with shared server-state identity.
 
-## Checks
+## Validate
 
 - Query keys are stable and prefix-friendly.
-- Services receive `signal`.
-- Mutation pending and error states are visible.
-- A successful write invalidates only the affected read model.
-- Event/version metadata is preserved when the UI needs to reason about projection catch-up.
+- `signal` reaches the service boundary.
+- Mutation pending and error states are visible outside the button that triggered them.
+- Success invalidates only the affected read model.
+- Event or version metadata is preserved when the UI needs to reason about catch-up.
 
-## Source Files
+## Done When
 
-- `askr/docs/core/data.md`
-- `askr/src/data/index.ts`
-- `askr/docs/reference/package-map.md`
+- The feature did not grow a second cache or state layer.
+
+## Handoff
+
+- Use `askr-api-integration` when DTO mapping or transport details are the real blocker.
+- Use `askr-error-loading-empty` when the hard part is presenting stale, syncing, or retry truth.
+- Use `askr-realtime-streaming` when queries must reconcile with live events.

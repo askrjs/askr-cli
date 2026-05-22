@@ -5,53 +5,55 @@ description: Use when deciding where Askr app files belong, naming components, s
 
 # Askr Project Structure
 
-Use this before creating, moving, or reviewing files in an Askr app. A clean Askr project is route-first: the UI tree is organized around page branches and layout boundaries.
+Use this before creating, moving, or splitting files. The goal is one obvious owner per file and no parallel architecture.
+
+## Use This When
+
+- You need to add a new file.
+- You are tempted to put logic in a page because it is nearby.
+- The repo already has routes, features, adapters, or shared helpers and you need the right owner.
+- You want to avoid duplicate structures for the same concern.
 
 ## Inspect First
 
-- `askr/docs/reference/project-structure.md`
-- `askr/docs/reference/conventions.md`
-- `askr/docs/reference/package-map.md`
-- Existing app folders, page branches, and import aliases.
+- The existing route registry and nearest `_layout.tsx` owner.
+- The nearest existing feature folder for the same domain.
+- The nearest adapter, shared helper, and reusable component folder.
+- Existing tests for the same surface.
 
-## Canonical Shape
+## Keep The Existing App Shape
 
-- `src/main.tsx`: boot the SPA and import the route registry.
-- `src/pages/_routes.tsx`: compose the top-level public and authenticated route branches.
-- `src/pages/_layout.tsx`: root wrapper for theme, providers, and app-wide styling.
-- `src/pages/public/_routes.tsx`: guest-facing routes such as home and login.
-- `src/pages/public/_layout.tsx`: public shell around guest pages.
-- `src/pages/app/_routes.tsx`: authenticated routes and app branch policy.
-- `src/pages/app/_layout.tsx`: authenticated shell with sidebar, nav, and sign-out behavior.
-- `src/pages/public/*.tsx` and `src/pages/app/*.tsx`: leaf page screens.
-- `src/components/shared/`: reusable UI building blocks and shell pieces.
-- `src/features/<feature>/`: feature logic, queries, mutations, and API-facing workflows.
-- `src/shared/`: cross-cutting utilities such as navigation data, formatting, and error handling.
-- `src/adapters/`: generated API clients and transport adapters.
-- `src/styles/`: reset, tokens, theme, layout, and component CSS.
-- `public/`: static assets served directly.
-- `tests/`: behavior, integration, and contract coverage.
+- If the repo uses `src/pages/**/_routes.tsx`, keep using it.
+- If the repo uses `src/routes/*`, keep using it.
+- If the repo uses `src/shared`, keep shared helpers there.
+- If the repo uses `src/lib` for shared helpers, keep using it.
+- Do not create a second route tree, a second shared layer, or a second feature layout because one file looked easier.
 
-## Naming And Exports
+## Pick The Owner
 
-- Use kebab-case file names: `account-table.tsx`.
-- Use PascalCase component symbols: `AccountTable`.
-- Prefer named exports unless the existing app template uses default page exports.
-- Name leaf page files after the path or product surface they represent.
-- Keep prop types close to the component: `AccountTableProps`.
+- URL reachability: nearest route registry file.
+- Shell chrome or persistent branch UI: matching `_layout.tsx`.
+- Domain workflow, queries, mutations, and feature UI: `src/features/<feature>/`.
+- Reusable display-only pieces: the repo's shared components folder.
+- Cross-cutting helpers such as formatting or parsing: the repo's shared helper folder.
+- Generated clients, raw fetch wrappers, and DTO mapping: `src/adapters/`.
+- Visual styling and tokens: CSS or theme layer, not runtime logic.
 
-## Decision Rules
+## Copy This Shape
 
-- If it owns URL reachability, put it in the nearest `src/pages/**/_routes.tsx`.
-- If it owns persistent shell chrome, put it in the matching `src/pages/**/_layout.tsx`.
-- If it owns domain behavior, colocate it under `features/<domain>`.
-- If it owns reusable display, put it in `components/shared`.
-- If it owns cross-cutting helpers, put it in `shared`.
-- If it owns generated clients or raw transport, put it in `adapters`.
-- If it is visual styling, put it in CSS or theme layer, not runtime logic.
+```text
+src/pages/app/billing.tsx          # route-owned page shell
+src/features/billing/billing-form.tsx
+src/features/billing/billing.query.ts
+src/adapters/billing-client.ts
+src/shared/format-money.ts
+```
 
-## Avoid
+## Reject These Shapes
 
+- `src/pages/app/billing.tsx` importing a generated API client directly.
+- `src/components/shared/billing-table.tsx` owning billing mutations and route redirects.
+- `src/shared/billing.tsx` containing JSX and transport code together.
 - API clients in components or UI primitives.
 - Business logic or transport code in `src/pages`.
 - JSX in `src/shared` or `src/adapters`.
@@ -59,16 +61,19 @@ Use this before creating, moving, or reviewing files in an Askr app. A clean Ask
 - One component that owns routing, fetching, mutation, and styling.
 - Parallel abstractions for a concern Askr already owns.
 
-## Checks
+## Validate
 
 - Another agent could predict where the file belongs.
-- Imports follow package ownership from `package-map.md`.
-- New folders match existing app conventions.
-- Related tests live near the behavior or in the established `tests/` layout.
+- No page directly owns raw transport or DTO mapping.
+- No JSX leaked into adapters or shared helper files.
+- New folders match the existing repo shape instead of creating a second one.
 
-## Source Files
+## Done When
 
-- `askr/docs/reference/project-structure.md`
-- `askr/docs/reference/conventions.md`
-- `askr-cli/templates/startkit/README.md`
-- `askr-cli/templates/startkit/AGENTS.md`
+- No duplicate structure was introduced for the same concern.
+
+## Handoff
+
+- Use `askr-routing-layouts` when the hard part is URL ownership.
+- Use `askr-resources-data` or `askr-query-mutation` when the hard part is async ownership.
+- Use `askr-testing-determinism` once ownership is settled and you need validation.
