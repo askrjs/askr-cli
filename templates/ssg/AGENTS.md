@@ -22,7 +22,7 @@ npm run fmt        # Prettier
 - **Components:** askr-ui headless components. Props use `onPress` (not `onClick`), `asChild` for polymorphism, `data-slot` attributes for styling hooks.
 - **Styling:** askr-themes CSS via `[data-slot]` selectors. Design tokens use `--ak-*` prefix. Theme import in `src/styles.css`.
 - **Routing:** `registerRoutes()`, `group()`, and `route()` in `src/routes.tsx` for dev SPA mode. `ssg.config.ts` defines the same routes for static generation using `RouteConfig[]`.
-- **State:** `state(initial)`, `derive()`, `resource()`. Static generation renders components synchronously; interactive state works at runtime in the browser.
+- **State:** `const [value, setValue] = state(initial)`, `derive()`, `resource()`. Static generation renders components synchronously; interactive state works at runtime in the browser.
 - **Vite plugin:** `askr()` from `@askrjs/vite` handles JSX transform.
 
 ## File Structure

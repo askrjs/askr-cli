@@ -133,12 +133,12 @@ Same as SPA:
 import { state } from '@askrjs/askr';
 
 function Counter() {
-  const count = state(0); // Works on server AND client
+  const [count, setCount] = state(0); // Works on server AND client
 
   return (
     <div>
       <p>Count: {count()}</p>
-      <button onClick={() => count.set((c) => c + 1)}>+</button>
+      <button onClick={() => setCount((c) => c + 1)}>+</button>
     </div>
   );
 }

@@ -19,7 +19,7 @@ import {
 } from '@askrjs/themes/surfaces';
 
 export default function AdminLoginPage() {
-  const email = state('ops@example.com');
+  const [email, setEmail] = state('ops@example.com');
 
   return (
     <Section size="4">
@@ -45,9 +45,7 @@ export default function AdminLoginPage() {
                     id="email"
                     type="email"
                     value={email()}
-                    onInput={(event: Event) =>
-                      email.set((event.currentTarget as HTMLInputElement).value)
-                    }
+                    onInput={(event: Event) => setEmail((event.currentTarget as HTMLInputElement).value)}
                   />
                 </InputGroup>
                 <FieldHint>
