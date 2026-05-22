@@ -41,16 +41,16 @@ Use this when failures must be explainable to users, developers, or operators. T
 
 ```ts
 const normalized = normalizeApiError(error, {
-	requestId,
-	commandId,
-	eventId,
-	queryKey: "accounts:list",
+  requestId,
+  commandId,
+  eventId,
+  queryKey: "accounts:list",
 });
 
 logError("accounts.refresh.failed", normalized.diagnostics);
 return {
-	message: "Unable to refresh accounts.",
-	diagnostics: normalized.diagnostics,
+  message: "Unable to refresh accounts.",
+  diagnostics: normalized.diagnostics,
 };
 ```
 

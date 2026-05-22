@@ -36,14 +36,14 @@ Use this for live data, event streams, and projection-driven UI. The goal is one
 const MAX_EVENTS = 200;
 
 function applyEvent(nextEvent: StreamEvent) {
-	setEvents((current) => {
-		if (current.some((event) => event.id === nextEvent.id)) {
-			return current;
-		}
+  setEvents((current) => {
+    if (current.some((event) => event.id === nextEvent.id)) {
+      return current;
+    }
 
-		return [...current, nextEvent].slice(-MAX_EVENTS);
-	});
-	setLastEventId(nextEvent.id);
+    return [...current, nextEvent].slice(-MAX_EVENTS);
+  });
+  setLastEventId(nextEvent.id);
 }
 ```
 

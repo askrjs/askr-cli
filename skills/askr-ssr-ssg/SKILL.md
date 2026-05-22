@@ -34,9 +34,9 @@ Use this when the app renders outside the browser or produces static output. The
 
 ```ts
 registerRoutes(() => {
-	page("/docs/{slug}", DocsPage, {
-		entries: async () => [{ slug: "getting-started" }, { slug: "routing" }],
-	});
+  page("/docs/{slug}", DocsPage, {
+    entries: async () => [{ slug: "getting-started" }, { slug: "routing" }],
+  });
 });
 ```
 

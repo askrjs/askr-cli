@@ -40,9 +40,9 @@ Use this for environment-specific application configuration. The goal is one typ
 
 ```ts
 export const appConfig = {
-	apiBaseUrl: requireEnv("VITE_API_BASE_URL"),
-	enableMocks: import.meta.env.VITE_ENABLE_MOCKS === "true",
-	streamReconnectMs: Number(import.meta.env.VITE_STREAM_RECONNECT_MS ?? 3000),
+  apiBaseUrl: requireEnv("VITE_API_BASE_URL"),
+  enableMocks: import.meta.env.VITE_ENABLE_MOCKS === "true",
+  streamReconnectMs: Number(import.meta.env.VITE_STREAM_RECONNECT_MS ?? 3000),
 };
 ```
 

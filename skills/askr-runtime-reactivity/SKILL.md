@@ -53,16 +53,16 @@ const isSelected = selector(selectedId);
 
 ```tsx
 function BadList({ rows }) {
-	if (rows.length > 0) {
-		const [selected, setSelected] = state(rows[0].id);
-		return rows.map((row, index) => (
-			<button key={index} onClick={() => setSelected(row.id)}>
-				{selected === row.id ? "Selected" : row.label}
-			</button>
-		));
-	}
+  if (rows.length > 0) {
+    const [selected, setSelected] = state(rows[0].id);
+    return rows.map((row, index) => (
+      <button key={index} onClick={() => setSelected(row.id)}>
+        {selected === row.id ? "Selected" : row.label}
+      </button>
+    ));
+  }
 
-	return null;
+  return null;
 }
 ```
 

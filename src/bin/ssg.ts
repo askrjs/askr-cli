@@ -96,7 +96,9 @@ const defaultDeps: Required<Pick<SsgDeps, "cwd" | "existsSync" | "importConfig" 
 };
 
 async function loadCreateStaticGen(): Promise<SsgDeps["createStaticGen"]> {
-  const mod = (await import("@askrjs/askr/ssg")) as { createStaticGen?: SsgDeps["createStaticGen"] };
+  const mod = (await import("@askrjs/askr/ssg")) as {
+    createStaticGen?: SsgDeps["createStaticGen"];
+  };
   if (typeof mod.createStaticGen !== "function") {
     throw new Error("Failed to load createStaticGen from @askrjs/askr/ssg");
   }
@@ -152,7 +154,12 @@ function toGenerateOptions(args: ParsedSsgArgs) {
   };
 }
 
-function printSummary(io: CliIo, outputDir: string, durationSeconds: string, result: GenerateResult): void {
+function printSummary(
+  io: CliIo,
+  outputDir: string,
+  durationSeconds: string,
+  result: GenerateResult,
+): void {
   io.log("");
   io.log(`Generation complete in ${durationSeconds}s`);
   io.log(`   Mode:      ${result.mode}`);
