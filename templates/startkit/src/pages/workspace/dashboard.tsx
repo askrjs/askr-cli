@@ -1,29 +1,40 @@
-import { state } from "@askrjs/askr";
-import { resource } from "@askrjs/askr/resources";
-import { Button } from "@askrjs/ui/button";
-import { BarChart3Icon, CircleDollarSignIcon, Clock3Icon, UsersIcon } from "@askrjs/lucide";
-import DataTable, { type DataTableColumn } from "../../components/data-table";
-import EmptyState from "../../components/empty-state";
-import PageHeader from "../../components/page-header";
-import StatCard from "../../components/stat-card";
-import { getDashboardData, type ActivityEntry } from "../../lib/mock-data";
-import { formatRelativeDate } from "../../lib/format";
+import { state } from '@askrjs/askr';
+import { resource } from '@askrjs/askr/resources';
+import { Button } from '@askrjs/ui/button';
+import {
+  BarChart3Icon,
+  CircleDollarSignIcon,
+  Clock3Icon,
+  UsersIcon,
+} from '@askrjs/lucide';
+import DataTable, { type DataTableColumn } from '../../components/data-table';
+import EmptyState from '../../components/empty-state';
+import PageHeader from '../../components/page-header';
+import StatCard from '../../components/stat-card';
+import { getDashboardData, type ActivityEntry } from '../../lib/mock-data';
+import { formatRelativeDate } from '../../lib/format';
 
 export default function DashboardPage() {
   const [hideActivityState, setHideActivityState] = state(false);
-  const dashboardResource = resource(async ({ signal }) => getDashboardData({ signal }), []);
+  const dashboardResource = resource(
+    async ({ signal }) => getDashboardData({ signal }),
+    []
+  );
 
   const stats = () => dashboardResource.value?.stats ?? [];
-  const activities = () => (hideActivityState() ? [] : (dashboardResource.value?.activities ?? []));
+  const activities = () =>
+    hideActivityState() ? [] : (dashboardResource.value?.activities ?? []);
 
   const columns: DataTableColumn<ActivityEntry>[] = [
-    { key: "actor", header: "Actor", render: (row) => row.actor },
-    { key: "action", header: "Action", render: (row) => row.action },
-    { key: "resource", header: "Resource", render: (row) => row.resource },
+    { key: 'actor', header: 'Actor', render: (row) => row.actor },
+    { key: 'action', header: 'Action', render: (row) => row.action },
+    { key: 'resource', header: 'Resource', render: (row) => row.resource },
     {
-      key: "timestamp",
-      header: "When",
-      render: (row) => <span class="muted">{formatRelativeDate(row.timestamp)}</span>,
+      key: 'timestamp',
+      header: 'When',
+      render: (row) => (
+        <span class="muted">{formatRelativeDate(row.timestamp)}</span>
+      ),
     },
   ];
 
@@ -40,16 +51,28 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Overview of workspace health, growth, and recent team activity."
         actions={
-          <Button onPress={() => dashboardResource.refresh()} disabled={dashboardResource.pending}>
-            {dashboardResource.pending ? "Refreshing..." : "Refresh"}
+          <Button
+            onPress={() => dashboardResource.refresh()}
+            disabled={dashboardResource.pending}
+          >
+            {dashboardResource.pending ? 'Refreshing...' : 'Refresh'}
           </Button>
         }
       />
 
       <div class="stat-grid">
         {stats().map((stat) => {
-          const Icon = iconByStatKey[stat.key as keyof typeof iconByStatKey] ?? BarChart3Icon;
-          return <StatCard label={stat.label} value={stat.value} trend={stat.trend} icon={Icon} />;
+          const Icon =
+            iconByStatKey[stat.key as keyof typeof iconByStatKey] ??
+            BarChart3Icon;
+          return (
+            <StatCard
+              label={stat.label}
+              value={stat.value}
+              trend={stat.trend}
+              icon={Icon}
+            />
+          );
         })}
       </div>
 
@@ -57,14 +80,17 @@ export default function DashboardPage() {
         <div class="section-head">
           <div>
             <h2>Recent activity</h2>
-            <p class="muted">The activity table demonstrates loading, empty, and retry behavior.</p>
+            <p class="muted">
+              The activity table demonstrates loading, empty, and retry
+              behavior.
+            </p>
           </div>
           <Button
             onPress={() => setHideActivityState((current) => !current)}
             class="button-secondary"
             disabled={dashboardResource.pending}
           >
-            {hideActivityState() ? "Show activity" : "Show empty state"}
+            {hideActivityState() ? 'Show activity' : 'Show empty state'}
           </Button>
         </div>
 
@@ -72,7 +98,9 @@ export default function DashboardPage() {
           <EmptyState
             title="Could not load dashboard"
             description={dashboardResource.error.message}
-            action={<Button onPress={() => dashboardResource.refresh()}>Retry</Button>}
+            action={
+              <Button onPress={() => dashboardResource.refresh()}>Retry</Button>
+            }
           />
         ) : (
           <DataTable

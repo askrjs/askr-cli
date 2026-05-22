@@ -1,4 +1,4 @@
-import { getOperationsSnapshot } from "../../adapters/operations-client";
+import { getOperationsSnapshot } from '../../adapters/operations-client';
 
 export function loadOperations({
   signal = new AbortController().signal,

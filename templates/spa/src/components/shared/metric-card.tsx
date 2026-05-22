@@ -1,5 +1,10 @@
-import { Card, CardDescription, CardHeader, CardTitle } from "@askrjs/themes/surfaces";
-import { Inline } from "@askrjs/themes/layouts";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@askrjs/themes/surfaces';
+import { Inline } from '@askrjs/themes/layouts';
 
 export type MetricCardProps = {
   label: string;

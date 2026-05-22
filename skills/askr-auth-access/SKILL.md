@@ -24,7 +24,7 @@ Use this for authentication and authorization in route-first Askr apps.
 ## Canonical Pattern
 
 ```tsx
-group({ layout: PublicLayout, auth: 'guest' }, () => {
+group({ layout: PublicLayout, auth: "guest" }, () => {
   registerPublicRoutes();
 });
 

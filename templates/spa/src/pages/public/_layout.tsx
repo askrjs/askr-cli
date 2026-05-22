@@ -1,10 +1,10 @@
-import { MoonIcon, SunIcon } from "@askrjs/lucide";
-import { Link } from "@askrjs/askr/router";
-import { Button } from "@askrjs/themes/controls";
-import { Container, Inline } from "@askrjs/themes/layouts";
-import { Header } from "@askrjs/themes/shells";
-import { NavBrand, NavGroup, Navbar, NavLink } from "@askrjs/themes/navs";
-import { ThemeToggle } from "@askrjs/themes/theme";
+import { MoonIcon, SunIcon } from '@askrjs/lucide';
+import { Link } from '@askrjs/askr/router';
+import { Button } from '@askrjs/themes/controls';
+import { Container, Inline } from '@askrjs/themes/layouts';
+import { Header } from '@askrjs/themes/shells';
+import { NavBrand, NavGroup, Navbar, NavLink } from '@askrjs/themes/navs';
+import { ThemeToggle } from '@askrjs/themes/theme';
 
 export default function PublicLayout({ children }: { children?: unknown }) {
   return (
@@ -15,7 +15,7 @@ export default function PublicLayout({ children }: { children?: unknown }) {
             <NavBrand>
               <Link href="/" class="brand-link">
                 <span class="brand-mark">A</span>
-                <strong>{"{{appName}}"}</strong>
+                <strong>{'{{appName}}'}</strong>
               </Link>
             </NavBrand>
             <NavGroup align="center">

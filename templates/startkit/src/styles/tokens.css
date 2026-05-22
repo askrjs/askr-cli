@@ -23,10 +23,14 @@
     --starter-content-max-ch: 74ch;
     --starter-shadow-soft: 0 10px 30px rgba(13, 24, 43, 0.08);
     --starter-shadow-press: 0 4px 14px rgba(13, 24, 43, 0.1);
-    --starter-surface-glass: color-mix(in srgb, var(--ak-color-surface) 88%, transparent);
+    --starter-surface-glass: color-mix(
+      in srgb,
+      var(--ak-color-surface) 88%,
+      transparent
+    );
   }
 
-  :root[data-sk-appearance="harbor"] {
+  :root[data-sk-appearance='harbor'] {
     --ak-color-primary: #0f7b8f;
     --ak-color-primary-hover: #0d6171;
     --ak-color-bg: #eff5f8;
@@ -41,7 +45,7 @@
     --starter-shadow-press: 0 4px 14px rgba(8, 34, 45, 0.1);
   }
 
-  :root[data-sk-appearance="ink"] {
+  :root[data-sk-appearance='ink'] {
     --ak-color-primary: #6fa6ff;
     --ak-color-primary-hover: #4a89ee;
     --ak-color-bg: #151a22;
@@ -54,6 +58,10 @@
     --starter-color-success: #58c38a;
     --starter-shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.3);
     --starter-shadow-press: 0 5px 16px rgba(0, 0, 0, 0.34);
-    --starter-surface-glass: color-mix(in srgb, var(--ak-color-surface) 78%, transparent);
+    --starter-surface-glass: color-mix(
+      in srgb,
+      var(--ak-color-surface) 78%,
+      transparent
+    );
   }
 }

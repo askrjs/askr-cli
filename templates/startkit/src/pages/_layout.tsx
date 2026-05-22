@@ -1,4 +1,4 @@
-import "./styles.css";
+import './styles.css';
 import {
   ToastProvider,
   Toast,
@@ -6,9 +6,15 @@ import {
   ToastDescription,
   ToastTitle,
   ToastViewport,
-} from "@askrjs/ui/toast";
-import { clearToast, bindToast, setToastOpen, toastMessage, toastOpen } from "../toast";
-import { state } from "@askrjs/askr";
+} from '@askrjs/ui/toast';
+import {
+  clearToast,
+  bindToast,
+  setToastOpen,
+  toastMessage,
+  toastOpen,
+} from '../toast';
+import { state } from '@askrjs/askr';
 
 export default function App({ children }: { children?: unknown }) {
   const [messageState, setMessageState] = state(toastMessage());

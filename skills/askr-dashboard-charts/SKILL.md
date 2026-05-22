@@ -24,7 +24,7 @@ Use this for product dashboards and metric-heavy screens.
 ## Data Pattern
 
 ```tsx
-import { resource } from '@askrjs/askr/resources';
+import { resource } from "@askrjs/askr/resources";
 
 const dashboard = resource(({ signal }) => loadDashboard({ signal }), []);
 
@@ -37,7 +37,7 @@ Keep metric formatting in helpers so cards, tables, and charts stay deterministi
 ## Chart Pattern
 
 ```tsx
-import { AreaChart, ChartPanel, ChartShell } from '@askrjs/charts/components';
+import { AreaChart, ChartPanel, ChartShell } from "@askrjs/charts/components";
 
 <ChartShell title="Revenue" description="Last 7 days">
   <ChartPanel title="Trend">

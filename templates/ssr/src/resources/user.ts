@@ -1,4 +1,4 @@
-import { resource } from "@askrjs/askr/resources";
+import { resource } from '@askrjs/askr/resources';
 
 export function fetchUser(id: number) {
   return resource(
@@ -6,10 +6,10 @@ export function fetchUser(id: number) {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 100));
       if (signal.aborted) {
-        throw new DOMException("Request aborted", "AbortError");
+        throw new DOMException('Request aborted', 'AbortError');
       }
       return { id, name: `User ${id}`, email: `user${id}@example.com` };
     },
-    [id],
+    [id]
   );
 }

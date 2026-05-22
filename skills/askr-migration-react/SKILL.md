@@ -28,13 +28,11 @@ Use this when a task, code sample, or generated design is React-shaped and needs
 ## State Pattern
 
 ```tsx
-import { state } from '@askrjs/askr';
+import { state } from "@askrjs/askr";
 
 const [open, setOpen] = state(false);
 
-<button onClick={() => setOpen((value) => !value)}>
-  {open() ? 'Close' : 'Open'}
-</button>;
+<button onClick={() => setOpen((value) => !value)}>{open() ? "Close" : "Open"}</button>;
 ```
 
 `state()` always returns a `[getter, setter]` pair. Read with `open()` and update with `setOpen(...)`.
@@ -42,7 +40,7 @@ const [open, setOpen] = state(false);
 ## Data Pattern
 
 ```tsx
-import { resource } from '@askrjs/askr/resources';
+import { resource } from "@askrjs/askr/resources";
 
 const user = resource(({ signal }) => loadUser(id, { signal }), [id]);
 ```

@@ -1,12 +1,19 @@
-import { BotIcon, HomeIcon, LogOutIcon, MoonIcon, SettingsIcon, SunIcon } from "@askrjs/lucide";
-import { Link, navigate } from "@askrjs/askr/router";
-import { Button } from "@askrjs/themes/controls";
-import { Container, Inline, Stack } from "@askrjs/themes/layouts";
-import { Header, Shell, ShellMain, ShellNav } from "@askrjs/themes/shells";
-import { NavBrand, NavGroup, NavLink, Sidebar } from "@askrjs/themes/navs";
-import { Badge } from "@askrjs/themes/surfaces";
-import { ThemeToggle } from "@askrjs/themes/theme";
-import { appNavItems } from "../../shared/navigation";
+import {
+  BotIcon,
+  HomeIcon,
+  LogOutIcon,
+  MoonIcon,
+  SettingsIcon,
+  SunIcon,
+} from '@askrjs/lucide';
+import { Link, navigate } from '@askrjs/askr/router';
+import { Button } from '@askrjs/themes/controls';
+import { Container, Inline, Stack } from '@askrjs/themes/layouts';
+import { Header, Shell, ShellMain, ShellNav } from '@askrjs/themes/shells';
+import { NavBrand, NavGroup, NavLink, Sidebar } from '@askrjs/themes/navs';
+import { Badge } from '@askrjs/themes/surfaces';
+import { ThemeToggle } from '@askrjs/themes/theme';
+import { appNavItems } from '../../shared/navigation';
 
 const icons = {
   home: <HomeIcon size={16} aria-hidden="true" />,
@@ -18,11 +25,15 @@ export default function AppLayout({ children }: { children?: unknown }) {
   return (
     <Shell variant="sidebar" class="admin-shell">
       <ShellNav>
-        <Sidebar aria-label="Admin navigation" breakpoint="md" collapsible="icon">
+        <Sidebar
+          aria-label="Admin navigation"
+          breakpoint="md"
+          collapsible="icon"
+        >
           <NavBrand>
             <Link href="/app" class="brand-link">
               <span class="brand-mark">A</span>
-              <strong>{"{{appName}}"}</strong>
+              <strong>{'{{appName}}'}</strong>
             </Link>
           </NavBrand>
           <NavGroup label="Workspace">
@@ -62,7 +73,7 @@ export default function AppLayout({ children }: { children?: unknown }) {
                   lightIcon={<SunIcon size={18} aria-hidden="true" />}
                   darkIcon={<MoonIcon size={18} aria-hidden="true" />}
                 />
-                <Button variant="secondary" onPress={() => navigate("/")}>
+                <Button variant="secondary" onPress={() => navigate('/')}>
                   Public site
                 </Button>
               </Inline>

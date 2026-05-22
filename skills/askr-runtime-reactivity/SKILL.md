@@ -18,8 +18,8 @@ Use this when local state, derived values, keyed selection, context, control flo
 ## Core Pattern
 
 ```tsx
-import { derive, selector, state } from '@askrjs/askr';
-import { For, Show } from '@askrjs/askr/control';
+import { derive, selector, state } from "@askrjs/askr";
+import { For, Show } from "@askrjs/askr/control";
 
 const [count, setCount] = state(0);
 const [selectedId, setSelectedId] = state<number | null>(null);

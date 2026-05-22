@@ -1,7 +1,7 @@
-import { Link } from "@askrjs/askr/router";
-import { Button } from "@askrjs/themes/controls";
-import { Container, Section } from "@askrjs/themes/layouts";
-import { EmptyState } from "@askrjs/themes/feedback";
+import { Link } from '@askrjs/askr/router';
+import { Button } from '@askrjs/themes/controls';
+import { Container, Section } from '@askrjs/themes/layouts';
+import { EmptyState } from '@askrjs/themes/feedback';
 
 export default function NotFoundPage() {
   return (

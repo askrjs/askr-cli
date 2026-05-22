@@ -1,7 +1,7 @@
-import { For } from "@askrjs/askr/for";
-import { Skeleton } from "@askrjs/ui/skeleton";
-import EmptyState from "./empty-state";
-import { joinClasses } from "../utils/join-classes";
+import { For } from '@askrjs/askr/for';
+import { Skeleton } from '@askrjs/ui/skeleton';
+import EmptyState from './empty-state';
+import { joinClasses } from '../utils/join-classes';
 
 export type DataTableColumn<Row> = {
   key: string;
@@ -23,12 +23,17 @@ export default function DataTable<Row>(props: {
   emptyDescription?: string;
 }) {
   if (props.errorText) {
-    return <EmptyState title="Could not load table" description={props.errorText} />;
+    return (
+      <EmptyState title="Could not load table" description={props.errorText} />
+    );
   }
 
   if (props.isLoading) {
     return (
-      <div class={joinClasses("panel stack-sm", props.class)} aria-hidden="true">
+      <div
+        class={joinClasses('panel stack-sm', props.class)}
+        aria-hidden="true"
+      >
         <Skeleton class="skeleton-line" />
         <Skeleton class="skeleton-line" />
         <Skeleton class="skeleton-line" />
@@ -39,14 +44,17 @@ export default function DataTable<Row>(props: {
   if (props.rows().length === 0) {
     return (
       <EmptyState
-        title={props.emptyTitle ?? "No rows found"}
-        description={props.emptyDescription ?? "Try changing filters or adding new records."}
+        title={props.emptyTitle ?? 'No rows found'}
+        description={
+          props.emptyDescription ??
+          'Try changing filters or adding new records.'
+        }
       />
     );
   }
 
   return (
-    <div class={joinClasses("table-wrap", props.class)}>
+    <div class={joinClasses('table-wrap', props.class)}>
       <table class={props.tableClass}>
         <thead>
           <tr>

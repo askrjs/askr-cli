@@ -25,8 +25,8 @@ Use this when applying or extending the optional Askr visual layer. Prefer solve
 ## Canonical Imports
 
 ```ts
-import '@askrjs/themes/default';
-import { ThemeProvider, ThemePicker } from '@askrjs/themes/theme';
+import "@askrjs/themes/default";
+import { ThemeProvider, ThemePicker } from "@askrjs/themes/theme";
 import {
   AspectRatio,
   Block,
@@ -37,12 +37,28 @@ import {
   Section,
   Spacer,
   Stack,
-} from '@askrjs/themes/layouts';
-import { Button, ButtonGroup, Field, FieldError, FieldHint, InputGroup } from '@askrjs/themes/controls';
-import { Alert, Badge, Card, CardActions, CardContent, CardHeader, CardTitle, Skeleton } from '@askrjs/themes/surfaces';
-import { EmptyState, Spinner } from '@askrjs/themes/feedback';
-import { Header, Shell, ShellMain, ShellNav } from '@askrjs/themes/shells';
-import { Breadcrumb, Nav, NavGroup, NavLink, Pagination, Sidebar } from '@askrjs/themes/navs';
+} from "@askrjs/themes/layouts";
+import {
+  Button,
+  ButtonGroup,
+  Field,
+  FieldError,
+  FieldHint,
+  InputGroup,
+} from "@askrjs/themes/controls";
+import {
+  Alert,
+  Badge,
+  Card,
+  CardActions,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Skeleton,
+} from "@askrjs/themes/surfaces";
+import { EmptyState, Spinner } from "@askrjs/themes/feedback";
+import { Header, Shell, ShellMain, ShellNav } from "@askrjs/themes/shells";
+import { Breadcrumb, Nav, NavGroup, NavLink, Pagination, Sidebar } from "@askrjs/themes/navs";
 ```
 
 ## Solved Surface Area

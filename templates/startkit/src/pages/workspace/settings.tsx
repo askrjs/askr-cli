@@ -1,5 +1,5 @@
-import { state } from "@askrjs/askr";
-import { Button } from "@askrjs/ui/button";
+import { state } from '@askrjs/askr';
+import { Button } from '@askrjs/ui/button';
 import {
   Dialog,
   DialogClose,
@@ -9,10 +9,10 @@ import {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
-} from "@askrjs/ui/dialog";
-import { Field, FieldLabel } from "@askrjs/ui/field";
-import { Input } from "@askrjs/ui/input";
-import { Inline } from "@askrjs/ui/inline";
+} from '@askrjs/ui/dialog';
+import { Field, FieldLabel } from '@askrjs/ui/field';
+import { Input } from '@askrjs/ui/input';
+import { Inline } from '@askrjs/ui/inline';
 import {
   Select,
   SelectContent,
@@ -20,42 +20,47 @@ import {
   SelectPortal,
   SelectTrigger,
   SelectValue,
-} from "@askrjs/ui/select";
-import { Switch } from "@askrjs/ui/switch";
-import { SaveIcon } from "@askrjs/lucide";
-import PageHeader from "../../components/page-header";
-import { appearanceMode, setAppearance, type AppearanceMode } from "../../lib/mock-data";
-import { showToast } from "../../toast";
+} from '@askrjs/ui/select';
+import { Switch } from '@askrjs/ui/switch';
+import { SaveIcon } from '@askrjs/lucide';
+import PageHeader from '../../components/page-header';
+import {
+  appearanceMode,
+  setAppearance,
+  type AppearanceMode,
+} from '../../lib/mock-data';
+import { showToast } from '../../toast';
 
 export default function SettingsPage() {
-  const [fullNameState, setFullNameState] = state("Alex Morgan");
-  const [emailState, setEmailState] = state("alex@example.com");
-  const [timezoneState, setTimezoneState] = state("utc");
+  const [fullNameState, setFullNameState] = state('Alex Morgan');
+  const [emailState, setEmailState] = state('alex@example.com');
+  const [timezoneState, setTimezoneState] = state('utc');
   const [marketingEmailsState, setMarketingEmailsState] = state(false);
   const [incidentAlertsState, setIncidentAlertsState] = state(true);
-  const [validationErrorState, setValidationErrorState] = state("");
+  const [validationErrorState, setValidationErrorState] = state('');
   const [savingState, setSavingState] = state(false);
 
   const save = async () => {
     if (!fullNameState().trim()) {
-      setValidationErrorState("Full name is required.");
+      setValidationErrorState('Full name is required.');
       return;
     }
 
-    if (!emailState().trim().includes("@")) {
-      setValidationErrorState("Email must be valid.");
+    if (!emailState().trim().includes('@')) {
+      setValidationErrorState('Email must be valid.');
       return;
     }
 
-    setValidationErrorState("");
+    setValidationErrorState('');
     setSavingState(true);
 
     await new Promise((resolve) => setTimeout(resolve, 260));
 
     setSavingState(false);
     showToast({
-      title: "Settings saved",
-      description: "Profile and preference values were persisted in mock state.",
+      title: 'Settings saved',
+      description:
+        'Profile and preference values were persisted in mock state.',
     });
   };
 
@@ -66,7 +71,8 @@ export default function SettingsPage() {
         description="Profile settings, workspace preferences, and production form patterns."
         actions={
           <Button onPress={() => void save()} disabled={savingState()}>
-            <SaveIcon size={14} aria-hidden="true" /> {savingState() ? "Saving..." : "Save changes"}
+            <SaveIcon size={14} aria-hidden="true" />{' '}
+            {savingState() ? 'Saving...' : 'Save changes'}
           </Button>
         }
       />
@@ -79,7 +85,9 @@ export default function SettingsPage() {
             <FieldLabel fieldId="profile-name">Full name</FieldLabel>
             <Input
               value={fullNameState()}
-              onInput={(event: Event) => setFullNameState((event.target as HTMLInputElement).value)}
+              onInput={(event: Event) =>
+                setFullNameState((event.target as HTMLInputElement).value)
+              }
             />
           </Field>
 
@@ -88,7 +96,9 @@ export default function SettingsPage() {
             <Input
               type="email"
               value={emailState()}
-              onInput={(event: Event) => setEmailState((event.target as HTMLInputElement).value)}
+              onInput={(event: Event) =>
+                setEmailState((event.target as HTMLInputElement).value)
+              }
             />
           </Field>
 
@@ -121,9 +131,14 @@ export default function SettingsPage() {
           <label class="switch-row">
             <div>
               <strong>Incident alerts</strong>
-              <p class="muted">Receive critical service incident notifications.</p>
+              <p class="muted">
+                Receive critical service incident notifications.
+              </p>
             </div>
-            <Switch checked={incidentAlertsState()} onCheckedChange={setIncidentAlertsState} />
+            <Switch
+              checked={incidentAlertsState()}
+              onCheckedChange={setIncidentAlertsState}
+            />
           </label>
 
           <label class="switch-row">
@@ -131,7 +146,10 @@ export default function SettingsPage() {
               <strong>Marketing emails</strong>
               <p class="muted">Product updates and launch notes.</p>
             </div>
-            <Switch checked={marketingEmailsState()} onCheckedChange={setMarketingEmailsState} />
+            <Switch
+              checked={marketingEmailsState()}
+              onCheckedChange={setMarketingEmailsState}
+            />
           </label>
 
           <Field id="appearance-mode">
@@ -167,7 +185,8 @@ export default function SettingsPage() {
                 <DialogContent class="panel stack-md">
                   <DialogTitle>Reset workspace preferences?</DialogTitle>
                   <DialogDescription>
-                    This is a modal wiring example. Connect this to real persistence logic.
+                    This is a modal wiring example. Connect this to real
+                    persistence logic.
                   </DialogDescription>
                   <div class="inline-end">
                     <DialogClose asChild>
@@ -177,8 +196,9 @@ export default function SettingsPage() {
                       <Button
                         onPress={() =>
                           showToast({
-                            title: "Preferences reset",
-                            description: "Demonstration modal action completed.",
+                            title: 'Preferences reset',
+                            description:
+                              'Demonstration modal action completed.',
                           })
                         }
                       >
