@@ -46,9 +46,9 @@ Use this as the first skill for real application work. Choose the smallest Askr 
 ## Minimal Imports
 
 ```tsx
-import { createSPA } from '@askrjs/askr/boot';
-import { fallback, getManifest, group, registerRoutes, route } from '@askrjs/askr/router';
-import { askr } from '@askrjs/vite';
+import { createSPA } from "@askrjs/askr/boot";
+import { fallback, getManifest, group, registerRoutes, route } from "@askrjs/askr/router";
+import { askr } from "@askrjs/vite";
 ```
 
 Import the top-level route registry from `src/main.tsx`. Register routes at module load, keep route handlers synchronous, and do async work inside components with `resource()` or shared query primitives.

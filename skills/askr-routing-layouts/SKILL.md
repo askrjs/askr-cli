@@ -27,7 +27,7 @@ Use this for URL structure, route registration, app shells, and navigation.
 ## Canonical Pattern
 
 ```tsx
-import { fallback, group, index, page, registerRoutes, route } from '@askrjs/askr/router';
+import { fallback, group, index, page, registerRoutes, route } from "@askrjs/askr/router";
 
 registerRoutes(() => {
   group({ layout: RootLayout }, () => {

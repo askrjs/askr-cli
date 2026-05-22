@@ -1,25 +1,32 @@
-import { describe, it, expect } from "vite-plus/test";
+import { describe, it, expect } from 'vite-plus/test';
 
-describe("App Component", () => {
-  it("exposes the current starter route set", () => {
-    const routes = ["/", "/login", "/dashboard", "/accounts", "/settings", "/*"];
+describe('App Component', () => {
+  it('exposes the current starter route set', () => {
+    const routes = [
+      '/',
+      '/login',
+      '/dashboard',
+      '/accounts',
+      '/settings',
+      '/*',
+    ];
 
-    expect(routes).toContain("/settings");
-    expect(routes).toContain("/accounts");
-    expect(routes).toContain("/login");
+    expect(routes).toContain('/settings');
+    expect(routes).toContain('/accounts');
+    expect(routes).toContain('/login');
   });
 
-  it("uses the updated primary nav labels", () => {
-    const navLabels = ["Dashboard", "Accounts", "Settings"];
+  it('uses the updated primary nav labels', () => {
+    const navLabels = ['Dashboard', 'Accounts', 'Settings'];
 
-    expect(navLabels).toContain("Accounts");
-    expect(navLabels).toContain("Settings");
+    expect(navLabels).toContain('Accounts');
+    expect(navLabels).toContain('Settings');
   });
 
-  it("documents the starter appearance presets", () => {
-    const appearanceModes = ["Default", "Harbor", "Ink"];
+  it('documents the starter appearance presets', () => {
+    const appearanceModes = ['Default', 'Harbor', 'Ink'];
 
-    expect(appearanceModes).toContain("Harbor");
-    expect(appearanceModes).toContain("Ink");
+    expect(appearanceModes).toContain('Harbor');
+    expect(appearanceModes).toContain('Ink');
   });
 });

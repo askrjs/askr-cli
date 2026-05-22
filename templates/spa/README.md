@@ -37,13 +37,13 @@ code lives in `src/adapters`.
 
 ```tsx
 // src/pages/_routes.tsx
-import { fallback, group, registerRoutes } from "@askrjs/askr/router";
-import RootLayout from "./_layout";
-import NotFoundPage from "./not-found";
-import AppLayout from "./app/_layout";
-import { registerAppRoutes } from "./app/_routes";
-import PublicLayout from "./public/_layout";
-import { registerPublicRoutes } from "./public/_routes";
+import { fallback, group, registerRoutes } from '@askrjs/askr/router';
+import RootLayout from './_layout';
+import NotFoundPage from './not-found';
+import AppLayout from './app/_layout';
+import { registerAppRoutes } from './app/_routes';
+import PublicLayout from './public/_layout';
+import { registerPublicRoutes } from './public/_routes';
 
 registerRoutes(() => {
   group({ layout: RootLayout }, () => {

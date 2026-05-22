@@ -35,8 +35,8 @@ Use `askr <command> [args]` after installation. Use `--no-install` only when dep
 ## Vite Pattern
 
 ```ts
-import { defineConfig } from 'vite';
-import { askr } from '@askrjs/vite';
+import { defineConfig } from "vite";
+import { askr } from "@askrjs/vite";
 
 export default defineConfig({
   plugins: [askr()],

@@ -1,5 +1,5 @@
-import type { Props } from "@askrjs/askr";
-import type { JSXElement } from "@askrjs/askr/jsx-runtime";
+import type { Props } from '@askrjs/askr';
+import type { JSXElement } from '@askrjs/askr/jsx-runtime';
 
 declare global {
   namespace JSX {

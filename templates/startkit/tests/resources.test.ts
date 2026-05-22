@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vite-plus/test";
+import { beforeEach, describe, expect, it } from 'vite-plus/test';
 import {
   archiveAccounts,
   getDashboardData,
@@ -7,14 +7,14 @@ import {
   resetMockData,
   signIn,
   signOut,
-} from "../src/lib/mock-data";
+} from '../src/lib/mock-data';
 
-describe("lib mock data", () => {
+describe('lib mock data', () => {
   beforeEach(() => {
     resetMockData();
   });
 
-  it("should return dashboard stats and activities", async () => {
+  it('should return dashboard stats and activities', async () => {
     const result = await getDashboardData({
       signal: new AbortController().signal,
     });
@@ -23,25 +23,25 @@ describe("lib mock data", () => {
     expect(result.activities.length).toBeGreaterThan(0);
   });
 
-  it("should filter and paginate accounts", async () => {
+  it('should filter and paginate accounts', async () => {
     const result = await listAccounts({
       signal: new AbortController().signal,
-      query: "northwind",
-      status: "all",
+      query: 'northwind',
+      status: 'all',
       page: 1,
       pageSize: 5,
     });
 
     expect(result.items.length).toBeGreaterThan(0);
-    expect(result.items[0]?.name.toLowerCase()).toContain("northwind");
+    expect(result.items[0]?.name.toLowerCase()).toContain('northwind');
     expect(result.totalPages).toBeGreaterThanOrEqual(1);
   });
 
-  it("should archive selected accounts", async () => {
+  it('should archive selected accounts', async () => {
     const before = await listAccounts({
       signal: new AbortController().signal,
-      query: "",
-      status: "active",
+      query: '',
+      status: 'active',
       page: 1,
       pageSize: 20,
     });
@@ -56,8 +56,8 @@ describe("lib mock data", () => {
 
     const after = await listAccounts({
       signal: new AbortController().signal,
-      query: "",
-      status: "archived",
+      query: '',
+      status: 'archived',
       page: 1,
       pageSize: 20,
     });
@@ -65,12 +65,12 @@ describe("lib mock data", () => {
     expect(after.items.some((item) => ids.includes(item.id))).toBe(true);
   });
 
-  it("should sign in and sign out session state", async () => {
+  it('should sign in and sign out session state', async () => {
     expect(isAuthenticated()).toBe(false);
 
     await signIn({
-      email: "alex@example.com",
-      password: "askr1234",
+      email: 'alex@example.com',
+      password: 'askr1234',
       signal: new AbortController().signal,
     });
 

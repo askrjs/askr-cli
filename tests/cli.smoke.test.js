@@ -88,7 +88,10 @@ test("runCreateCli scaffolds SPA with the route-first themed app shell", async (
 
     const appRoot = path.join(tempRoot, "sample-spa");
     const packageJson = await fs.readFile(path.join(appRoot, "package.json"), "utf8");
-    const rootLayoutFile = await fs.readFile(path.join(appRoot, "src", "pages", "_layout.tsx"), "utf8");
+    const rootLayoutFile = await fs.readFile(
+      path.join(appRoot, "src", "pages", "_layout.tsx"),
+      "utf8",
+    );
     const routesFile = await fs.readFile(path.join(appRoot, "src", "pages", "_routes.tsx"), "utf8");
     const publicRoutesFile = await fs.readFile(
       path.join(appRoot, "src", "pages", "public", "_routes.tsx"),
@@ -235,7 +238,9 @@ test("runSkillsCli sync updates Askr skills and preserves unrelated skills", asy
     expect(errors).toHaveLength(0);
     expect(logs.join("\n")).toMatch(/Synced 24 Askr skills/);
 
-    await expect(fs.access(path.join(skillsRoot, "custom-skill", "SKILL.md"))).resolves.toBeUndefined();
+    await expect(
+      fs.access(path.join(skillsRoot, "custom-skill", "SKILL.md")),
+    ).resolves.toBeUndefined();
     await expect(fs.access(path.join(skillsRoot, "askr-old-skill"))).rejects.toThrow();
     await expect(fs.access(path.join(skillsRoot, "askr-routing.md"))).rejects.toThrow();
     await expect(

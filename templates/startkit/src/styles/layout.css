@@ -145,11 +145,11 @@
   }
 
   @media (max-width: 960px) {
-    [data-slot="sidebar-layout"] {
+    [data-slot='sidebar-layout'] {
       flex-direction: column;
     }
 
-    [data-slot="sidebar-layout"] > [data-slot="sidebar"] {
+    [data-slot='sidebar-layout'] > [data-slot='sidebar'] {
       inline-size: 100% !important;
       border-inline-end: none;
       border-block-end: 1px solid var(--ak-color-border);

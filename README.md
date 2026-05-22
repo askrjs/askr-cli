@@ -24,7 +24,6 @@ npm run dev
 
 ## Commands
 
-
 - `askr create [template] <name> [--no-install]`
 - `askr skills list`
 - `askr skills install [--cwd <dir>] [--force]`

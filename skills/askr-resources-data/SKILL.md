@@ -17,13 +17,16 @@ Use this when async work belongs to a component lifecycle rather than a shared c
 ## Canonical Pattern
 
 ```tsx
-import { resource } from '@askrjs/askr/resources';
+import { resource } from "@askrjs/askr/resources";
 
 function UserCard({ id }: { id: string }) {
-  const user = resource(async ({ signal }) => {
-    const response = await fetch(`/api/users/${id}`, { signal });
-    return response.json();
-  }, [id]);
+  const user = resource(
+    async ({ signal }) => {
+      const response = await fetch(`/api/users/${id}`, { signal });
+      return response.json();
+    },
+    [id],
+  );
 
   if (user.pending || !user.value) return <p>Loading...</p>;
   if (user.error) return <p role="alert">Unable to load user.</p>;

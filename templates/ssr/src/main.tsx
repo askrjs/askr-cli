@@ -1,10 +1,10 @@
-import { hydrateSPA, getRoutes } from "@askrjs/askr";
+import { hydrateSPA, getRoutes } from '@askrjs/askr';
 
 // Import routes (they auto-register)
-import "./routes";
+import './routes';
 
 // Hydrate the pre-rendered HTML with interactivity
 hydrateSPA({
-  root: "app",
+  root: 'app',
   routes: getRoutes(),
 });

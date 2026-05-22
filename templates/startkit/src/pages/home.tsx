@@ -1,8 +1,13 @@
-import { Link } from "@askrjs/askr/router";
-import { ShieldCheckIcon, WorkflowIcon, LayoutPanelTopIcon, SparklesIcon } from "@askrjs/lucide";
-import { dashboardRoute, loginRoute } from "../lib/routes";
+import { Link } from '@askrjs/askr/router';
+import {
+  ShieldCheckIcon,
+  WorkflowIcon,
+  LayoutPanelTopIcon,
+  SparklesIcon,
+} from '@askrjs/lucide';
+import { dashboardRoute, loginRoute } from '../lib/routes';
 
-const navButtonClass = "button button-secondary";
+const navButtonClass = 'button button-secondary';
 
 export default function LandingPage() {
   return (
@@ -12,7 +17,7 @@ export default function LandingPage() {
           <span class="brand-pill" aria-hidden="true">
             A
           </span>
-          <strong>{"{{appName}}"}</strong>
+          <strong>{'{{appName}}'}</strong>
         </Link>
         <div class="marketing-actions">
           <Link href={loginRoute.href} class={navButtonClass}>
@@ -25,8 +30,9 @@ export default function LandingPage() {
         <p class="eyebrow">Production-ready starter</p>
         <h1>Build your Askr app like a real product from day one.</h1>
         <p>
-          This starter combines Askr, askr-ui, askr-themes, and lucide icons in a practical SaaS
-          baseline with semantic pages, composed route trees, and shared layouts.
+          This starter combines Askr, askr-ui, askr-themes, and lucide icons in
+          a practical SaaS baseline with semantic pages, composed route trees,
+          and shared layouts.
         </p>
         <div class="hero-cta">
           <Link href={dashboardRoute.href} class="button">
@@ -43,24 +49,33 @@ export default function LandingPage() {
           <WorkflowIcon size={18} aria-hidden="true" />
           <h2>Composed routes</h2>
           <p>
-            Public, auth, protected, and 404 routes are assembled from small child route modules
-            instead of one large router file.
+            Public, auth, protected, and 404 routes are assembled from small
+            child route modules instead of one large router file.
           </p>
         </article>
         <article class="panel feature-card">
           <LayoutPanelTopIcon size={18} aria-hidden="true" />
           <h2>Composed UI patterns</h2>
-          <p>Reusable table, headers, empty states, stat cards, sidebar, and top app header.</p>
+          <p>
+            Reusable table, headers, empty states, stat cards, sidebar, and top
+            app header.
+          </p>
         </article>
         <article class="panel feature-card">
           <ShieldCheckIcon size={18} aria-hidden="true" />
           <h2>State and data flow</h2>
-          <p>Deterministic mock data with loading, empty, error, and mutation states.</p>
+          <p>
+            Deterministic mock data with loading, empty, error, and mutation
+            states.
+          </p>
         </article>
         <article class="panel feature-card">
           <SparklesIcon size={18} aria-hidden="true" />
           <h2>Calm visual baseline</h2>
-          <p>CSS token system, neutral palette, one accent color, and restrained depth.</p>
+          <p>
+            CSS token system, neutral palette, one accent color, and restrained
+            depth.
+          </p>
         </article>
       </section>
     </section>

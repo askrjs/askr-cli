@@ -17,7 +17,7 @@ Use this for shared read/write state that should outlive one render or coordinat
 ## Query Pattern
 
 ```ts
-import { createQuery, invalidate } from '@askrjs/askr/data';
+import { createQuery, invalidate } from "@askrjs/askr/data";
 
 const user = createQuery({
   key: `user:${id}`,
@@ -25,7 +25,7 @@ const user = createQuery({
 });
 
 await user.refresh();
-invalidate('user:');
+invalidate("user:");
 ```
 
 Query state includes `data`, `error`, `loading`, `refreshing`, `stale`, `consistency`, and `refresh()`.
@@ -33,12 +33,12 @@ Query state includes `data`, `error`, `loading`, `refreshing`, `stale`, `consist
 ## Mutation Pattern
 
 ```ts
-import { createMutation } from '@askrjs/askr/data';
+import { createMutation } from "@askrjs/askr/data";
 
 const saveUser = createMutation({
   action: (input, { signal }) => userService.updateUser(input, { signal }),
-  affects: (input) => [`user:${input.id}`, 'users:'],
-  afterSuccess: 'invalidate',
+  affects: (input) => [`user:${input.id}`, "users:"],
+  afterSuccess: "invalidate",
 });
 
 await saveUser.execute({ id, name });

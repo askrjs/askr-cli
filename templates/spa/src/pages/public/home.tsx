@@ -4,28 +4,45 @@ import {
   BotIcon,
   CheckCircle2Icon,
   ShieldCheckIcon,
-} from "@askrjs/lucide";
-import { Link } from "@askrjs/askr/router";
-import { Button } from "@askrjs/themes/controls";
-import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@askrjs/themes/surfaces";
-import { Block, Box, Container, Inline, Section, Stack } from "@askrjs/themes/layouts";
-import { EmptyState } from "@askrjs/themes/feedback";
+} from '@askrjs/lucide';
+import { Link } from '@askrjs/askr/router';
+import { Button } from '@askrjs/themes/controls';
+import {
+  Badge,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@askrjs/themes/surfaces';
+import {
+  Block,
+  Box,
+  Container,
+  Inline,
+  Section,
+  Stack,
+} from '@askrjs/themes/layouts';
+import { EmptyState } from '@askrjs/themes/feedback';
 
 const capabilities = [
   {
     icon: <BotIcon size={16} aria-hidden="true" />,
-    title: "Agent runs",
-    description: "Track queued, running, approval, and completed work without collapsing it into one loading state.",
+    title: 'Agent runs',
+    description:
+      'Track queued, running, approval, and completed work without collapsing it into one loading state.',
   },
   {
     icon: <ActivityIcon size={16} aria-hidden="true" />,
-    title: "Evented operations",
-    description: "Make pending writes, projection lag, and stale read models visible before users need to ask.",
+    title: 'Evented operations',
+    description:
+      'Make pending writes, projection lag, and stale read models visible before users need to ask.',
   },
   {
     icon: <ShieldCheckIcon size={16} aria-hidden="true" />,
-    title: "Admin-ready shell",
-    description: "Use route branches, layouts, and theme primitives instead of a one-page demo wrapper.",
+    title: 'Admin-ready shell',
+    description:
+      'Use route branches, layouts, and theme primitives instead of a one-page demo wrapper.',
   },
 ];
 
@@ -40,15 +57,16 @@ export default function HomePage() {
               <Stack gap="md">
                 <h1>Operate agent workflows with a UI that tells the truth.</h1>
                 <p class="lead">
-                  {"{{appName}}"} is a focused Askr console for agentic products: public branch,
-                  app branch, theme primitives, consistency-aware states, and no invented layout
-                  system.
+                  {'{{appName}}'} is a focused Askr console for agentic
+                  products: public branch, app branch, theme primitives,
+                  consistency-aware states, and no invented layout system.
                 </p>
               </Stack>
               <Inline gap="3" wrap="wrap">
                 <Button asChild>
                   <Link href="/admin-login">
-                    Open admin console <ArrowRightIcon size={16} aria-hidden="true" />
+                    Open admin console{' '}
+                    <ArrowRightIcon size={16} aria-hidden="true" />
                   </Link>
                 </Button>
                 <Button variant="secondary" asChild>
@@ -65,7 +83,8 @@ export default function HomePage() {
                 </Inline>
                 <CardTitle>Command center</CardTitle>
                 <CardDescription>
-                  A concise preview of the authenticated shell users see after login.
+                  A concise preview of the authenticated shell users see after
+                  login.
                 </CardDescription>
               </CardHeader>
               <CardContent>

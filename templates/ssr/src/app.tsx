@@ -1,5 +1,5 @@
-import "./styles.css";
-import { Link } from "@askrjs/askr/router";
+import './styles.css';
+import { Link } from '@askrjs/askr/router';
 
 export default function App({ children }: { children?: unknown }) {
   return (
@@ -7,7 +7,7 @@ export default function App({ children }: { children?: unknown }) {
       <header>
         <nav>
           <Link href="/">
-            <strong>{"{{appName}}"}</strong>
+            <strong>{'{{appName}}'}</strong>
           </Link>
           <div class="nav-links">
             <Link href="/example">Example</Link>

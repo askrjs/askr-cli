@@ -31,21 +31,18 @@
   "scripts": {
     "build": "vp pack",
     "dev": "vp pack --watch",
-    "test": "npm run test:unit && npm run test:jsdom && npm run test:browser",
-    "test:unit": "vp test run -c vitest.config.ts",
-    "test:jsdom": "npm run test:unit",
-    "test:browser": "npm run test:unit",
+    "test": "vp test run -c vitest.config.ts",
     "fmt": "vp fmt .",
     "lint": "vp lint .",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@askrjs/askr": ">=0.0.30 <0.1.0"
+    "@askrjs/askr": "^0.0.37"
   },
   "devDependencies": {
-    "@askrjs/vite": ">=0.0.1 <0.1.0",
-    "@types/node": "^25.6.0",
-    "vite-plus": "^0.1.20"
+    "@askrjs/vite": "^0.0.2",
+    "@types/node": "^25.9.1",
+    "vite-plus": "^0.1.22"
   },
   "engines": {
     "node": ">=18"

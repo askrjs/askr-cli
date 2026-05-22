@@ -38,7 +38,7 @@ import {
   AlertDialogPortal,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@askrjs/ui/alert-dialog';
+} from "@askrjs/ui/alert-dialog";
 
 <AlertDialog>
   <AlertDialogTrigger asChild>
