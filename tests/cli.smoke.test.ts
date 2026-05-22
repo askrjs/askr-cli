@@ -30,6 +30,45 @@ function createIo(): {
   };
 }
 
+function getMarkdownSection(markdown: string, heading: string): string {
+  const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = markdown.match(new RegExp(`^### ${escapedHeading}\\r?\\n([\\s\\S]*?)(?=^### |^## |\\Z)`, "m"));
+
+  if (!match) {
+    throw new Error(`Missing markdown section: ${heading}`);
+  }
+
+  return match[1];
+}
+
+function getMarkdownLevel2Section(markdown: string, heading: string): string {
+  const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = markdown.match(new RegExp(`^## ${escapedHeading}\\r?\\n([\\s\\S]*?)(?=^## |\\Z)`, "m"));
+
+  if (!match) {
+    throw new Error(`Missing markdown level-2 section: ${heading}`);
+  }
+
+  return match[1];
+}
+
+function getBacktickedBulletItems(markdown: string): string[] {
+  return [...markdown.matchAll(/^- `([^`]+)`$/gm)].map((match) => match[1]);
+}
+
+function getAllBacktickedItems(markdown: string): string[] {
+  return [...markdown.matchAll(/`([^`]+)`/g)].map((match) => match[1]);
+}
+
+function getBacktickedNumberedItems(markdown: string): string[] {
+  return [...markdown.matchAll(/^\d+\. `([^`]+)`$/gm)].map((match) => match[1]);
+}
+
+function getBacktickedItemsFromBulletLines(markdown: string): string[] {
+  const bulletLines = [...markdown.matchAll(/^- .*$/gm)].map((match) => match[0]);
+  return bulletLines.flatMap((line) => getAllBacktickedItems(line));
+}
+
 test("runCli prints top-level help", async () => {
   const { io, logs, errors } = createIo();
   const code = await runCli(["--help"], io);
@@ -350,6 +389,64 @@ test("skill review prompts only reference bundled skills", async () => {
       expect(bundledSkillNames.has(skill), `${prompt.id} references missing skill ${skill}`).toBe(true);
     }
   }
+});
+
+test("skills docs stay aligned with bundled skill folders", async () => {
+  const skillsDoc = await fs.readFile(new URL("../docs/skills.md", import.meta.url), "utf8");
+  const documentedSkills = [
+    ...getBacktickedBulletItems(getMarkdownSection(skillsDoc, "Foundation sequence")),
+    ...getBacktickedBulletItems(getMarkdownSection(skillsDoc, "Core workflows")),
+    ...getBacktickedBulletItems(getMarkdownSection(skillsDoc, "Domain add-ons")),
+  ].sort();
+  const bundledSkillEntries = await fs.readdir(new URL("../skills/", import.meta.url), {
+    withFileTypes: true,
+  });
+  const bundledSkillNames = bundledSkillEntries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+
+  expect(new Set(documentedSkills).size).toBe(documentedSkills.length);
+  expect(documentedSkills).toEqual(bundledSkillNames);
+});
+
+test("workflow docs stay aligned with the layered skill system", async () => {
+  const workflowsDoc = await fs.readFile(new URL("../docs/workflows.md", import.meta.url), "utf8");
+  const skillsDoc = await fs.readFile(new URL("../docs/skills.md", import.meta.url), "utf8");
+  const bundledSkillEntries = await fs.readdir(new URL("../skills/", import.meta.url), {
+    withFileTypes: true,
+  });
+  const bundledSkillNames = new Set(
+    bundledSkillEntries.filter((entry) => entry.isDirectory()).map((entry) => entry.name),
+  );
+  const foundationSequence = getBacktickedBulletItems(getMarkdownSection(skillsDoc, "Foundation sequence"));
+  const workflowDefaults = getBacktickedNumberedItems(getMarkdownLevel2Section(workflowsDoc, "Agent workflow defaults"));
+  const commonTaskFlows = getMarkdownLevel2Section(workflowsDoc, "Common task flows");
+  const flowSections = [...commonTaskFlows.matchAll(/^### (.+)\r?\n([\s\S]*?)(?=^### |\Z)/gm)];
+
+  expect(workflowDefaults).toEqual(foundationSequence);
+  expect(flowSections.length).toBeGreaterThan(0);
+
+  for (const [, title, body] of flowSections) {
+    const skills = getBacktickedItemsFromBulletLines(body);
+
+    expect(skills.length, `${title} should list at least one skill`).toBeGreaterThan(0);
+    expect(skills[0], `${title} should start with askr-agent-execution`).toBe("askr-agent-execution");
+    expect(skills.at(-1), `${title} should end with askr-testing-determinism`).toBe("askr-testing-determinism");
+
+    for (const skill of skills) {
+      expect(bundledSkillNames.has(skill), `${title} references unknown skill ${skill}`).toBe(true);
+    }
+  }
+});
+
+test("skill review prompt docs stay aligned with the prompt registry", async () => {
+  const prompts = listSkillReviewPrompts();
+  const promptDoc = await fs.readFile(new URL("../docs/skill-review-prompts.md", import.meta.url), "utf8");
+  const documentedPromptIds = [...promptDoc.matchAll(/^Prompt ID: `([^`]+)`$/gm)].map((match) => match[1]).sort();
+  const registryPromptIds = prompts.map((prompt) => prompt.id).sort();
+
+  expect(documentedPromptIds).toEqual(registryPromptIds);
 });
 
 test("runSkillsCli reviews a generated candidate with JSON output", async () => {
