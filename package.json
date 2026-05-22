@@ -19,7 +19,8 @@
     "askr": "./dist/cli.js",
     "askr-add": "./dist/add.js",
     "askr-create": "./dist/create.js",
-    "askr-ssg": "./dist/ssg.js"
+    "askr-ssg": "./dist/ssg.js",
+    "asrk": "./dist/cli.js"
   },
   "files": [
     "dist",

@@ -2,7 +2,7 @@
 
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { isDirectExecution } from "./is-direct-execution";
 
 type CliIo = Pick<Console, "error" | "log">;
 
@@ -275,8 +275,6 @@ async function main(): Promise<void> {
   process.exit(code);
 }
 
-const invokedPath = process.argv[1] ? resolve(process.argv[1]) : "";
-const thisPath = fileURLToPath(import.meta.url);
-if (invokedPath && thisPath === invokedPath) {
+if (isDirectExecution(import.meta.url)) {
   void main();
 }
