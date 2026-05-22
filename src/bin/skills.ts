@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatSkillReviewReport, listSkillReviewPrompts, runSkillReview } from "./skill-review";
+import { isDirectExecution } from "./is-direct-execution";
 
 type CliIo = Pick<Console, "error" | "log">;
 
@@ -338,8 +339,6 @@ async function main(): Promise<void> {
   process.exit(code);
 }
 
-const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";
-const thisPath = fileURLToPath(import.meta.url);
-if (invokedPath && thisPath === invokedPath) {
+if (isDirectExecution(import.meta.url)) {
   void main();
 }

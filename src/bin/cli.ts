@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { runAddCli } from "./add";
 import { runCreateCli } from "./create";
+import { isDirectExecution } from "./is-direct-execution";
+import { getCliVersion } from "./package-version";
 import { runSkillsCli } from "./skills";
 import { runSsgCli } from "./ssg";
 
@@ -24,6 +24,10 @@ function printHelp(io: CliIo = console): void {
   io.log("Aliases:");
   io.log("  c          Alias for create");
   io.log("");
+  io.log("Options:");
+  io.log("  --help, -h     Show help");
+  io.log("  --version, -v  Print CLI version");
+  io.log("");
   io.log("Examples:");
   io.log("  askr create startkit my-app");
   io.log('  askr create --prompt "Agent workflow console with approvals"');
@@ -38,6 +42,11 @@ export async function runCli(
   io: CliIo = console,
 ): Promise<number> {
   const command = args[0];
+
+  if (command === "--version" || command === "-v") {
+    io.log(getCliVersion());
+    return 0;
+  }
 
   if (!command || command === "--help" || command === "-h") {
     printHelp(io);
@@ -70,8 +79,6 @@ async function main(): Promise<void> {
   process.exit(code);
 }
 
-const invokedPath = process.argv[1] ? resolve(process.argv[1]) : "";
-const thisPath = fileURLToPath(import.meta.url);
-if (invokedPath && thisPath === invokedPath) {
+if (isDirectExecution(import.meta.url)) {
   void main();
 }

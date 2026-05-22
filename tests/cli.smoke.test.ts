@@ -107,6 +107,35 @@ test("runCli prints top-level help", async () => {
   expect(logs.join("\n")).toMatch(/skills/);
 });
 
+test("runCli prints version for short and long flags", async () => {
+  const packageJson = JSON.parse(
+    await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),
+  ) as {
+    version: string;
+  };
+
+  const longFlag = createIo();
+  const shortFlag = createIo();
+
+  expect(await runCli(["--version"], longFlag.io)).toBe(0);
+  expect(longFlag.errors).toHaveLength(0);
+  expect(longFlag.logs).toEqual([packageJson.version]);
+
+  expect(await runCli(["-v"], shortFlag.io)).toBe(0);
+  expect(shortFlag.errors).toHaveLength(0);
+  expect(shortFlag.logs).toEqual([packageJson.version]);
+});
+
+test("package exports the asrk compatibility alias", async () => {
+  const packageJson = JSON.parse(
+    await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),
+  ) as {
+    bin: Record<string, string>;
+  };
+
+  expect(packageJson.bin.asrk).toBe("./dist/cli.js");
+});
+
 test("runCreateCli defaults to startkit when template is omitted", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-"));
   const previousCwd = process.cwd();

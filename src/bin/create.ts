@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
+import { isDirectExecution } from "./is-direct-execution";
 import { installBundledSkills } from "./skills";
 
 type CliIo = Pick<Console, "error" | "log">;
@@ -983,8 +984,6 @@ async function main(): Promise<void> {
   process.exit(code);
 }
 
-const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";
-const thisPath = fileURLToPath(import.meta.url);
-if (invokedPath && thisPath === invokedPath) {
+if (isDirectExecution(import.meta.url)) {
   void main();
 }
