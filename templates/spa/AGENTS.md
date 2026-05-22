@@ -1,4 +1,4 @@
-﻿# {{appName}}
+# {{appName}}
 
 Client-side SPA built with Askr, askr-ui, askr-themes, and askr-charts.
 
@@ -16,33 +16,39 @@ npm run fmt        # Prettier
 
 ## Architecture
 
-- **Framework:** Askr - actor-backed, fine-grained reactive UI. No virtual DOM.
-- **Components:** askr-ui headless components (Button, Accordion, Toggle, Input, etc.) for behavior primitives. Use askr-themes shell chrome such as `NavLink`, `Navbar`, and `ThemeToggle` for the branded frame. Props use `onPress` (not `onClick`), `asChild` for polymorphism, `data-slot` attributes for styling hooks.
-- **Styling:** askr-themes CSS via `[data-slot]` selectors. Design tokens use `--ak-*` prefix. Theme import in `src/styles.css`. Switch themes by changing the import (e.g., `@askrjs/themes/tuxedo`).
-- **Charts:** askr-charts provides the chart page primitives. Import `@askrjs/charts` in `src/main.tsx` so the package CSS loads.
-- **Routing:** `registerRoutes()` composes `group()` and `route()` declarations in `src/routes.tsx`. Navigate with `<Link href="...">`. No config file.
-- **State:** `state(initial)` creates reactive values. Read with `count()`, update with `count.set(v => v + 1)`. `derive()` for computed values. `resource()` for async data.
-- **Vite plugin:** `askr()` from `@askrjs/vite` handles JSX transform - no manual esbuild config needed.
+- **Routing:** `src/main.tsx` imports `src/pages/_routes.tsx`, then boots `createSPA()` with the route manifest. Route branches live under `src/pages/public` and `src/pages/app`.
+- **Layouts:** `_layout.tsx` files own shells. The root layout owns `ThemeProvider`; branch layouts own public nav or authenticated sidebar chrome.
+- **UI:** Prefer `@askrjs/themes/layouts`, `surfaces`, `controls`, `shells`, `navs`, and `feedback` before writing local components. Use app-local components only for product concepts such as `MetricCard` and `StatusBadge`.
+- **State:** `state(initial)` creates reactive values. Read with the getter, update with the setter. Use `derive()` for computed values and `resource()` for async data.
+- **Data:** Route/container components own resources; `src/features` owns product workflows; `src/adapters` owns API clients, transports, abort handling, and generated clients.
+- **Consistency:** Event-sourced screens should expose pending writes, projection lag, stale data, retries, and manual refresh instead of hiding everything behind one loading state.
+- **Styling:** Import the theme once in `src/styles.css`. App CSS should use `--ak-*` tokens and `[data-slot]` hooks from solved primitives.
+- **Charts:** Import chart components from `@askrjs/charts/components`; chart CSS is loaded from `@askrjs/charts/default`.
+- **Vite plugin:** `askr()` from `@askrjs/vite` handles JSX transform. Do not add manual esbuild JSX config.
 
 ## File Structure
 
 ```
 src/
-  main.tsx           # Entry: createSPA + navigate
-  app.tsx            # Shared app shell with nav
-  routes.tsx         # Four-page route registration
-  styles.css         # Theme import + app CSS
-  components/        # Local helper components
-  pages/             # Home, About, Components, Charts
-  resources/         # Async data fetchers (resource())
-tests/               # Vitest tests
+  main.tsx
+  pages/
+    _routes.tsx
+    _layout.tsx
+    public/
+    app/
+  components/shared/
+  features/
+  adapters/
+  shared/
+  styles/
+tests/
 ```
 
 ## Conventions
 
-- TypeScript strict mode, ESM-only
-- JSX import source: `@askrjs/askr`
-- Use askr-ui components instead of raw HTML for interactive elements
-- Keep the SPA template compact; it should feel like a small app, not a framework catalog
-- Style with `--ak-*` tokens, never `--pico-*` or hardcoded colors
-- Prettier + ESLint enforced
+- Keep routes thin and route-first.
+- Keep shell chrome in layouts, not leaf pages.
+- Keep business logic out of `src/pages`.
+- Use `Link` and `navigate` from `@askrjs/askr/router`.
+- Use headless `@askrjs/ui/*` for behavior primitives and `@askrjs/themes/*` for composed visual surfaces.
+- Avoid hardcoded color systems, custom component catalogs, and React habits like effect-driven data loading.

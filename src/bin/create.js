@@ -2,6 +2,7 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import readline from "node:readline";
 
@@ -9,18 +10,17 @@ const TEMPLATE_TYPES = new Set(["startkit", "spa", "ssr", "ssg"]);
 
 function helpText() {
   return [
-    "askr-create - Project scaffolding for Askr",
+    "askr create - Project scaffolding for Askr",
     "",
     "Usage:",
-    "  askr-create [template] <name> [--no-install]",
-    "  askr-cli create [template] <name> [--no-install]",
+    "  askr create [template] <name> [--no-install]",
     "",
     "Templates:",
     "  startkit, spa, ssr, ssg",
     "",
     "Examples:",
-    "  askr-create startkit my-app",
-    "  askr-cli create startkit acme-dashboard",
+    "  askr create startkit my-app",
+    "  askr create startkit acme-dashboard",
   ].join("\n");
 }
 
@@ -67,6 +67,31 @@ async function copyDir(src, dest, replacements) {
 
     await fs.writeFile(destPath, replaced, "utf8");
   }
+}
+
+async function pathExists(filePath) {
+  return Boolean(await fs.stat(filePath).catch(() => null));
+}
+
+function cliDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+
+async function findTemplateDir(templateType) {
+  const base = cliDir();
+  const candidates = [
+    path.resolve(base, "..", "..", "templates", templateType),
+    path.resolve(base, "..", "templates", templateType),
+    path.resolve(base, "templates", templateType),
+  ];
+
+  for (const candidate of candidates) {
+    if (await pathExists(candidate)) {
+      return candidate;
+    }
+  }
+
+  return candidates[0];
 }
 
 function parseArgs(args) {
@@ -129,8 +154,7 @@ export async function runCreateCli(args = process.argv.slice(2), io = console) {
   }
 
   const target = path.resolve(process.cwd(), name);
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const templateDir = path.resolve(__dirname, "..", "..", "templates", templateType);
+  const templateDir = await findTemplateDir(templateType);
 
   try {
     await fs.access(templateDir);

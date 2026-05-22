@@ -5,7 +5,7 @@ Scaffold a new Askr project from a template.
 ## Usage
 
 ```bash
-askr-cli create [template] <name> [--no-install]
+askr create [template] <name> [--no-install]
 ```
 
 ## Arguments
@@ -32,13 +32,13 @@ The default template is `startkit`.
 Client-rendered SPA with router support. Use this for standard interactive applications.
 
 ```bash
-askr-cli create spa my-app
+askr create spa my-app
 ```
 
 If you omit the template, you still get `startkit` by default:
 
 ```bash
-askr-cli create my-app
+askr create my-app
 ```
 
 ### `ssr`
@@ -46,7 +46,7 @@ askr-cli create my-app
 Server-rendered app scaffold. Use this when you need SSR at the application boundary.
 
 ```bash
-askr-cli create ssr my-ssr-app
+askr create ssr my-ssr-app
 ```
 
 ### `ssg`
@@ -54,7 +54,7 @@ askr-cli create ssr my-ssr-app
 Static site generation scaffold with a `ssg.config.ts` file pre-configured.
 
 ```bash
-askr-cli create ssg my-docs-site
+askr create ssg my-docs-site
 ```
 
 ### `startkit`
@@ -63,7 +63,7 @@ Full application starter with common screens pre-built: dashboard, settings, acc
 login. The recommended starting point for new product applications.
 
 ```bash
-askr-cli create startkit my-dashboard
+askr create startkit my-dashboard
 ```
 
 Stack included:
