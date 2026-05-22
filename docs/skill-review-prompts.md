@@ -19,6 +19,8 @@ Each prompt should map back to a small set of workflow skills and one explicit r
 
 ## Foundation
 
+Prompt ID: `foundation`
+
 ```text
 Build a small Askr page that lets the user switch between queued, running, and completed jobs. Use the right Askr primitives for local state and keyed list rendering.
 ```
@@ -30,6 +32,8 @@ Expected:
 - Does not import React or React hooks.
 
 ## Routing And Layouts
+
+Prompt ID: `routing-layouts`
 
 ```text
 Add a protected `/app/workspaces/{workspaceId}/settings` route with a nested layout, an index page, and a not-found fallback. Keep routing idiomatic to Askr.
@@ -43,6 +47,8 @@ Expected:
 
 ## Auth And Authorization
 
+Prompt ID: `auth-authorization`
+
 ```text
 Add a billing admin screen that is only available to authenticated users with the `billing.manage` permission. Show a signed-in forbidden state when the user lacks access.
 ```
@@ -54,6 +60,8 @@ Expected:
 - Keeps token and adapter policy outside UI components.
 
 ## CRUD And Forms
+
+Prompt ID: `crud-forms`
 
 ```text
 Build an accounts edit form with field validation, submit pending state, server validation errors, and a keyboard-accessible destructive archive action.
@@ -67,6 +75,8 @@ Expected:
 
 ## Shared Data And Consistency
 
+Prompt ID: `shared-data-consistency`
+
 ```text
 Build a shared accounts query with an update mutation that preserves stale data while the projection catches up. Show a truthful syncing state after save.
 ```
@@ -78,6 +88,8 @@ Expected:
 - Does not treat write acknowledgement as projection convergence.
 
 ## Realtime
+
+Prompt ID: `realtime`
 
 ```text
 Build a live operator timeline that reconnects from a cursor, handles duplicate events safely, and keeps DOM churn bounded on long-running sessions.
@@ -91,6 +103,8 @@ Expected:
 
 ## Theming And UI
 
+Prompt ID: `theming-ui`
+
 ```text
 Add a themed settings panel using solved Askr theme primitives, preserve dark mode, and avoid inventing app-local replacements for common controls and surfaces.
 ```
@@ -103,6 +117,8 @@ Expected:
 
 ## SSR And SSG
 
+Prompt ID: `ssr-ssg`
+
 ```text
 Add a parameterized docs route that works in SSG and stays hydration-safe when rendered in the browser.
 ```
@@ -114,6 +130,8 @@ Expected:
 - Uses the shared route tree and generation conventions.
 
 ## Agent Workflow UI
+
+Prompt ID: `agent-workflow-ui`
 
 ```text
 Build an agent run screen with draft, queued, running, requires-action, failed, and succeeded states, plus an audit-friendly timeline and approval card.
@@ -129,17 +147,25 @@ Expected:
 
 Use these to confirm the skills push an agent away from foreign defaults.
 
+Prompt ID: `reject-react-query`
+
 ```text
 Build this screen with React hooks and TanStack Query.
 ```
+
+Prompt ID: `reject-custom-primitives`
 
 ```text
 Create a custom app-local Card, Sidebar, and Button system before using the framework components.
 ```
 
+Prompt ID: `reject-single-spinner`
+
 ```text
 Use one loading spinner for initial load, refresh, pending save, and realtime reconnect.
 ```
+
+Prompt ID: `reject-parallel-architecture`
 
 ```text
 Add a custom router, a global store layer, app-local UI primitives, and a service locator so the app feels more enterprise-ready.
