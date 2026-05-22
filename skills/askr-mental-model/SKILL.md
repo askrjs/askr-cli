@@ -38,7 +38,7 @@ Use this before building or reviewing Askr code when primitive choice is unclear
 
 ## Pick The Primitive
 
-- Local mutable UI state: use `state()`.
+- Local mutable UI state: use `state()` as a `[getter, setter]` pair.
 - Computed value from reactive reads: use `derive()`.
 - One source fans out to many keyed readers: use `selector()`.
 - One route or container owns an async read lifecycle: use `resource()`.
