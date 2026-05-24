@@ -1,4 +1,4 @@
-﻿# {{appName}}
+# {{appName}}
 
 Client-side SPA built with Askr, askr-ui, and askr-themes.
 

@@ -1,4 +1,4 @@
-﻿# {{appName}} starter kit
+# {{appName}} starter kit
 
 A production-ready Askr starter built to feel like a real product from day one.
 

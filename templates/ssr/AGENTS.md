@@ -1,4 +1,4 @@
-﻿# {{appName}}
+# {{appName}}
 
 Server-rendered app built with Askr, askr-ui, askr-themes, and Express.
 
