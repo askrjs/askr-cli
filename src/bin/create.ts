@@ -345,7 +345,7 @@ function helpText(): string {
     "Options:",
     "  --prompt <text>  Infer the best template from a product prompt and emit a builder blueprint",
     "  --no-install     Skip dependency installation",
-    "  --no-skills      Skip bundled Askr skill installation into .skills/",
+    "  --no-skills      Skip bundled Askr skill installation into skills/",
     "  --help, -h       Show help",
     "",
     "Examples:",
@@ -916,8 +916,13 @@ export async function runCreateCli(
 
   if (parsed.skills) {
     try {
-      const { bundledNames } = await installBundledSkills({ cwd: target, force: true });
-      io.log(`Installed ${bundledNames.length} bundled Askr skills into .skills/`);
+      const { bundledNames, targetSkillsDir } = await installBundledSkills({
+        cwd: target,
+        force: true,
+      });
+      io.log(
+        `Installed ${bundledNames.length} bundled Askr skills into ${path.basename(targetSkillsDir)}/`,
+      );
       io.log("");
     } catch (error) {
       io.error("Failed to install bundled Askr skills");

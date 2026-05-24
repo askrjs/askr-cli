@@ -19,6 +19,7 @@ interface ParsedArgs {
 }
 
 const MANAGED_PREFIX = "askr-";
+const PROJECT_SKILLS_DIR = "skills";
 
 function helpText(): string {
   return [
@@ -34,12 +35,12 @@ function helpText(): string {
     "Commands:",
     "  list      Print bundled Askr skill names",
     "  review    Evaluate generated output against deterministic Askr prompt rubrics",
-    "  install   Copy bundled skills into .skills; refuses non-empty targets unless --force",
-    "  sync      Update bundled skills in .skills and remove obsolete askr-* skill folders",
+    `  install   Copy bundled skills into ${PROJECT_SKILLS_DIR}/; refuses non-empty targets unless --force`,
+    `  sync      Update bundled skills in ${PROJECT_SKILLS_DIR}/ and remove obsolete askr-* skill folders`,
     "",
     "Options:",
-    "  --cwd <dir>   Project directory to receive .skills (default: current directory)",
-    "  --force       Allow install to write into an existing non-empty .skills directory",
+    `  --cwd <dir>   Project directory to receive ${PROJECT_SKILLS_DIR}/ (default: current directory)`,
+    `  --force       Allow install to write into an existing non-empty ${PROJECT_SKILLS_DIR} directory`,
     "  --json        Print review results as JSON",
     "  --help        Show this help message",
     "",
@@ -190,7 +191,7 @@ export async function installBundledSkills(
   options: { cwd?: string; force?: boolean } = {},
 ): Promise<{ bundledNames: string[]; targetSkillsDir: string }> {
   const targetRoot = path.resolve(options.cwd ?? process.cwd());
-  const targetSkillsDir = path.join(targetRoot, ".skills");
+  const targetSkillsDir = path.join(targetRoot, PROJECT_SKILLS_DIR);
   const bundledNames = await listBundledSkills();
   const existingEntries = await fs.readdir(targetSkillsDir).catch(() => [] as string[]);
 
@@ -215,7 +216,7 @@ export async function syncBundledSkills(
   options: { cwd?: string } = {},
 ): Promise<{ bundledNames: string[]; targetSkillsDir: string }> {
   const targetRoot = path.resolve(options.cwd ?? process.cwd());
-  const targetSkillsDir = path.join(targetRoot, ".skills");
+  const targetSkillsDir = path.join(targetRoot, PROJECT_SKILLS_DIR);
   const bundledNames = await listBundledSkills();
 
   await fs.mkdir(targetSkillsDir, { recursive: true });

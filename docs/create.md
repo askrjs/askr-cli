@@ -24,7 +24,7 @@ slug from the prompt.
 | Option         | Description                                        |
 | -------------- | -------------------------------------------------- |
 | `--no-install` | Scaffold files without installing npm dependencies |
-| `--no-skills`  | Skip installing bundled Askr skills into `.skills` |
+| `--no-skills`  | Skip installing bundled Askr skills into `skills/` |
 | `--prompt`     | Infer the best template from a product prompt      |
 | `--help`, `-h` | Show help                                          |
 
@@ -33,7 +33,7 @@ The default template is `startkit`.
 
 When you pass `--prompt`, the CLI selects a template deterministically, writes
 `.askr/blueprint.json` and `.askr/builder-brief.md`, and installs the bundled
-Askr skills into `.skills/` unless you opt out with `--no-skills`.
+Askr skills into `skills/` unless you opt out with `--no-skills`.
 
 The builder brief is intentionally operational, not just descriptive. It now includes:
 

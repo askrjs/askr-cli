@@ -75,6 +75,7 @@ const IGNORED_DIRECTORIES = new Set([
   ".askr",
   ".git",
   ".skills",
+  "skills",
   ".vite",
   "coverage",
   "dist",

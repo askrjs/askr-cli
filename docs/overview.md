@@ -10,7 +10,7 @@ The CLI exists to:
 - Enforce conventions - generated code follows platform standards
 - Standardize structure - every generated project starts from the same foundation
 - Accelerate feature creation - generators produce the right files in the right places
-- Install agent skills - `.skills` guidance teaches AI agents the same conventions
+- Install agent skills - project-local `skills/` guidance teaches AI agents the same conventions
 - Turn prompts into build-ready repos - prompt-aware scaffolding emits deterministic app blueprints for builders
 
 Generated code has no runtime dependency on the CLI. Once scaffolded, the CLI is a dev-time
@@ -61,7 +61,7 @@ askr create --prompt "Agent workflow console with approvals and analytics"
 
 When you use `--prompt`, the CLI deterministically selects the best template,
 writes `.askr/blueprint.json` and `.askr/builder-brief.md`, and installs the
-bundled Askr skills into `.skills/` unless you opt out with `--no-skills`.
+bundled Askr skills into `skills/` unless you opt out with `--no-skills`.
 
 ### Generators
 
@@ -96,7 +96,7 @@ askr skills install
 askr skills sync
 ```
 
-Skills are copied into `.skills/` as project-local dev-time guidance. `install`
+Skills are copied into `skills/` as project-local dev-time guidance. `install`
 is conservative for new projects; `sync` updates bundled `askr-*` skills while
 preserving unrelated custom skills.
 

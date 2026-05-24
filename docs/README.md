@@ -22,4 +22,4 @@ npm run dev
 ```
 
 New projects created with `askr create` already receive the bundled Askr skills
-in `.skills/`. Pass `--no-skills` if you need a minimal scaffold instead.
+in `skills/`. Pass `--no-skills` if you need a minimal scaffold instead.
