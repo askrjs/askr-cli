@@ -1,4 +1,4 @@
-﻿# {{appName}}
+# {{appName}}
 
 Static site built with Askr, askr-ui, askr-themes, and createStaticGen.
 

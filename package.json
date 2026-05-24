@@ -46,7 +46,7 @@
     "@askrjs/charts": "^0.0.1",
     "@askrjs/logos": "^0.0.1",
     "@askrjs/lucide": "^0.0.2",
-    "@askrjs/themes": "^0.0.4",
+    "@askrjs/themes": "^0.0.6",
     "@askrjs/ui": "^0.0.7",
     "@askrjs/vite": "^0.0.2",
     "@types/node": "^25.9.1",
