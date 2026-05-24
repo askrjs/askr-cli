@@ -40,7 +40,7 @@ const capabilities = [
   },
   {
     icon: <ShieldCheckIcon size={16} aria-hidden="true" />,
-    title: 'Admin-ready shell',
+    title: 'App-ready shell',
     description:
       'Use route branches, layouts, and theme primitives instead of a one-page demo wrapper.',
   },
@@ -58,15 +58,15 @@ export default function HomePage() {
                 <h1>Operate agent workflows with a UI that tells the truth.</h1>
                 <p class="lead">
                   {'{{appName}}'} is a focused Askr console for agentic
-                  products: public branch, app branch, theme primitives,
-                  consistency-aware states, and no invented layout system.
+                  products: public branch, auth branch, app branch, theme
+                  primitives, consistency-aware states, and no invented layout
+                  system.
                 </p>
               </Stack>
               <Inline gap="3" wrap="wrap">
                 <Button asChild>
-                  <Link href="/admin-login">
-                    Open admin console{' '}
-                    <ArrowRightIcon size={16} aria-hidden="true" />
+                  <Link href="/login">
+                    Open console <ArrowRightIcon size={16} aria-hidden="true" />
                   </Link>
                 </Button>
                 <Button variant="secondary" asChild>
@@ -84,7 +84,7 @@ export default function HomePage() {
                 <CardTitle>Command center</CardTitle>
                 <CardDescription>
                   A concise preview of the authenticated shell users see after
-                  login.
+                  sign-in.
                 </CardDescription>
               </CardHeader>
               <CardContent>

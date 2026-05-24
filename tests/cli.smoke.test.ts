@@ -199,6 +199,18 @@ test("runCreateCli scaffolds SPA with the route-first themed app shell", async (
       path.join(appRoot, "src", "pages", "public", "_routes.tsx"),
       "utf8",
     );
+    const authLayoutFile = await fs.readFile(
+      path.join(appRoot, "src", "pages", "auth", "_layout.tsx"),
+      "utf8",
+    );
+    const authRoutesFile = await fs.readFile(
+      path.join(appRoot, "src", "pages", "auth", "_routes.tsx"),
+      "utf8",
+    );
+    const authLoginFile = await fs.readFile(
+      path.join(appRoot, "src", "pages", "auth", "login.tsx"),
+      "utf8",
+    );
     const appRoutesFile = await fs.readFile(
       path.join(appRoot, "src", "pages", "app", "_routes.tsx"),
       "utf8",
@@ -209,6 +221,26 @@ test("runCreateCli scaffolds SPA with the route-first themed app shell", async (
     );
     const mainFile = await fs.readFile(path.join(appRoot, "src", "main.tsx"), "utf8");
     const stylesFile = await fs.readFile(path.join(appRoot, "src", "styles.css"), "utf8");
+    const resetStylesFile = await fs.readFile(
+      path.join(appRoot, "src", "styles", "reset.css"),
+      "utf8",
+    );
+    const tokensStylesFile = await fs.readFile(
+      path.join(appRoot, "src", "styles", "tokens.css"),
+      "utf8",
+    );
+    const themeStylesFile = await fs.readFile(
+      path.join(appRoot, "src", "styles", "theme.css"),
+      "utf8",
+    );
+    const layoutStylesFile = await fs.readFile(
+      path.join(appRoot, "src", "styles", "layout.css"),
+      "utf8",
+    );
+    const componentsStylesFile = await fs.readFile(
+      path.join(appRoot, "src", "styles", "components.css"),
+      "utf8",
+    );
     const homeFile = await fs.readFile(
       path.join(appRoot, "src", "pages", "public", "home.tsx"),
       "utf8",
@@ -234,15 +266,29 @@ test("runCreateCli scaffolds SPA with the route-first themed app shell", async (
     expect(appLayoutFile).toMatch(/appNavItems/);
     expect(packageJson).toMatch(/"@askrjs\/charts"/);
     expect(routesFile).toMatch(/registerPublicRoutes/);
+    expect(routesFile).toMatch(/registerAuthRoutes/);
     expect(routesFile).toMatch(/registerAppRoutes/);
     expect(routesFile).toMatch(/fallback\(NotFoundPage\)/);
     expect(routesFile).toMatch(/group\(\{\s*layout:\s*AppLayout/);
-    expect(publicRoutesFile).toMatch(/route\(["']\/admin-login["']/);
+    expect(publicRoutesFile).not.toMatch(/admin-login/);
+    expect(authLayoutFile).toMatch(/auth-shell/);
+    expect(authRoutesFile).toMatch(/route\(["']\/login["']/);
+    expect(authLoginFile).toMatch(/Sign in/);
     expect(appRoutesFile).toMatch(/route\(["']\/app\/agents["']/);
     expect(mainFile).toMatch(/@askrjs\/askr\/boot/);
     expect(mainFile).toMatch(/getManifest/);
+    expect(stylesFile).toMatch(/@import ["']\.\/styles\/reset\.css["']/);
+    expect(stylesFile).toMatch(/@import ["']\.\/styles\/tokens\.css["']/);
+    expect(stylesFile).toMatch(/@import ["']\.\/styles\/theme\.css["']/);
+    expect(stylesFile).toMatch(/@import ["']\.\/styles\/layout\.css["']/);
     expect(stylesFile).toMatch(/@import ["']\.\/styles\/components\.css["']/);
+    expect(resetStylesFile).toMatch(/@layer reset/);
+    expect(tokensStylesFile).toMatch(/@layer tokens/);
+    expect(themeStylesFile).toMatch(/@layer theme/);
+    expect(layoutStylesFile).toMatch(/@layer layout/);
+    expect(componentsStylesFile).toMatch(/@layer components/);
     expect(homeFile).toMatch(/Route-first Askr SPA/);
+    expect(homeFile).toMatch(/auth branch/);
     expect(homeFile).toMatch(/@askrjs\/themes\/layouts/);
     expect(dashboardFile).toMatch(/resource/);
     expect(dashboardFile).toMatch(/@askrjs\/charts\/components/);

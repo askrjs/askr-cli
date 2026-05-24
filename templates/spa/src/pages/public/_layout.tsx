@@ -8,8 +8,8 @@ import { ThemeToggle } from '@askrjs/themes/theme';
 
 export default function PublicLayout({ children }: { children?: unknown }) {
   return (
-    <>
-      <Header position="sticky">
+    <div class="public-shell">
+      <Header position="sticky" class="public-header">
         <Container>
           <Navbar aria-label="Public navigation" breakpoint="md">
             <NavBrand>
@@ -22,7 +22,7 @@ export default function PublicLayout({ children }: { children?: unknown }) {
               <NavLink href="/" match="exact">
                 Overview
               </NavLink>
-              <NavLink href="/admin-login">Admin login</NavLink>
+              <NavLink href="/login">Sign in</NavLink>
             </NavGroup>
             <NavGroup align="end">
               <Inline gap="2" align="center">
@@ -34,14 +34,14 @@ export default function PublicLayout({ children }: { children?: unknown }) {
                   darkIcon={<MoonIcon size={18} aria-hidden="true" />}
                 />
                 <Button asChild>
-                  <Link href="/admin-login">Open console</Link>
+                  <Link href="/login">Open console</Link>
                 </Button>
               </Inline>
             </NavGroup>
           </Navbar>
         </Container>
       </Header>
-      <main>{children}</main>
-    </>
+      <main class="public-main">{children}</main>
+    </div>
   );
 }

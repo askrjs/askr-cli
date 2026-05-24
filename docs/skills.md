@@ -153,7 +153,9 @@ src/pages/_layout.tsx
 src/pages/public/_routes.tsx
 src/pages/public/_layout.tsx
 src/pages/public/home.tsx
-src/pages/public/admin-login.tsx
+src/pages/auth/_routes.tsx
+src/pages/auth/_layout.tsx
+src/pages/auth/login.tsx
 src/pages/app/_routes.tsx
 src/pages/app/_layout.tsx
 src/pages/app/admin-home.tsx
@@ -161,6 +163,11 @@ src/components/shared/
 src/features/
 src/shared/
 src/adapters/
+src/styles/reset.css
+src/styles/tokens.css
+src/styles/theme.css
+src/styles/layout.css
+src/styles/components.css
 tests/
 ```
 

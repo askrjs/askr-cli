@@ -20,13 +20,14 @@ src/
 |-- pages/
 |   |-- _routes.tsx                  # Top-level route branches
 |   |-- _layout.tsx                  # Theme provider and app root
-|   |-- public/                      # Guest branch routes and layout
-|   `-- app/                         # Authenticated branch routes and layout
+|   |-- public/                      # Guest-facing landing pages and shell
+|   |-- auth/                        # Sign-in routes and shell
+|   `-- app/                         # Authenticated branch routes and shell
 |-- components/shared/               # App-local wrappers around theme primitives
 |-- features/operations/             # Product workflow queries and mutations
 |-- adapters/                        # API clients and transport adapters
 |-- shared/                          # Cross-cutting helpers and navigation data
-`-- styles/                          # App-specific CSS on top of theme tokens
+`-- styles/                          # reset.css, tokens.css, theme.css, layout.css, components.css
 ```
 
 ## Core Patterns
@@ -40,6 +41,8 @@ code lives in `src/adapters`.
 import { fallback, group, registerRoutes } from '@askrjs/askr/router';
 import RootLayout from './_layout';
 import NotFoundPage from './not-found';
+import AuthLayout from './auth/_layout';
+import { registerAuthRoutes } from './auth/_routes';
 import AppLayout from './app/_layout';
 import { registerAppRoutes } from './app/_routes';
 import PublicLayout from './public/_layout';
@@ -49,6 +52,9 @@ registerRoutes(() => {
   group({ layout: RootLayout }, () => {
     group({ layout: PublicLayout }, () => {
       registerPublicRoutes();
+    });
+    group({ layout: AuthLayout }, () => {
+      registerAuthRoutes();
     });
     group({ layout: AppLayout }, () => {
       registerAppRoutes();
@@ -61,7 +67,8 @@ registerRoutes(() => {
 The template uses focused theme entrypoints such as `@askrjs/themes/layouts`,
 `@askrjs/themes/surfaces`, `@askrjs/themes/controls`, and
 `@askrjs/themes/shells`. Add app-local components only when they compose those
-primitives into a product concept.
+primitives into a product concept. Start with `src/styles/tokens.css` for theme
+knobs, then tune `theme.css`, `layout.css`, and `components.css`.
 
 Async reads are owned by route or container components with `resource()` and
 delegated through feature/adapters:
@@ -75,7 +82,7 @@ route, and event-sourced consistency states should be modeled explicitly.
 
 ## What This Template Includes
 
-- Public and authenticated route branches with separate layout shells
+- Public, auth, and authenticated app branches with separate layout shells
 - Theme provider, header/nav/sidebar, cards, badges, buttons, empty states, and layout primitives
 - A dashboard with async loading, charts, projection lag, and explicit refresh
 - Feature and adapter boundaries for data ownership
@@ -84,5 +91,6 @@ route, and event-sourced consistency states should be modeled explicitly.
 ## Next Steps
 
 1. Replace the mock operations adapter with your generated API client.
-2. Add route metadata for real auth and loader policies.
-3. Keep new screens route-first and compose solved UI through `@askrjs/themes`.
+2. Tune `src/styles/tokens.css` and `src/styles/theme.css` to match your brand.
+3. Add route metadata for real auth and loader policies.
+4. Keep new screens route-first and compose solved UI through `@askrjs/themes`.

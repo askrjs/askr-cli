@@ -41,7 +41,7 @@ export default function AdminHomePage() {
       <section class="page-heading">
         <Stack gap="2">
           <Badge>projection v{snapshot?.version ?? '...'}</Badge>
-          <h1>Admin home</h1>
+          <h1>Workspace home</h1>
           <p class="lead">
             A consistency-aware dashboard for agent runs, queue health, and
             event-sourced read models.

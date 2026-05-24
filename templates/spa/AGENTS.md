@@ -16,13 +16,13 @@ npm run fmt        # Prettier
 
 ## Architecture
 
-- **Routing:** `src/main.tsx` imports `src/pages/_routes.tsx`, then boots `createSPA()` with the route manifest. Route branches live under `src/pages/public` and `src/pages/app`.
-- **Layouts:** `_layout.tsx` files own shells. The root layout owns `ThemeProvider`; branch layouts own public nav or authenticated sidebar chrome.
+- **Routing:** `src/main.tsx` imports `src/pages/_routes.tsx`, then boots `createSPA()` with the route manifest. Route branches live under `src/pages/public`, `src/pages/auth`, and `src/pages/app`.
+- **Layouts:** `_layout.tsx` files own shells. The root layout owns `ThemeProvider`; public layouts own landing chrome, auth layouts own sign-in chrome, and app layouts own authenticated sidebar chrome.
 - **UI:** Prefer `@askrjs/themes/layouts`, `surfaces`, `controls`, `shells`, `navs`, and `feedback` before writing local components. Use app-local components only for product concepts such as `MetricCard` and `StatusBadge`.
 - **State:** `const [value, setValue] = state(initial)`. Read with `value()`, update with `setValue(...)`. Use `derive()` for computed values and `resource()` for async data.
 - **Data:** Route/container components own resources; `src/features` owns product workflows; `src/adapters` owns API clients, transports, abort handling, and generated clients.
 - **Consistency:** Event-sourced screens should expose pending writes, projection lag, stale data, retries, and manual refresh instead of hiding everything behind one loading state.
-- **Styling:** Import the theme once in `src/styles.css`. App CSS should use `--ak-*` tokens and `[data-slot]` hooks from solved primitives.
+- **Styling:** Keep `src/styles.css` thin. Customize theme values in `src/styles/tokens.css`, global defaults in `src/styles/theme.css`, shell structure in `src/styles/layout.css`, and component classes in `src/styles/components.css`.
 - **Charts:** Import chart components from `@askrjs/charts/components`; chart CSS is loaded from `@askrjs/charts/default`.
 - **Vite plugin:** `askr()` from `@askrjs/vite` handles JSX transform. Do not add manual esbuild JSX config.
 
@@ -35,12 +35,18 @@ src/
     _routes.tsx
     _layout.tsx
     public/
+    auth/
     app/
   components/shared/
   features/
   adapters/
   shared/
   styles/
+    reset.css
+    tokens.css
+    theme.css
+    layout.css
+    components.css
 tests/
 ```
 
