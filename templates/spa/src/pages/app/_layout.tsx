@@ -23,10 +23,10 @@ const icons = {
 
 export default function AppLayout({ children }: { children?: unknown }) {
   return (
-    <Shell variant="sidebar" class="admin-shell">
+    <Shell variant="sidebar" class="app-shell">
       <ShellNav>
         <Sidebar
-          aria-label="Admin navigation"
+          aria-label="Workspace navigation"
           breakpoint="md"
           collapsible="icon"
         >
@@ -57,7 +57,7 @@ export default function AppLayout({ children }: { children?: unknown }) {
         </Sidebar>
       </ShellNav>
       <ShellMain>
-        <Header position="sticky" class="admin-header">
+        <Header position="sticky" class="app-header">
           <Container size="fluid">
             <Inline justify="between" align="center" gap="3" wrap="wrap">
               <Stack gap="none">
@@ -80,7 +80,7 @@ export default function AppLayout({ children }: { children?: unknown }) {
             </Inline>
           </Container>
         </Header>
-        <Container size="fluid" class="admin-main">
+        <Container size="fluid" class="app-main">
           {children}
         </Container>
       </ShellMain>
