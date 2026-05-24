@@ -33,10 +33,20 @@
     min-width: 0;
   }
 
+  .public-main {
+    inline-size: min(100%, var(--spa-shell-max-width));
+    margin-inline: auto;
+    padding: var(--ak-space-xl) var(--spa-shell-gutter) var(--ak-space-2xl);
+  }
+
   .auth-main {
     display: grid;
     place-items: center;
-    padding: var(--ak-space-xl);
+    padding: var(--ak-space-xl) var(--spa-shell-gutter);
+  }
+
+  .auth-page {
+    inline-size: min(100%, var(--spa-auth-card-width));
   }
 
   .page-heading {
