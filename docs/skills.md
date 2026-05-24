@@ -24,8 +24,8 @@ Print the bundled skill names.
 
 ### `skills install`
 
-Copy bundled skills into `<cwd>/.skills`. The command refuses to write into a
-non-empty `.skills` directory unless `--force` is provided.
+Copy bundled skills into `<cwd>/skills/`. The command refuses to write into a
+non-empty `skills` directory unless `--force` is provided.
 
 ```bash
 askr skills install
@@ -37,10 +37,10 @@ askr skills install --cwd ./my-app
 Evaluate a generated output tree against deterministic Askr prompt rubrics.
 
 The review harness is intentionally heuristic and fast. It scans text files under
-the target directory, ignores `.skills/`, `.askr/`, `node_modules/`, and build
-artifacts, then scores the result against required and forbidden patterns for the
-selected prompt. Treat it as a repeatable smoke screen, not as proof of full
-behavioral correctness.
+the target directory, ignores `skills/`, legacy `.skills/`, `.askr/`,
+`node_modules/`, and build artifacts, then scores the result against required
+and forbidden patterns for the selected prompt. Treat it as a repeatable smoke
+screen, not as proof of full behavioral correctness.
 
 ```bash
 askr skills review list
@@ -51,7 +51,7 @@ askr skills review reject-parallel-architecture --cwd ./scratch-output
 
 ### `skills sync`
 
-Update bundled Askr skills in `<cwd>/.skills`. This overwrites bundled skill
+Update bundled Askr skills in `<cwd>/skills/`. This overwrites bundled skill
 folders and removes obsolete `askr-*` folders. Non-Askr custom skill folders are
 preserved.
 

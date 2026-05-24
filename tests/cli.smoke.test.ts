@@ -281,7 +281,7 @@ test("runCreateCli derives a prompt-aware builder blueprint and installs skills"
     const brief = await fs.readFile(path.join(appRoot, ".askr", "builder-brief.md"), "utf8");
 
     await expect(
-      fs.access(path.join(appRoot, ".skills", "askr-app-builder", "SKILL.md")),
+      fs.access(path.join(appRoot, "skills", "askr-app-builder", "SKILL.md")),
     ).resolves.toBeUndefined();
 
     expect(blueprint.appName).toBe("agent-workflow-console");
@@ -338,7 +338,7 @@ test("runCreateCli can skip bundled skills installation", async () => {
       template: string;
     };
 
-    await expect(fs.access(path.join(appRoot, ".skills"))).rejects.toThrow();
+    await expect(fs.access(path.join(appRoot, "skills"))).rejects.toThrow();
     expect(blueprint.recommendedSkills).toContain("askr-agent-execution");
     expect(blueprint.appName).toBe("sample-app");
     expect(blueprint.template).toBe("startkit");
@@ -1162,7 +1162,7 @@ test("runSkillsCli fails a negative review when parallel architecture drift appe
   }
 });
 
-test("runSkillsCli installs bundled skills into project .skills", async () => {
+test("runSkillsCli installs bundled skills into project skills", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-"));
 
   try {
@@ -1174,11 +1174,11 @@ test("runSkillsCli installs bundled skills into project .skills", async () => {
     expect(logs.join("\n")).toMatch(/Installed 26 Askr skills/);
 
     const skillFile = await fs.readFile(
-      path.join(tempRoot, ".skills", "askr-app-builder", "SKILL.md"),
+      path.join(tempRoot, "skills", "askr-app-builder", "SKILL.md"),
       "utf8",
     );
     const metadataFile = await fs.readFile(
-      path.join(tempRoot, ".skills", "askr-app-builder", "agents", "openai.yaml"),
+      path.join(tempRoot, "skills", "askr-app-builder", "agents", "openai.yaml"),
       "utf8",
     );
 
@@ -1189,12 +1189,12 @@ test("runSkillsCli installs bundled skills into project .skills", async () => {
   }
 });
 
-test("runSkillsCli refuses install into non-empty .skills without force", async () => {
+test("runSkillsCli refuses install into non-empty skills without force", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-"));
 
   try {
-    await fs.mkdir(path.join(tempRoot, ".skills"), { recursive: true });
-    await fs.writeFile(path.join(tempRoot, ".skills", "note.md"), "keep me", "utf8");
+    await fs.mkdir(path.join(tempRoot, "skills"), { recursive: true });
+    await fs.writeFile(path.join(tempRoot, "skills", "note.md"), "keep me", "utf8");
 
     const { io, errors } = createIo();
     const code = await runSkillsCli(["install", "--cwd", tempRoot], io);
@@ -1210,7 +1210,7 @@ test("runSkillsCli sync updates Askr skills and preserves unrelated skills", asy
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-"));
 
   try {
-    const skillsRoot = path.join(tempRoot, ".skills");
+    const skillsRoot = path.join(tempRoot, "skills");
     await fs.mkdir(path.join(skillsRoot, "custom-skill"), { recursive: true });
     await fs.writeFile(path.join(skillsRoot, "custom-skill", "SKILL.md"), "custom", "utf8");
     await fs.mkdir(path.join(skillsRoot, "askr-old-skill"), { recursive: true });

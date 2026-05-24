@@ -124,7 +124,7 @@ cd my-app
 npm run dev
 ```
 
-`askr create` installs the bundled Askr skills into `.skills/` by default, so
+`askr create` installs the bundled Askr skills into `skills/` by default, so
 the repo is immediately ready for agentic builders.
 
 ## Start a minimal SPA
@@ -151,7 +151,7 @@ the route is live immediately.
 askr skills sync
 ```
 
-This refreshes bundled `askr-*` skills in `.skills/` and leaves unrelated custom
+This refreshes bundled `askr-*` skills in `skills/` and leaves unrelated custom
 skills alone.
 
 ## Generate a static site

@@ -5,7 +5,7 @@ Unified CLI for the Askr platform.
 `@askrjs/cli` bundles project scaffolding and static-site generation commands
 for Askr apps. It also installs the agent skills that teach AI assistants how to
 build idiomatic Askr code. Use it when you want a new project, repeatable SSG
-builds, prompt-to-app blueprints, route generators, or project-local `.skills`
+builds, prompt-to-app blueprints, route generators, or project-local `skills/`
 guidance.
 
 ## Install
@@ -30,7 +30,7 @@ askr create --prompt "Agent workflow console with approvals and analytics"
 ```
 
 The CLI deterministically selects the best template, writes `.askr/blueprint.json`
-and `.askr/builder-brief.md`, and installs bundled Askr skills into `.skills/`
+and `.askr/builder-brief.md`, and installs bundled Askr skills into `skills/`
 unless you opt out with `--no-skills`.
 
 ## Commands
