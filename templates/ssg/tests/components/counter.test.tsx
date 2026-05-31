@@ -1,32 +1,16 @@
 import { describe, it, expect } from 'vite-plus/test';
-import { state, derive } from '@askrjs/askr';
+import { renderToString } from '@askrjs/askr/ssr';
+import Counter from '../../src/components/counter';
 
 describe('Counter', () => {
-  it('initializes state to zero', () => {
-    const [count] = state(0);
-    expect(count()).toBe(0);
-  });
+  it('renders the initial hydration check view', () => {
+    const html = renderToString(() => <Counter />);
 
-  it('increments state', () => {
-    const [count, setCount] = state(0);
-    setCount((c) => c + 1);
-    expect(count()).toBe(1);
-  });
-
-  it('does not decrement below zero', () => {
-    const [count, setCount] = state(0);
-    setCount((c) => Math.max(0, c - 1));
-    expect(count()).toBe(0);
-  });
-
-  it('derives parity from count', () => {
-    const [count, setCount] = state(0);
-    const parity = derive(() => (count() % 2 === 0 ? 'even' : 'odd'));
-
-    expect(parity()).toBe('even');
-    setCount(1);
-    expect(parity()).toBe('odd');
-    setCount(4);
-    expect(parity()).toBe('even');
+    expect(html).toContain('Hydration check');
+    expect(html).toContain('This counter should still feel live after static generation.');
+    expect(html).toContain('0');
+    expect(html).toContain('even');
+    expect(html).toContain('- Decrement');
+    expect(html).toContain('+ Increment');
   });
 });

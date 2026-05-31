@@ -1,14 +1,11 @@
-import { createSPA } from '@askrjs/askr';
-import { getRoutes, navigate } from '@askrjs/askr/router';
+import './styles.css';
+import { createSPA } from '@askrjs/askr/boot';
+import { getManifest, registerRoutes } from '@askrjs/askr/router';
+import { registerAppRoutes } from './routes';
 
-// Import routes (they auto-register)
-import './routes';
+registerRoutes(registerAppRoutes);
 
-// Create and start the SPA
-createSPA({
+await createSPA({
   root: document.getElementById('app')!,
-  routes: getRoutes(),
+  manifest: getManifest(),
 });
-
-// Resolve initial route
-navigate(window.location.pathname);

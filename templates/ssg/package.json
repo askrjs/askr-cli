@@ -5,13 +5,13 @@
   "scripts": {
     "dev": "vp dev",
     "build": "vp build",
-    "generate": "tsx ssg-build.ts",
+    "generate": "tsx --tsconfig tsconfig.ssg.json ssg-build.ts",
     "preview": "vp preview",
-    "test": "npx vite-plus test run",
+    "test": "vp test run -c ./vitest.config.ts",
     "type-check": "tsc --noEmit",
-    "lint": "npx vite-plus lint src tests",
-    "lint:fix": "npx vite-plus lint --fix src tests",
-    "fmt": "npx vite-plus fmt \"src/**/*.{ts,tsx,css}\" \"tests/**/*.{ts,tsx}\" \"*.md\""
+    "lint": "vp lint .",
+    "lint:fix": "vp lint --fix .",
+    "fmt": "vp fmt ."
   },
   "dependencies": {
     "@askrjs/askr": ">=0.0.34 <0.1.0",

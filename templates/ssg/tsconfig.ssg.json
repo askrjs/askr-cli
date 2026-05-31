@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "@askrjs/askr"
+  },
+  "include": ["src", "ssg-build.ts", "ssg.config.ts"]
+}
