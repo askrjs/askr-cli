@@ -300,6 +300,72 @@ test("runCreateCli scaffolds SPA with the route-first themed app shell", async (
   }
 });
 
+test(
+  "runCreateCli scaffolds SSG with shared route registration and current builder hints",
+  async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-"));
+  const previousCwd = process.cwd();
+
+  try {
+    process.chdir(tempRoot);
+    const { io, errors } = createIo();
+    const code = await runCreateCli(["ssg", "sample-ssg", "--no-install", "--no-skills"], io);
+
+    expect(code).toBe(0);
+    expect(errors).toHaveLength(0);
+
+    const appRoot = path.join(tempRoot, "sample-ssg");
+    const packageJson = await fs.readFile(path.join(appRoot, "package.json"), "utf8");
+    const mainFile = await fs.readFile(path.join(appRoot, "src", "main.tsx"), "utf8");
+    const routesFile = await fs.readFile(path.join(appRoot, "src", "routes.tsx"), "utf8");
+    const shellFile = await fs.readFile(
+      path.join(appRoot, "src", "components", "site-shell.tsx"),
+      "utf8",
+    );
+    const ssgConfigFile = await fs.readFile(path.join(appRoot, "ssg.config.ts"), "utf8");
+    const ssgBuildFile = await fs.readFile(path.join(appRoot, "ssg-build.ts"), "utf8");
+    const tsconfigSsgFile = await fs.readFile(path.join(appRoot, "tsconfig.ssg.json"), "utf8");
+    const readmeFile = await fs.readFile(path.join(appRoot, "README.md"), "utf8");
+    const brief = await fs.readFile(path.join(appRoot, ".askr", "builder-brief.md"), "utf8");
+
+    expect(packageJson).toMatch(/"name": "sample-ssg"/);
+    expect(packageJson).toMatch(/"generate": "tsx --tsconfig tsconfig\.ssg\.json ssg-build\.ts"/);
+    expect(packageJson).toMatch(/"test": "vp test run -c \.\/vitest\.config\.ts"/);
+    expect(packageJson).toMatch(/"fmt": "vp fmt \."/);
+    expect(mainFile).toMatch(/registerRoutes\(registerAppRoutes\)/);
+    expect(mainFile).toMatch(/manifest:\s*getManifest\(\)/);
+    expect(routesFile).toMatch(/export function registerAppRoutes/);
+    expect(routesFile).toMatch(/route\('\/', Home\);/);
+    expect(routesFile).toMatch(/route\('\/preview', Preview\);/);
+    expect(shellFile).toMatch(/@askrjs\/themes\/shells/);
+    expect(shellFile).toMatch(/@askrjs\/themes\/layouts/);
+    expect(shellFile).toMatch(/@askrjs\/themes\/navs/);
+    expect(shellFile).toMatch(/export function SiteHeader/);
+    expect(ssgConfigFile).toMatch(/registerRoutes\(registerAppRoutes\)/);
+    expect(ssgConfigFile).toMatch(/manifest\.records\.map/);
+    expect(ssgConfigFile).toMatch(/handler:\s*record\.handler/);
+    expect(ssgBuildFile).toMatch(/result\.failed > 0/);
+    expect(ssgBuildFile).toMatch(/route\.status === 'error'/);
+    expect(tsconfigSsgFile).toMatch(/"jsxImportSource": "@askrjs\/askr"/);
+    expect(readmeFile).toMatch(/Register routes in `src\/routes\.tsx`\./);
+    expect(readmeFile).toMatch(/`ssg\.config\.ts` derives its static route list/);
+    expect(brief).toMatch(/## Inspect First In This Scaffold/);
+    expect(brief).toMatch(/- src\/routes\.tsx/);
+    expect(brief).toMatch(/- src\/components\/site-shell\.tsx/);
+    expect(brief).toMatch(/- ssg-build\.ts/);
+    expect(brief).toMatch(/## Golden Examples In This Scaffold/);
+    expect(brief).toMatch(/- src\/routes\.tsx/);
+    expect(brief).not.toMatch(/src\/pages\/_routes\.tsx/);
+    await expect(fs.access(path.join(appRoot, "node_modules"))).rejects.toThrow();
+    await expect(fs.access(path.join(appRoot, "dist"))).rejects.toThrow();
+  } finally {
+    process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+  },
+  15000,
+);
+
 test("runCreateCli derives a prompt-aware builder blueprint and installs skills", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-"));
   const previousCwd = process.cwd();

@@ -1,12 +1,20 @@
 import type { RouteConfig } from '@askrjs/askr/ssg';
-import Home from './src/pages/home';
-import About from './src/pages/about';
-import Example from './src/pages/example';
+import { getManifest, registerRoutes } from '@askrjs/askr/router';
+import { registerAppRoutes } from './src/routes';
 
-export const routes: RouteConfig[] = [
-  { path: '/', component: Home },
-  { path: '/about', component: About },
-  { path: '/example', component: Example },
-];
+registerRoutes(registerAppRoutes);
+
+const manifest = getManifest();
+
+export const routes: RouteConfig[] = manifest.records.map((record) => ({
+  path: record.path,
+  handler: record.handler,
+  namespace: record.options.namespace,
+  auth: record.options.auth,
+  role: record.options.role,
+  permission: record.options.permission,
+  policies: record.options.policies,
+  entries: record.options.entries,
+}));
 
 export const outputDir = './dist/static';

@@ -1,24 +1,19 @@
-import { describe, it, expect } from 'vite-plus/test';
+import { describe, expect, it } from 'vite-plus/test';
+import { navItems } from '../src/app';
 
-describe('App Component', () => {
-  it('renders layout with navigation', () => {
-    const app = (
-      <div>
-        <header>
-          <nav>
-            <strong>Askr</strong>
-            <div>
-              <a href="/example">Example</a>
-              <a href="/about">About</a>
-            </div>
-          </nav>
-        </header>
-        <main>
-          <p>Content goes here</p>
-        </main>
-      </div>
-    );
-
-    expect(app).toBeDefined();
+describe('App shell', () => {
+  it('exposes the workflow-focused navigation order', () => {
+    expect(navItems.map((item) => item.label)).toEqual([
+      'Home',
+      'Workflow',
+      'Content',
+      'Preview',
+    ]);
+    expect(navItems.map((item) => item.href)).toEqual([
+      '/',
+      '/workflow',
+      '/content',
+      '/preview',
+    ]);
   });
 });

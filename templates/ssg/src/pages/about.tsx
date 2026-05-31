@@ -1,75 +1,69 @@
-export default function About() {
+import { Link } from '@askrjs/askr/router';
+import { Button } from '@askrjs/ui';
+import { ActionRow, Card, CardGrid, SectionHeader } from '../components/site-shell';
+
+const steps = [
+  {
+    number: '01',
+    title: 'Start the dev server',
+    command: 'npm run dev',
+    body: 'Vite runs the sample as a SPA while you edit, so page changes feel immediate.',
+  },
+  {
+    number: '02',
+    title: 'Edit a page',
+    command: 'src/pages/*.tsx',
+    body: 'Each page is a plain component. Keep view code, layout, and copy close together.',
+  },
+  {
+    number: '03',
+    title: 'Keep the route map explicit',
+    command: 'ssg.config.ts',
+    body: 'The static route list mirrors the pages the sample site actually ships.',
+  },
+  {
+    number: '04',
+    title: 'Generate and preview',
+    command: 'npm run generate && npm run preview',
+    body: 'Render the site to dist/static and verify the production output before you ship it.',
+  },
+];
+
+export default function Workflow() {
   return (
     <>
-      <h1>About Askr</h1>
-      <p class="text-muted">
-        A modern reactive framework for building fast, maintainable web
-        applications.
-      </p>
+      <SectionHeader
+        eyebrow="Workflow"
+        title="The authoring loop stays short."
+        description="This sample keeps the daily work obvious: edit a page, update the route map, generate static HTML, and preview the result."
+        actions={
+          <ActionRow>
+            <Button asChild>
+              <Link href="/content">See the route map</Link>
+            </Button>
+            <Button asChild>
+              <Link href="/preview">Open the preview</Link>
+            </Button>
+          </ActionRow>
+        }
+      />
 
-      <section class="section">
-        <h2>Why Askr Exists</h2>
-        <p>
-          Modern web development has become unnecessarily complex. Frameworks
-          have grown bloated with abstractions, requiring developers to learn
-          extensive APIs and fight against the framework rather than work with
-          it.
-        </p>
-        <p>
-          Askr was created to bring simplicity back to web development. It
-          provides just enough structure to build sophisticated applications
-          while staying out of your way.
-        </p>
-      </section>
+      <CardGrid>
+        {steps.map((step) => (
+          <Card eyebrow={step.number} title={step.title} description={step.body}>
+            <p>
+              <code>{step.command}</code>
+            </p>
+          </Card>
+        ))}
+      </CardGrid>
 
-      <section class="section">
-        <h2>Core Primitives</h2>
-        <div class="features">
-          <div class="feature-card">
-            <h3>Fine-grained Reactivity</h3>
-            <p>
-              <code>state()</code> for reactive values with automatic dependency
-              tracking. Updates are surgical — only the specific DOM nodes that
-              need to change are updated.
-            </p>
-          </div>
-          <div class="feature-card">
-            <h3>Simple Async Data</h3>
-            <p>
-              <code>resource()</code> handles async data fetching with built-in
-              loading states, error handling, and automatic refetching when
-              dependencies change.
-            </p>
-          </div>
-          <div class="feature-card">
-            <h3>Declarative Routing</h3>
-            <p>
-              Routes are declared at module-load time with{' '}
-              <code>registerRoutes()</code>, <code>group()</code>, and{' '}
-              <code>route()</code>. Clean, type-safe, and no configuration
-              needed.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section class="section">
-        <h2>The Ecosystem</h2>
+      <Card title="Why this feels good" description="There is no hidden router magic. The generated site and the dev server read the same route definitions, so the UI you edit is the UI you ship.">
         <p>
-          <strong>askr</strong> — the core framework with reactive primitives,
-          routing, SSR, and SSG support. Zero runtime dependencies.
+          <code>npm run dev</code>, <code>npm run generate</code>, and{' '}
+          <code>npm run preview</code> are the only commands you need to remember.
         </p>
-        <p>
-          <strong>askr-ui</strong> — headless, accessible UI components. Button,
-          Accordion, Dialog, and 30+ more. All interaction logic, no opinions on
-          style.
-        </p>
-        <p>
-          <strong>askr-themes</strong> — CSS-only themes that target askr-ui's{' '}
-          <code>data-slot</code> attributes. Swap themes with a single import
-          change.
-        </p>
-      </section>
+      </Card>
     </>
   );
 }

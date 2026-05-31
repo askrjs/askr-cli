@@ -310,7 +310,15 @@ const TEMPLATE_INSPECT_PATHS: Record<TemplateType, string[]> = {
     "src/styles/components.css",
   ],
   ssr: ["AGENTS.md", "src/main.tsx", "src/server-entry.tsx", "src/pages/_routes.tsx", "server.ts"],
-  ssg: ["AGENTS.md", "src/main.tsx", "src/pages/_routes.tsx", "ssg.config.ts", "ssg-build.ts"],
+  ssg: [
+    "AGENTS.md",
+    "src/main.tsx",
+    "src/routes.tsx",
+    "src/components/site-shell.tsx",
+    "src/pages/home.tsx",
+    "ssg.config.ts",
+    "ssg-build.ts",
+  ],
   startkit: [
     "AGENTS.md",
     "src/main.tsx",
@@ -327,7 +335,7 @@ const TEMPLATE_GOLDEN_EXAMPLES: Record<TemplateType, string[]> = {
     "src/features/operations/operations.query.ts",
   ],
   ssr: ["src/main.tsx", "src/pages/_routes.tsx", "server.ts"],
-  ssg: ["src/main.tsx", "src/pages/_routes.tsx", "ssg.config.ts"],
+  ssg: ["src/main.tsx", "src/routes.tsx", "src/components/site-shell.tsx", "ssg.config.ts"],
   startkit: [
     "src/routes/index.ts",
     "src/pages/workspace/accounts/index.tsx",
@@ -392,6 +400,18 @@ function detectPm(): PackageManager {
   return "npm";
 }
 
+const TEMPLATE_COPY_EXCLUDES = new Set([
+  "node_modules",
+  "dist",
+  ".vite",
+  "coverage",
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  "yarn.lock",
+  "bun.lock",
+  "bun.lockb",
+]);
+
 async function copyDir(
   src: string,
   dest: string,
@@ -401,6 +421,10 @@ async function copyDir(
   await fs.mkdir(dest, { recursive: true });
 
   for (const entry of entries) {
+    if (TEMPLATE_COPY_EXCLUDES.has(entry.name)) {
+      continue;
+    }
+
     const srcPath = path.join(src, entry.name);
     const outputName = entry.name.replace(/\{\{\s*appName\s*\}\}/g, replacements.appName);
     const destPath = path.join(dest, outputName);

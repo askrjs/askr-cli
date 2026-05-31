@@ -11,18 +11,22 @@ npm run generate   # Pre-render all routes as static HTML to dist/static/
 npm run preview    # Serve production build locally
 npm test           # Vitest (jsdom)
 npm run type-check # tsc --noEmit
-npm run lint       # ESLint
-npm run fmt        # Prettier
+npm run lint       # vite-plus lint
+npm run fmt        # vite-plus format
 ```
 
 ## Architecture
 
 - **Framework:** Askr - actor-backed, fine-grained reactive UI. No virtual DOM.
-- **SSG flow:** `ssg.config.ts` defines routes. `ssg-build.ts` imports the config and calls `createStaticGen()` to render each route to static HTML at build time. Dev mode uses `createSPA()` for a normal SPA experience.
-- **Components:** askr-ui headless components. Props use `onPress` (not `onClick`), `asChild` for polymorphism, `data-slot` attributes for styling hooks.
-- **Styling:** askr-themes CSS via `[data-slot]` selectors. Design tokens use `--ak-*` prefix. Theme import in `src/styles.css`.
-- **Routing:** `registerRoutes()`, `group()`, and `route()` in `src/routes.tsx` for dev SPA mode. `ssg.config.ts` defines the same routes for static generation using `RouteConfig[]`.
-- **State:** `const [value, setValue] = state(initial)`, `derive()`, `resource()`. Static generation renders components synchronously; interactive state works at runtime in the browser.
+- **Boot flow:** `src/main.tsx` registers `registerAppRoutes()` and starts the browser app with `createSPA({ manifest: getManifest() })`.
+- **SSG flow:** `ssg.config.ts` registers the same `registerAppRoutes()` function, derives `RouteConfig[]` from the manifest records, and `ssg-build.ts` calls `createStaticGen()`.
+- **Pages:** `src/pages/home.tsx`, `src/pages/about.tsx`, `src/pages/content.tsx`, and `src/pages/example.tsx` form the sample site.
+- **Shell:** `src/app.tsx` owns the nav and page frame.
+- **Theme primitives:** the starter composes `Header`, `Nav`, `NavLink`, `Container`, `Section`, `Stack`, `Box`, and `Block` from `@askrjs/themes` instead of hand-rolling shell/layout wrappers.
+- **Components:** askr-ui headless components. Props use `onPress` (not `onClick`) and `asChild` for polymorphism.
+- **Styling:** askr-themes CSS via public classes and `data-slot` selectors. Theme import lives in `src/styles.css`.
+- **Routing:** keep `registerAppRoutes()` in `src/routes.tsx` as the single route source of truth for both dev and SSG.
+- **State:** `const [value, setValue] = state(initial)` and `derive()`. Keep starter routes synchronously prerenderable; if you add async data back, provide an SSR-safe strategy before expecting SSG to render it.
 - **Vite plugin:** `askr()` from `@askrjs/vite` handles JSX transform.
 
 ## File Structure
@@ -30,14 +34,14 @@ npm run fmt        # Prettier
 ```
 ssg.config.ts          # Route definitions for static generation
 ssg-build.ts           # Build script: calls createStaticGen
+tsconfig.ssg.json      # Node-side TSX config for static generation
 src/
-  main.tsx             # Client entry: createSPA (dev mode)
+  main.tsx             # Client entry: registers routes and boots createSPA
   app.tsx              # Root layout with nav
-  routes.tsx           # Route registration (dev SPA mode)
+  routes.tsx           # Shared route registration source of truth
   styles.css           # Theme import + layout CSS
   components/          # Reusable components
   pages/               # Route page components
-  resources/           # Async data fetchers
 tests/                 # Vitest tests
 ```
 
@@ -45,7 +49,8 @@ tests/                 # Vitest tests
 
 - TypeScript strict mode, ESM-only
 - JSX import source: `@askrjs/askr`
-- Add new pages in `src/pages/`, register in both `src/routes.tsx` and `ssg.config.ts`
-- Use askr-ui components instead of raw HTML for interactive elements
+- Add new pages in `src/pages/`, then update `registerAppRoutes()` in `src/routes.tsx`
+- Let `ssg.config.ts` derive static handlers from the shared route registration instead of maintaining a second hand-written list
+- Use askr-ui components for interactive elements and askr-themes layout/shell primitives for structure
 - Style with `--ak-*` tokens
-- Prettier + ESLint enforced
+- Keep SSG routes synchronous at render time unless you intentionally wire SSR data into generation

@@ -1,13 +1,15 @@
-import { group, registerRoutes, route } from '@askrjs/askr/router';
+import { group, route } from '@askrjs/askr/router';
 import AppLayout from './app';
 import Home from './pages/home';
-import About from './pages/about';
-import Example from './pages/example';
+import Workflow from './pages/about';
+import Content from './pages/content';
+import Preview from './pages/example';
 
-registerRoutes(() => {
+export function registerAppRoutes() {
   group({ layout: AppLayout }, () => {
     route('/', Home);
-    route('/about', About);
-    route('/example', Example);
+    route('/workflow', Workflow);
+    route('/content', Content);
+    route('/preview', Preview);
   });
-});
+}

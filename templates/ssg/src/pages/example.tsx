@@ -1,113 +1,93 @@
 import { state } from '@askrjs/askr';
-import {
-  Accordion,
-  AccordionItem,
-  AccordionHeader,
-  AccordionTrigger,
-  AccordionContent,
-} from '@askrjs/ui/accordion';
-import { Toggle } from '@askrjs/ui/toggle';
-import { Input } from '@askrjs/ui/input';
+import { Link } from '@askrjs/askr/router';
+import { Button, Input } from '@askrjs/ui';
 import Counter from '../components/counter';
+import { ActionRow, Card, CardGrid, SectionHeader } from '../components/site-shell';
 
-export default function Example() {
-  const [name, setName] = state('');
-  const [bold, setBold] = state(false);
+const sampleUsers: Record<
+  number,
+  { name: string; email: string; note: string }
+> = {
+  1: {
+    name: 'User 1',
+    email: 'user1@example.com',
+    note: 'Replace this with your own content or connect it to real data later.',
+  },
+  2: {
+    name: 'User 2',
+    email: 'user2@example.com',
+    note: 'This stays simple on purpose so the starter remains easy to delete or extend.',
+  },
+  3: {
+    name: 'User 3',
+    email: 'user3@example.com',
+    note: 'Interactive state still hydrates after static generation without adding async complexity.',
+  },
+};
+
+export default function Preview() {
+  const [userId, setUserId] = state(1);
+  const user =
+    sampleUsers[userId()] ?? {
+      name: `User ${userId()}`,
+      email: `user${userId()}@example.com`,
+      note: 'Use this route as a safe place to try small interactive changes.',
+    };
 
   return (
     <>
-      <h1>Component Showcase</h1>
-      <p class="text-muted">
-        askr-ui headless components styled by askr-themes â€” working together
-        out of the box.
-      </p>
+      <SectionHeader
+        eyebrow="Preview"
+        title="Interactive parts still work after static generation."
+        description="Keep one page interactive so you can verify hydration, state, and resource loading without turning the template into an app."
+        actions={
+          <ActionRow>
+            <Button asChild>
+              <Link href="/workflow">Read the workflow</Link>
+            </Button>
+            <Button asChild>
+              <Link href="/content">Review the routes</Link>
+            </Button>
+          </ActionRow>
+        }
+      />
 
-      <Counter />
+      <CardGrid>
+        <Counter />
 
-      <div class="showcase-section">
-        <h3>Reactivity</h3>
-        <p>
-          Askr uses <code>state()</code> for reactive values that automatically
-          track dependencies and update only the DOM nodes that need to change.
-        </p>
-        <p>
-          Create reactive state with{' '}
-          <code>const [count, setCount] = state(0)</code>, read with{' '}
-          <code>count()</code>, and update with{' '}
-          <code>setCount(n =&gt; n + 1)</code>.
-        </p>
-        <p>
-          Core primitives: <code>state()</code>, <code>derive()</code>,{' '}
-          <code>selector()</code>, <code>resource()</code>, and <code>For</code>
-          .
-        </p>
-      </div>
+        <Card
+          eyebrow="Interactive state"
+          title="State still hydrates after generation"
+          description="Change the user id to prove the generated page still responds in the browser."
+        >
+          <div class="preview-controls">
+            <Input
+              type="number"
+              min="1"
+              step="1"
+              value={String(userId())}
+              onInput={(event: Event) => {
+                const nextValue = Number.parseInt(
+                  (event.target as HTMLInputElement).value,
+                  10,
+                );
 
-      <div class="showcase-section">
-        <h3>Accordion</h3>
-        <Accordion type="single" collapsible>
-          <AccordionItem value="reactivity">
-            <AccordionHeader>
-              <AccordionTrigger>
-                What is fine-grained reactivity?
-              </AccordionTrigger>
-            </AccordionHeader>
-            <AccordionContent>
-              <p>
-                Fine-grained reactivity means updates are surgical. When a state
-                value changes, only the specific DOM nodes that read that value
-                are updated â€” no virtual DOM diffing, no component re-renders.
-              </p>
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="ssr">
-            <AccordionHeader>
-              <AccordionTrigger>Does Askr support SSR?</AccordionTrigger>
-            </AccordionHeader>
-            <AccordionContent>
-              <p>
-                Yes. Askr provides <code>renderToString()</code> and{' '}
-                <code>renderToStream()</code> for server-side rendering, plus{' '}
-                <code>hydrateSPA()</code> for client hydration.
-              </p>
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="themes">
-            <AccordionHeader>
-              <AccordionTrigger>How does theming work?</AccordionTrigger>
-            </AccordionHeader>
-            <AccordionContent>
-              <p>
-                askr-ui components emit <code>data-slot</code> attributes.
-                askr-themes provides CSS that targets these slots with design
-                tokens. Switch themes by changing a single CSS import.
-              </p>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      </div>
+                setUserId(Number.isNaN(nextValue) ? 1 : Math.max(1, nextValue));
+              }}
+            />
+          </div>
 
-      <div class="showcase-section">
-        <h3>Toggle &amp; Input</h3>
-        <p class="text-muted">
-          Reactive state driving UI updates in real time.
-        </p>
-        <div style="display: flex; align-items: center; gap: var(--ak-space-md); margin-bottom: var(--ak-space-md);">
-          <Toggle pressed={bold()} onPress={() => setBold((b) => !b)}>
-            Bold
-          </Toggle>
-          <Input
-            placeholder="Type your name..."
-            value={name()}
-            onInput={(e: Event) =>
-              setName((e.target as HTMLInputElement).value)
-            }
-          />
-        </div>
-        <p style={`font-weight: ${bold() ? '700' : '400'}`}>
-          {name() ? `Hello, ${name()}!` : 'Type something above...'}
-        </p>
-      </div>
+          <div class="resource-panel">
+            <div class="resource-status">
+              <span class="badge">Ready</span>
+              <span>Hydrated preview</span>
+            </div>
+            <h3>{user.name}</h3>
+            <p>{user.email}</p>
+            <p class="text-muted">{user.note}</p>
+          </div>
+        </Card>
+      </CardGrid>
     </>
   );
 }
