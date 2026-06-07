@@ -39,18 +39,24 @@
     "lint": "vp lint .",
     "prepublishOnly": "npm run build"
   },
-  "dependencies": {
-    "@askrjs/askr": "^0.0.41"
-  },
   "devDependencies": {
-    "@askrjs/charts": "^0.0.2",
-    "@askrjs/logos": "^0.0.2",
-    "@askrjs/lucide": "^0.0.3",
-    "@askrjs/themes": "^0.0.7",
-    "@askrjs/ui": "^0.0.8",
-    "@askrjs/vite": "^0.0.3",
+    "@askrjs/askr": ">=0.0.30 <0.1.0",
+    "@askrjs/charts": ">=0.0.1 <0.1.0",
+    "@askrjs/logos": ">=0.0.1 <0.1.0",
+    "@askrjs/lucide": ">=0.0.1 <0.1.0",
+    "@askrjs/themes": ">=0.0.1 <0.1.0",
+    "@askrjs/ui": ">=0.0.1 <0.1.0",
+    "@askrjs/vite": ">=0.0.1 <0.1.0",
     "@types/node": "^25.9.2",
     "vite-plus": "^0.1.24"
+  },
+  "peerDependencies": {
+    "@askrjs/askr": ">=0.0.30 <0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@askrjs/askr": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=18"
