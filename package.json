@@ -1,6 +1,6 @@
 {
   "name": "@askrjs/cli",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Unified CLI for the askr platform",
   "homepage": "https://github.com/askrjs/askr-cli#readme",
   "bugs": {
@@ -40,15 +40,15 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@askrjs/askr": "^0.0.40"
+    "@askrjs/askr": "^0.0.41"
   },
   "devDependencies": {
-    "@askrjs/charts": "^0.0.1",
-    "@askrjs/logos": "^0.0.1",
-    "@askrjs/lucide": "^0.0.2",
-    "@askrjs/themes": "^0.0.6",
-    "@askrjs/ui": "^0.0.7",
-    "@askrjs/vite": "^0.0.2",
+    "@askrjs/charts": "^0.0.2",
+    "@askrjs/logos": "^0.0.2",
+    "@askrjs/lucide": "^0.0.3",
+    "@askrjs/themes": "^0.0.7",
+    "@askrjs/ui": "^0.0.8",
+    "@askrjs/vite": "^0.0.3",
     "@types/node": "^25.9.2",
     "vite-plus": "^0.1.24"
   },
