@@ -1,6 +1,11 @@
 import { Link } from '@askrjs/askr/router';
 import { Button } from '@askrjs/ui';
-import { ActionRow, Card, CardGrid, SectionHeader } from '../components/site-shell';
+import {
+  ActionRow,
+  Card,
+  CardGrid,
+  SectionHeader,
+} from '../components/site-shell';
 
 const steps = [
   {
@@ -50,7 +55,11 @@ export default function Workflow() {
 
       <CardGrid>
         {steps.map((step) => (
-          <Card eyebrow={step.number} title={step.title} description={step.body}>
+          <Card
+            eyebrow={step.number}
+            title={step.title}
+            description={step.body}
+          >
             <p>
               <code>{step.command}</code>
             </p>
@@ -58,10 +67,14 @@ export default function Workflow() {
         ))}
       </CardGrid>
 
-      <Card title="Why this feels good" description="There is no hidden router magic. The generated site and the dev server read the same route definitions, so the UI you edit is the UI you ship.">
+      <Card
+        title="Why this feels good"
+        description="There is no hidden router magic. The generated site and the dev server read the same route definitions, so the UI you edit is the UI you ship."
+      >
         <p>
           <code>npm run dev</code>, <code>npm run generate</code>, and{' '}
-          <code>npm run preview</code> are the only commands you need to remember.
+          <code>npm run preview</code> are the only commands you need to
+          remember.
         </p>
       </Card>
     </>

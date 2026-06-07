@@ -23,11 +23,14 @@ export function SiteHeader() {
             </Link>
           </Box>
 
-          <Nav as="div" aria-label="Primary navigation" class="navbar-group" data-align="end">
+          <Nav
+            as="div"
+            aria-label="Primary navigation"
+            class="navbar-group"
+            data-align="end"
+          >
             {navItems.map((item) => (
-              <NavLink href={item.href}>
-                {item.label}
-              </NavLink>
+              <NavLink href={item.href}>{item.label}</NavLink>
             ))}
           </Nav>
         </Box>

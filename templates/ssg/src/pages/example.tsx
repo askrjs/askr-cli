@@ -2,7 +2,12 @@ import { state } from '@askrjs/askr';
 import { Link } from '@askrjs/askr/router';
 import { Button, Input } from '@askrjs/ui';
 import Counter from '../components/counter';
-import { ActionRow, Card, CardGrid, SectionHeader } from '../components/site-shell';
+import {
+  ActionRow,
+  Card,
+  CardGrid,
+  SectionHeader,
+} from '../components/site-shell';
 
 const sampleUsers: Record<
   number,
@@ -27,12 +32,11 @@ const sampleUsers: Record<
 
 export default function Preview() {
   const [userId, setUserId] = state(1);
-  const user =
-    sampleUsers[userId()] ?? {
-      name: `User ${userId()}`,
-      email: `user${userId()}@example.com`,
-      note: 'Use this route as a safe place to try small interactive changes.',
-    };
+  const user = sampleUsers[userId()] ?? {
+    name: `User ${userId()}`,
+    email: `user${userId()}@example.com`,
+    note: 'Use this route as a safe place to try small interactive changes.',
+  };
 
   return (
     <>
@@ -69,7 +73,7 @@ export default function Preview() {
               onInput={(event: Event) => {
                 const nextValue = Number.parseInt(
                   (event.target as HTMLInputElement).value,
-                  10,
+                  10
                 );
 
                 setUserId(Number.isNaN(nextValue) ? 1 : Math.max(1, nextValue));

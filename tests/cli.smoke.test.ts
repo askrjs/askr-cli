@@ -300,9 +300,7 @@ test("runCreateCli scaffolds SPA with the route-first themed app shell", async (
   }
 });
 
-test(
-  "runCreateCli scaffolds SSG with shared route registration and current builder hints",
-  async () => {
+test("runCreateCli scaffolds SSG with shared route registration and current builder hints", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-"));
   const previousCwd = process.cwd();
 
@@ -362,9 +360,7 @@ test(
     process.chdir(previousCwd);
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
-  },
-  15000,
-);
+}, 15000);
 
 test("runCreateCli derives a prompt-aware builder blueprint and installs skills", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-"));
