@@ -1,6 +1,11 @@
 import { Link } from '@askrjs/askr/router';
 import { Button } from '@askrjs/ui';
-import { ActionRow, Card, CardGrid, SectionHeader } from '../components/site-shell';
+import {
+  ActionRow,
+  Card,
+  CardGrid,
+  SectionHeader,
+} from '../components/site-shell';
 
 const routeMap = [
   {
@@ -46,7 +51,11 @@ export default function Content() {
 
       <CardGrid>
         {routeMap.map((route) => (
-          <Card eyebrow={route.path} title={route.title} description={route.note} />
+          <Card
+            eyebrow={route.path}
+            title={route.title}
+            description={route.note}
+          />
         ))}
       </CardGrid>
     </>

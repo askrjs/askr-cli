@@ -7,7 +7,9 @@ const result = await ssg.generate();
 console.log(`Generated ${result.successful}/${result.totalRoutes} pages`);
 
 if (result.failed > 0) {
-  const failedRoutes = result.routes.filter((route) => route.status === 'error');
+  const failedRoutes = result.routes.filter(
+    (route) => route.status === 'error'
+  );
 
   console.error('Failed routes:');
   for (const route of failedRoutes) {
