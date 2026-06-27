@@ -6,7 +6,7 @@ import {
   ShieldCheckIcon,
 } from '@askrjs/lucide';
 import { Link } from '@askrjs/askr/router';
-import { Button } from '@askrjs/themes/controls';
+import { Button } from '@askrjs/themes/components';
 import {
   Badge,
   Card,
@@ -14,7 +14,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@askrjs/themes/surfaces';
+} from '@askrjs/themes/components';
 import {
   Block,
   Box,
@@ -22,8 +22,8 @@ import {
   Inline,
   Section,
   Stack,
-} from '@askrjs/themes/layouts';
-import { EmptyState } from '@askrjs/themes/feedback';
+} from '@askrjs/themes/components';
+import { EmptyState } from '@askrjs/themes/components';
 
 const capabilities = [
   {

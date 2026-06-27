@@ -1,7 +1,7 @@
 import { resource } from '@askrjs/askr/resources';
 import { BarChart, Sparkline } from '@askrjs/charts/components';
 import { AlertCircleIcon, RefreshCwIcon } from '@askrjs/lucide';
-import { Button } from '@askrjs/themes/controls';
+import { Button } from '@askrjs/themes/components';
 import {
   Alert,
   Badge,
@@ -11,9 +11,9 @@ import {
   CardHeader,
   CardTitle,
   Skeleton,
-} from '@askrjs/themes/surfaces';
-import { Block, Inline, Section, Stack } from '@askrjs/themes/layouts';
-import { EmptyState } from '@askrjs/themes/feedback';
+} from '@askrjs/themes/components';
+import { Block, Inline, Section, Stack } from '@askrjs/themes/components';
+import { EmptyState } from '@askrjs/themes/components';
 import MetricCard from '../../components/shared/metric-card';
 import StatusBadge from '../../components/shared/status-badge';
 import { loadOperations } from '../../features/operations/operations.query';

@@ -3,8 +3,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@askrjs/themes/surfaces';
-import { Inline } from '@askrjs/themes/layouts';
+} from '@askrjs/themes/components';
+import { Inline } from '@askrjs/themes/components';
 
 export type MetricCardProps = {
   label: string;

@@ -1,8 +1,8 @@
 import { Link } from '@askrjs/askr/router';
 import { MoonIcon, SunIcon } from '@askrjs/lucide';
-import { Button } from '@askrjs/themes/controls';
-import { Container, Inline } from '@askrjs/themes/layouts';
-import { Header } from '@askrjs/themes/shells';
+import { Button } from '@askrjs/themes/components';
+import { Container, Inline } from '@askrjs/themes/components';
+import { Header } from '@askrjs/themes/components';
 import { ThemeToggle } from '@askrjs/themes/theme';
 
 export default function AuthLayout({ children }: { children?: unknown }) {

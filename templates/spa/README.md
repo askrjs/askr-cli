@@ -64,11 +64,11 @@ registerRoutes(() => {
 });
 ```
 
-The template uses focused theme entrypoints such as `@askrjs/themes/layouts`,
-`@askrjs/themes/surfaces`, `@askrjs/themes/controls`, and
-`@askrjs/themes/shells`. Add app-local components only when they compose those
-primitives into a product concept. Start with `src/styles/tokens.css` for theme
-knobs, then tune `theme.css`, `layout.css`, and `components.css`.
+The template uses the `@askrjs/themes/components` catalog for styled UI
+composition and keeps charts in `@askrjs/charts`. Add app-local components only
+when they compose those primitives into a product concept. Start with
+`src/styles/tokens.css` for theme knobs, then tune `theme.css`, `layout.css`,
+and `components.css`.
 
 Async reads are owned by route or container components with `resource()` and
 delegated through feature/adapters:

@@ -1,7 +1,13 @@
 import { Link } from '@askrjs/askr/router';
-import { Header } from '@askrjs/themes/shells';
-import { Block, Box, Container, Section, Stack } from '@askrjs/themes/layouts';
-import { Nav, NavLink } from '@askrjs/themes/navs';
+import { Header } from '@askrjs/themes/components';
+import {
+  Block,
+  Box,
+  Container,
+  Section,
+  Stack,
+} from '@askrjs/themes/components';
+import { Nav, NavLink } from '@askrjs/themes/components';
 import Badge from './badge';
 
 export const navItems = [

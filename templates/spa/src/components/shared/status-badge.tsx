@@ -1,4 +1,4 @@
-import { Badge } from '@askrjs/themes/surfaces';
+import { Badge } from '@askrjs/themes/components';
 
 export type RunStatus =
   | 'queued'

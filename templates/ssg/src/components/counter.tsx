@@ -1,6 +1,6 @@
 import { state, derive } from '@askrjs/askr';
 import { Button } from '@askrjs/ui';
-import { Box, Stack } from '@askrjs/themes/layouts';
+import { Box, Stack } from '@askrjs/themes/components';
 import Badge from './badge';
 
 export default function Counter() {

@@ -6,7 +6,7 @@ import {
   FieldHint,
   InputGroup,
   InputGroupText,
-} from '@askrjs/themes/controls';
+} from '@askrjs/themes/components';
 import {
   Badge,
   Card,
@@ -14,8 +14,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@askrjs/themes/surfaces';
-import { Block, Stack } from '@askrjs/themes/layouts';
+} from '@askrjs/themes/components';
+import { Block, Stack } from '@askrjs/themes/components';
 
 export default function SettingsPage() {
   const [endpoint, setEndpoint] = state(
