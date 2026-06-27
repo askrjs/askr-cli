@@ -289,7 +289,7 @@ test("runCreateCli scaffolds SPA with the route-first themed app shell", async (
     expect(componentsStylesFile).toMatch(/@layer components/);
     expect(homeFile).toMatch(/Route-first Askr SPA/);
     expect(homeFile).toMatch(/auth branch/);
-    expect(homeFile).toMatch(/@askrjs\/themes\/layouts/);
+    expect(homeFile).toMatch(/@askrjs\/themes\/components/);
     expect(dashboardFile).toMatch(/resource/);
     expect(dashboardFile).toMatch(/@askrjs\/charts\/components/);
     expect(operationsFile).toMatch(/loadOperations/);
@@ -335,9 +335,7 @@ test("runCreateCli scaffolds SSG with shared route registration and current buil
     expect(routesFile).toMatch(/export function registerAppRoutes/);
     expect(routesFile).toMatch(/route\('\/', Home\);/);
     expect(routesFile).toMatch(/route\('\/preview', Preview\);/);
-    expect(shellFile).toMatch(/@askrjs\/themes\/shells/);
-    expect(shellFile).toMatch(/@askrjs\/themes\/layouts/);
-    expect(shellFile).toMatch(/@askrjs\/themes\/navs/);
+    expect(shellFile).toMatch(/@askrjs\/themes\/components/);
     expect(shellFile).toMatch(/export function SiteHeader/);
     expect(ssgConfigFile).toMatch(/registerRoutes\(registerAppRoutes\)/);
     expect(ssgConfigFile).toMatch(/manifest\.records\.map/);

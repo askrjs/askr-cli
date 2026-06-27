@@ -11,8 +11,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@askrjs/themes/surfaces';
-import { Block, Inline, Stack } from '@askrjs/themes/layouts';
+} from '@askrjs/themes/components';
+import { Block, Inline, Stack } from '@askrjs/themes/components';
 import StatusBadge, {
   type RunStatus,
 } from '../../components/shared/status-badge';

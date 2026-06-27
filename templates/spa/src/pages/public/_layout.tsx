@@ -1,9 +1,9 @@
 import { MoonIcon, SunIcon } from '@askrjs/lucide';
 import { Link } from '@askrjs/askr/router';
-import { Button } from '@askrjs/themes/controls';
-import { Container, Inline } from '@askrjs/themes/layouts';
-import { Header } from '@askrjs/themes/shells';
-import { NavBrand, NavGroup, Navbar, NavLink } from '@askrjs/themes/navs';
+import { Button } from '@askrjs/themes/components';
+import { Container, Inline } from '@askrjs/themes/components';
+import { Header } from '@askrjs/themes/components';
+import { NavBrand, NavGroup, Navbar, NavLink } from '@askrjs/themes/components';
 import { ThemeToggle } from '@askrjs/themes/theme';
 
 export default function PublicLayout({ children }: { children?: unknown }) {

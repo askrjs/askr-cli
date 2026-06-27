@@ -7,11 +7,16 @@ import {
   SunIcon,
 } from '@askrjs/lucide';
 import { Link, navigate } from '@askrjs/askr/router';
-import { Button } from '@askrjs/themes/controls';
-import { Container, Inline, Stack } from '@askrjs/themes/layouts';
-import { Header, Shell, ShellMain, ShellNav } from '@askrjs/themes/shells';
-import { NavBrand, NavGroup, NavLink, Sidebar } from '@askrjs/themes/navs';
-import { Badge } from '@askrjs/themes/surfaces';
+import { Button } from '@askrjs/themes/components';
+import { Container, Inline, Stack } from '@askrjs/themes/components';
+import { Header, Shell, ShellMain, ShellNav } from '@askrjs/themes/components';
+import {
+  NavBrand,
+  NavGroup,
+  NavLink,
+  Sidebar,
+} from '@askrjs/themes/components';
+import { Badge } from '@askrjs/themes/components';
 import { ThemeToggle } from '@askrjs/themes/theme';
 import { appNavItems } from '../../shared/navigation';
 

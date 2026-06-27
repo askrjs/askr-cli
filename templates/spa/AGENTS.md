@@ -18,7 +18,7 @@ npm run fmt        # Prettier
 
 - **Routing:** `src/main.tsx` imports `src/pages/_routes.tsx`, then boots `createSPA()` with the route manifest. Route branches live under `src/pages/public`, `src/pages/auth`, and `src/pages/app`.
 - **Layouts:** `_layout.tsx` files own shells. The root layout owns `ThemeProvider`; public layouts own landing chrome, auth layouts own sign-in chrome, and app layouts own authenticated sidebar chrome.
-- **UI:** Prefer `@askrjs/themes/layouts`, `surfaces`, `controls`, `shells`, `navs`, and `feedback` before writing local components. Use app-local components only for product concepts such as `MetricCard` and `StatusBadge`.
+- **UI:** Prefer the `@askrjs/themes/components` catalog before writing local components. Use app-local components only for product concepts such as `MetricCard` and `StatusBadge`; keep charts in `@askrjs/charts`.
 - **State:** `const [value, setValue] = state(initial)`. Read with `value()`, update with `setValue(...)`. Use `derive()` for computed values and `resource()` for async data.
 - **Data:** Route/container components own resources; `src/features` owns product workflows; `src/adapters` owns API clients, transports, abort handling, and generated clients.
 - **Consistency:** Event-sourced screens should expose pending writes, projection lag, stale data, retries, and manual refresh instead of hiding everything behind one loading state.

@@ -8,15 +8,15 @@ import {
   FieldHint,
   InputGroup,
   InputGroupText,
-} from '@askrjs/themes/controls';
+} from '@askrjs/themes/components';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@askrjs/themes/surfaces';
-import { Stack } from '@askrjs/themes/layouts';
+} from '@askrjs/themes/components';
+import { Stack } from '@askrjs/themes/components';
 
 export default function LoginPage() {
   const [email, setEmail] = state('ops@example.com');
