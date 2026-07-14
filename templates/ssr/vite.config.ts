@@ -1,8 +1,9 @@
 import { defineConfig } from 'vite-plus';
 import { askr } from '@askrjs/vite';
+import { askrServer } from '@askrjs/vite/server';
 
 export default defineConfig({
-  plugins: [askr()],
+  plugins: [askr(), askrServer({ entry: './src/entry-server.tsx' })],
   lint: {
     ignorePatterns: ['dist/**', 'node_modules/**', 'coverage/**'],
   },
@@ -18,7 +19,7 @@ export default defineConfig({
     open: true,
   },
   build: {
-    outDir: 'dist',
+    manifest: true,
     sourcemap: true,
   },
 });

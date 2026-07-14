@@ -1,6 +1,5 @@
 import { state, derive } from '@askrjs/askr';
 import { Button } from '@askrjs/ui/button';
-import { Badge } from '@askrjs/ui/badge';
 
 export default function Counter() {
   const [count, setCount] = state(0);
@@ -14,7 +13,7 @@ export default function Counter() {
       </p>
       <div class="counter-value">{count()}</div>
       <div>
-        <Badge>{parity()}</Badge>
+        <span class="badge">{parity()}</span>
       </div>
       <div class="counter-controls">
         <Button onPress={() => setCount((c) => Math.max(0, c - 1))}>
