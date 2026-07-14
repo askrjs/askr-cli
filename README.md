@@ -41,8 +41,26 @@ unless you opt out with `--no-skills`.
 - `askr skills install [--cwd <dir>] [--force]`
 - `askr skills sync [--cwd <dir>]`
 - `askr ssg --config <path> --output <dir> [--incremental]`
+- `askr openapi [--entry ./src/api.ts] [--output ./openapi.yml] [--check]`
 
-The canonical installed command is `askr`. Compatibility aliases `askr-add`, `askr-cli`, `askr-create`, and `askr-ssg` are also provided.
+The canonical installed command is `askr`. Compatibility aliases `askr-add`,
+`askr-create`, `askr-openapi`, and `askr-ssg` are also provided.
+
+## OpenAPI artifacts
+
+`askr openapi` loads a TypeScript module whose default export exposes
+`toOpenApiDocument()`, then writes deterministic YAML atomically. It defaults to
+`./src/api.ts` and `./openapi.yml`:
+
+```bash
+askr openapi
+askr openapi --check
+```
+
+Use `--entry` or `--output` to override either path. Check mode performs no
+writes and exits unsuccessfully when the artifact is missing or differs by even
+one byte, making it suitable for CI drift checks. The direct `askr-openapi`
+binary accepts the same options.
 
 The first shipped generator is `askr add page`, which scaffolds a page file and
 registers it in route-first SPA branches (`src/pages/app/_routes.tsx` or

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from "node:fs/promises";
+import type { Dirent } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatSkillReviewReport, listSkillReviewPrompts, runSkillReview } from "./skill-review";
@@ -160,7 +161,7 @@ async function removeManagedSkillArtifacts(
 ): Promise<void> {
   const entries = await fs
     .readdir(targetSkillsDir, { withFileTypes: true })
-    .catch(() => [] as fs.Dirent[]);
+    .catch(() => [] as Dirent[]);
   const bundled = new Set(bundledNames);
 
   for (const entry of entries) {

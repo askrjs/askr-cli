@@ -105,6 +105,7 @@ test("runCli prints top-level help", async () => {
   expect(logs.join("\n")).toMatch(/Commands:/);
   expect(logs.join("\n")).toMatch(/add/);
   expect(logs.join("\n")).toMatch(/skills/);
+  expect(logs.join("\n")).toMatch(/openapi/);
 });
 
 test("runCli prints version for short and long flags", async () => {
@@ -134,6 +135,7 @@ test("package exports the asrk compatibility alias", async () => {
   };
 
   expect(packageJson.bin.asrk).toBe("./dist/cli.js");
+  expect(packageJson.bin["askr-openapi"]).toBe("./dist/openapi.js");
 });
 
 test("runCreateCli defaults to startkit when template is omitted", async () => {

@@ -4,6 +4,7 @@ import { runAddCli } from "./add";
 import { runCreateCli } from "./create";
 import { isDirectExecution } from "./is-direct-execution";
 import { getCliVersion } from "./package-version";
+import { runOpenApiCli } from "./openapi";
 import { runSkillsCli } from "./skills";
 import { runSsgCli } from "./ssg";
 
@@ -18,6 +19,7 @@ function printHelp(io: CliIo = console): void {
   io.log("Commands:");
   io.log("  add        Generate pages into an existing Askr SPA project");
   io.log("  create     Create a new Askr app from a template or product prompt");
+  io.log("  openapi    Generate or check an OpenAPI YAML artifact");
   io.log("  skills     Install or sync Askr agent skills");
   io.log("  ssg        Run static-site generation");
   io.log("");
@@ -33,6 +35,7 @@ function printHelp(io: CliIo = console): void {
   io.log('  askr create --prompt "Agent workflow console with approvals"');
   io.log("  askr add page audit-log");
   io.log("  askr skills install");
+  io.log("  askr openapi --check");
   io.log("  askr skills review foundation --cwd ./candidate-app");
   io.log("  askr ssg --config ./ssg.config.ts --output ./dist/static");
 }
@@ -63,6 +66,10 @@ export async function runCli(
 
   if (command === "ssg") {
     return runSsgCli(args.slice(1), undefined, io);
+  }
+
+  if (command === "openapi") {
+    return runOpenApiCli(args.slice(1), io);
   }
 
   if (command === "skills") {

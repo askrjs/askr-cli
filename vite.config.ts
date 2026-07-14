@@ -6,6 +6,7 @@ export default defineConfig({
       add: "src/bin/add.ts",
       cli: "src/bin/cli.ts",
       create: "src/bin/create.ts",
+      openapi: "src/bin/openapi.ts",
       skills: "src/bin/skills.ts",
       ssg: "src/bin/ssg.ts",
     },
