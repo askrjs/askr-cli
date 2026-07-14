@@ -95,7 +95,7 @@ const defaultDeps: Required<Pick<SsgDeps, "cwd" | "existsSync" | "importConfig" 
   importConfig: async (filePath: string) => import(toFileUrl(filePath)),
 };
 
-async function loadCreateStaticGen(): Promise<SsgDeps["createStaticGen"]> {
+async function loadCreateStaticGen(): Promise<NonNullable<SsgDeps["createStaticGen"]>> {
   const mod = (await import("@askrjs/askr/ssg")) as {
     createStaticGen?: SsgDeps["createStaticGen"];
   };
@@ -219,12 +219,13 @@ export async function runSsgCli(
       dataOverrides?: unknown;
       concurrency?: number;
     };
-    const config: LoadedConfig = configModule.default || configModule;
+    const candidate = configModule.default ?? configModule;
 
-    if (!Array.isArray(config.routes)) {
+    if (!Array.isArray(candidate.routes)) {
       io.error("Error: Config must export routes array");
       return 1;
     }
+    const config = candidate as LoadedConfig;
 
     io.log(`Generating ${config.routes.length} routes...`);
 
