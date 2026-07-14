@@ -1,12 +1,10 @@
-import { renderToString } from '@askrjs/askr/ssr';
-import { getRoutes } from '@askrjs/askr/router';
+import { createServerApp } from '@askrjs/server';
+import { createAskrPageHandler } from '@askrjs/server/askr';
+import { pageRegistry } from './routes';
 
-// Import routes (they auto-register)
-import './routes';
+const app = createServerApp({
+  fallback: createAskrPageHandler({ registry: pageRegistry }),
+});
 
-export async function render(url: string) {
-  return renderToString({
-    url,
-    routes: getRoutes(),
-  });
-}
+export { app };
+export default app;

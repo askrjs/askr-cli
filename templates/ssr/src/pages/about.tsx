@@ -45,7 +45,7 @@ export default function About() {
             <h3>Declarative Routing</h3>
             <p>
               Routes are declared at module-load time with{' '}
-              <code>registerRoutes()</code>, <code>group()</code>, and{' '}
+              <code>createRouteRegistry()</code>, <code>group()</code>, and{' '}
               <code>route()</code>. Clean, type-safe, and no configuration
               needed.
             </p>

@@ -13,9 +13,10 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "preserve",
-    "jsxImportSource": "@askrjs/askr"
+    "jsxImportSource": "@askrjs/askr",
+    "types": ["vite/client"]
   },
-  "include": ["src", "server.ts"],
+  "include": ["src"],
   "exclude": ["dist"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

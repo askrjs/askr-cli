@@ -1,6 +1,5 @@
 import { Link } from '@askrjs/askr/router';
 import { Button } from '@askrjs/ui/button';
-import { Badge } from '@askrjs/ui/badge';
 
 export default function Home() {
   return (
@@ -24,7 +23,7 @@ export default function Home() {
       <div class="features">
         <div class="feature-card">
           <h3>
-            <Badge>Reactive</Badge>
+            <span class="badge">Reactive</span>
           </h3>
           <p>
             <code>state()</code> and <code>derive()</code> give you fine-grained
@@ -34,7 +33,7 @@ export default function Home() {
         </div>
         <div class="feature-card">
           <h3>
-            <Badge>Async</Badge>
+            <span class="badge">Async</span>
           </h3>
           <p>
             <code>resource()</code> handles data fetching with built-in loading
@@ -44,7 +43,7 @@ export default function Home() {
         </div>
         <div class="feature-card">
           <h3>
-            <Badge>Composable</Badge>
+            <span class="badge">Composable</span>
           </h3>
           <p>
             askr-ui provides headless components. askr-themes provides CSS
