@@ -12,8 +12,12 @@ import {
   AlertDialogTrigger,
 } from '@askrjs/ui/alert-dialog';
 import { Button } from '@askrjs/ui/button';
-import { Inline } from '@askrjs/ui/inline';
-import { Pagination } from '@askrjs/ui/pagination';
+import {
+  Inline,
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+} from '@askrjs/themes/components';
 import { ArchiveIcon, PlusIcon } from '@askrjs/lucide';
 import PageHeader from '../../../components/page-header';
 import AccountFilters from '../../../features/accounts/account-filters';
@@ -179,11 +183,33 @@ export default function AccountsPage() {
             </AlertDialogPortal>
           </AlertDialog>
 
-          <Pagination
-            count={totalPages()}
-            page={pageState()}
-            onPageChange={setPageState}
-          />
+          <Pagination aria-label="Accounts pages">
+            <PaginationContent>
+              <PaginationItem>
+                <Button
+                  class="button-secondary"
+                  disabled={pageState() <= 1}
+                  onPress={() => setPageState((page) => page - 1)}
+                >
+                  Previous
+                </Button>
+              </PaginationItem>
+              <PaginationItem>
+                <span aria-current="page">
+                  Page {pageState()} of {totalPages()}
+                </span>
+              </PaginationItem>
+              <PaginationItem>
+                <Button
+                  class="button-secondary"
+                  disabled={pageState() >= totalPages()}
+                  onPress={() => setPageState((page) => page + 1)}
+                >
+                  Next
+                </Button>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         </Inline>
       </section>
     </section>

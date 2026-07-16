@@ -1,12 +1,7 @@
 #!/usr/bin/env node
 
-import { runAddCli } from "./add";
-import { runCreateCli } from "./create";
 import { isDirectExecution } from "./is-direct-execution";
 import { getCliVersion } from "./package-version";
-import { runOpenApiCli } from "./openapi";
-import { runSkillsCli } from "./skills";
-import { runSsgCli } from "./ssg";
 
 type CliIo = Pick<Console, "error" | "log">;
 
@@ -17,14 +12,15 @@ function printHelp(io: CliIo = console): void {
   io.log("  askr <command> [args]");
   io.log("");
   io.log("Commands:");
-  io.log("  add        Generate pages into an existing Askr SPA project");
+  io.log("  add        Generate pages or declared actions into an Askr project");
   io.log("  create     Create a new Askr app from a template or product prompt");
+  io.log("  generate   Generate an @askrjs/fetch client from OpenAPI");
   io.log("  openapi    Generate or check an OpenAPI YAML artifact");
   io.log("  skills     Install or sync Askr agent skills");
   io.log("  ssg        Run static-site generation");
-  io.log("");
-  io.log("Aliases:");
-  io.log("  c          Alias for create");
+  io.log("  outdated   List available dependency updates");
+  io.log("  update     Apply safe dependency updates");
+  io.log("  upgrade    Apply latest peer-compatible dependency upgrades");
   io.log("");
   io.log("Options:");
   io.log("  --help, -h     Show help");
@@ -34,10 +30,14 @@ function printHelp(io: CliIo = console): void {
   io.log("  askr create startkit my-app");
   io.log('  askr create --prompt "Agent workflow console with approvals"');
   io.log("  askr add page audit-log");
+  io.log("  askr add action approve-request --route /requests/{id}");
   io.log("  askr skills install");
   io.log("  askr openapi --check");
   io.log("  askr skills review foundation --cwd ./candidate-app");
   io.log("  askr ssg --config ./ssg.config.ts --output ./dist/static");
+  io.log("  askr outdated");
+  io.log("  askr update");
+  io.log("  askr upgrade");
 }
 
 export async function runCli(
@@ -56,24 +56,49 @@ export async function runCli(
     return 0;
   }
 
-  if (command === "create" || command === "c") {
+  if (command === "create") {
+    const { runCreateCli } = await import("./create");
     return runCreateCli(args.slice(1), io);
   }
 
   if (command === "add") {
+    const { runAddCli } = await import("./add");
     return runAddCli(args.slice(1), io);
   }
 
+  if (command === "generate") {
+    const { runGenerateCli } = await import("./generate");
+    return runGenerateCli(args.slice(1), io);
+  }
+
   if (command === "ssg") {
+    const { runSsgCli } = await import("./ssg");
     return runSsgCli(args.slice(1), undefined, io);
   }
 
   if (command === "openapi") {
+    const { runOpenApiCli } = await import("./openapi");
     return runOpenApiCli(args.slice(1), io);
   }
 
   if (command === "skills") {
+    const { runSkillsCli } = await import("./skills");
     return runSkillsCli(args.slice(1), io);
+  }
+
+  if (command === "update") {
+    const { runUpdateCli } = await import("./update");
+    return runUpdateCli(args.slice(1), io);
+  }
+
+  if (command === "upgrade") {
+    const { runUpgradeCli } = await import("./update");
+    return runUpgradeCli(args.slice(1), io);
+  }
+
+  if (command === "outdated") {
+    const { runOutdatedCli } = await import("./update");
+    return runOutdatedCli(args.slice(1), io);
   }
 
   io.error(`Unknown command: ${command}`);

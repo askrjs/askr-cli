@@ -1,6 +1,6 @@
 ---
 name: askr-routing-layouts
-description: Use when defining Askr routes, route groups, page shells, index routes, fallback routes, navigation, auth metadata, route loaders, layout boundaries, or SPA/SSR/SSG shared route trees.
+description: Use when defining Askr routes, route groups, page shells, index routes, fallback routes, navigation, auth requirements, route loaders, layout boundaries, or SPA/SSR/SSG shared route trees.
 ---
 
 # Askr Routing Layouts
@@ -11,7 +11,7 @@ Use this for route registration, shell ownership, route metadata, and navigation
 
 - You are adding, moving, or protecting a route.
 - You are changing a shell or layout boundary.
-- You need to attach auth or permission metadata.
+- You need to attach an auth requirement or route policy.
 - You need to add route-aware navigation.
 
 ## Inspect First
@@ -24,7 +24,7 @@ Use this for route registration, shell ownership, route metadata, and navigation
 
 ## Choose The Owner
 
-- `group()` for inherited layout, auth, permission, or policy without a path segment.
+- `group()` for inherited layout, auth requirements, or policies without a path segment.
 - `page()` for a pathful shell that renders child route content.
 - `route()` for a leaf route.
 - `index()` only inside a `page()` scope.
@@ -33,21 +33,22 @@ Use this for route registration, shell ownership, route metadata, and navigation
 ## Do This In Order
 
 1. Register the route in the existing route tree before app boot.
-2. Put auth and permission metadata on the narrowest route or group that owns the policy.
+2. Put auth requirements and policies on the narrowest route or group that owns them.
 3. Keep route components synchronous and put async work inside route-owned components or features.
 4. Keep navigation in `Link`, `navigate()`, and `currentRoute()` instead of local copies of route state.
 
 ## Copy This Shape
 
 ```tsx
-import { fallback, group, index, page, registerRoutes, route } from "@askrjs/askr/router";
+import { requireUser } from "@askrjs/auth";
+import { createRouteRegistry, fallback, group } from "@askrjs/askr/router";
 
-registerRoutes(() => {
+export const pageRegistry = createRouteRegistry(() => {
   group({ layout: RootLayout }, () => {
     group({ layout: PublicLayout }, () => {
       registerPublicRoutes();
     });
-    group({ layout: AppLayout, auth: true }, () => {
+    group({ layout: AppLayout, auth: requireUser() }, () => {
       registerAppRoutes();
     });
     fallback(NotFoundPage);
@@ -58,19 +59,24 @@ registerRoutes(() => {
 ## Nested Example
 
 ```tsx
+import { requirePermission } from "@askrjs/auth";
 import { fallback, index, page, route } from "@askrjs/askr/router";
 
 export function registerWorkspaceRoutes(): void {
   page("/workspaces/{workspaceId}", WorkspaceLayout, () => {
     index(WorkspaceOverviewPage);
-    route("settings", WorkspaceSettingsPage, { auth: true, permission: "workspace.manage" });
-    route("members", WorkspaceMembersPage, { auth: true, permission: "workspace.read" });
+    route("settings", WorkspaceSettingsPage, {
+      auth: requirePermission("workspace.manage"),
+    });
+    route("members", WorkspaceMembersPage, {
+      auth: requirePermission("workspace.read"),
+    });
     fallback(WorkspaceNotFoundPage);
   });
 }
 ```
 
-Use relative child paths inside `page()`. Put metadata on the narrowest route or group that owns the policy.
+Use relative child paths inside `page()`. Put requirements and policies on the narrowest route or group that owns them.
 
 ## Never Do These
 

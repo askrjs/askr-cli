@@ -1,0 +1,37 @@
+{
+  "name": "{{appName}}",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp build && vp build --ssr server.ts --outDir dist/server",
+    "preview": "node dist/server/server.js",
+    "test": "vp test run",
+    "typecheck": "tsc --noEmit",
+    "lint": "vp lint src server.ts tests vite.config.ts",
+    "fmt": "vp fmt .",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "@askrjs/auth": ">=0.0.1 <0.1.0",
+    "@askrjs/askr": ">=0.0.53 <0.1.0",
+    "@askrjs/i18n": ">=0.0.1 <0.1.0",
+    "@askrjs/node": ">=0.0.1 <0.1.0",
+    "@askrjs/otel": ">=0.0.1 <0.1.0",
+    "@askrjs/schema": ">=0.0.1 <0.1.0",
+    "@askrjs/server": ">=0.0.1 <0.1.0",
+    "@askrjs/themes": ">=0.0.12 <0.1.0",
+    "@askrjs/ui": ">=0.0.13 <0.1.0",
+    "@opentelemetry/api": "^1.9.0"
+  },
+  "devDependencies": {
+    "@askrjs/vite": ">=0.0.6 <0.1.0",
+    "@types/node": "^26.0.0",
+    "jsdom": "^29.1.1",
+    "typescript": "^6.0.3",
+    "vite-plus": "^0.2.4",
+    "vitest": "^4.1.10"
+  },
+  "engines": { "node": "^20.19.0 || >=22.12.0" }
+}

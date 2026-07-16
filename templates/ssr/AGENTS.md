@@ -6,7 +6,7 @@ This is a strict TypeScript, ESM-only Askr SSR application.
 
 - `src/routes.tsx` owns the shared `createRouteRegistry()` result.
 - `src/entry-server.tsx` exports a composed `ServerApp` using `@askrjs/server/askr`.
-- `index.html` is the only document source and contains exactly one `<!--askr-app-->` marker.
+- `index.html` is the only document source and contains exactly one `<!--askr-head-->` marker and one `<!--askr-app-->` marker.
 - `@askrjs/vite/server` owns development and production document composition.
 - `server.ts` only starts the production app through `@askrjs/node`.
 - `src/main.tsx` hydrates server HTML or starts the SPA when no fragment is present.
@@ -20,7 +20,7 @@ npm run dev
 npm run build
 npm run preview
 npm test
-npm run type-check
+npm run typecheck
 npm run lint
 npm run fmt
 ```

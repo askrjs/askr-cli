@@ -9,7 +9,7 @@ npm run dev        # Vite dev server with HMR (port 5173)
 npm run build      # Production build to dist/
 npm run preview    # Serve production build locally
 npm test           # Vitest (jsdom)
-npm run type-check # tsc --noEmit
+npm run typecheck  # tsc --noEmit
 npm run lint       # ESLint
 npm run fmt        # Prettier
 ```
@@ -17,7 +17,7 @@ npm run fmt        # Prettier
 ## Architecture
 
 - **Routing:** `src/main.tsx` imports `src/pages/_routes.tsx`, then boots `createSPA()` with the route manifest. Route branches live under `src/pages/public`, `src/pages/auth`, and `src/pages/app`.
-- **Layouts:** `_layout.tsx` files own shells. The root layout owns `ThemeProvider`; public layouts own landing chrome, auth layouts own sign-in chrome, and app layouts own authenticated sidebar chrome.
+- **Layouts:** `_layout.tsx` files own shells. The root layout owns `ThemeScope`; public layouts own landing chrome, auth layouts own sign-in chrome, and app layouts own authenticated sidebar chrome.
 - **UI:** Prefer the `@askrjs/themes/components` catalog before writing local components. Use app-local components only for product concepts such as `MetricCard` and `StatusBadge`; keep charts in `@askrjs/charts`.
 - **State:** `const [value, setValue] = state(initial)`. Read with `value()`, update with `setValue(...)`. Use `derive()` for computed values and `resource()` for async data.
 - **Data:** Route/container components own resources; `src/features` owns product workflows; `src/adapters` owns API clients, transports, abort handling, and generated clients.

@@ -37,14 +37,18 @@ unless you opt out with `--no-skills`.
 
 - `askr create [template] <name> [--prompt <text>] [--no-install] [--no-skills]`
 - `askr add page <name> [--branch app|public]`
+- `askr add action <name> --route <path>`
 - `askr skills list`
 - `askr skills install [--cwd <dir>] [--force]`
 - `askr skills sync [--cwd <dir>]`
 - `askr ssg --config <path> --output <dir> [--incremental]`
 - `askr openapi [--entry ./src/api.ts] [--output ./openapi.yml] [--check]`
+- `askr outdated [packages...] [--workspace <glob>] [--tag <tag>] [--json]`
+- `askr update [packages...] [--workspace <glob>] [--tag <tag>] [--json]`
+- `askr upgrade [packages...] [--workspace <glob>] [--tag <tag>] [--json]`
 
-The canonical installed command is `askr`. Compatibility aliases `askr-add`,
-`askr-create`, `askr-openapi`, and `askr-ssg` are also provided.
+The installed command is `askr`. Subcommands are intentionally not published
+as compatibility binaries.
 
 ## OpenAPI artifacts
 
@@ -59,12 +63,43 @@ askr openapi --check
 
 Use `--entry` or `--output` to override either path. Check mode performs no
 writes and exits unsuccessfully when the artifact is missing or differs by even
-one byte, making it suitable for CI drift checks. The direct `askr-openapi`
-binary accepts the same options.
+one byte, making it suitable for CI drift checks.
 
 The first shipped generator is `askr add page`, which scaffolds a page file and
 registers it in route-first SPA branches (`src/pages/app/_routes.tsx` or
 `src/pages/public/_routes.tsx`).
+
+## Dependency updates
+
+The dependency commands are Askr-owned and discover
+the containing npm or pnpm workspace from nested directories, include the root
+manifest and declared workspaces, and reports safe, breaking, local, manual,
+and failed decisions without running an install.
+
+```bash
+askr outdated
+askr update
+askr upgrade
+askr update vite "@types/*"
+askr update --workspace "@scope/app" --tag next --json
+```
+
+`askr update` writes safe range changes. `askr upgrade` additionally permits next-version
+major changes for stable packages and breaking minor changes for `0.x`
+packages. Peer requirements from co-dependencies are still enforced: a target
+is left for manual review if it would move outside another selected package's
+published peer range. `askr upgrade` never bypasses that compatibility guard.
+
+The updater preserves exact, caret, tilde, and x-range styles. It can widen one
+bounded interval, and it updates only the highest clause of a simple OR union.
+Complex ranges, npm aliases, and other ambiguous specifications are reported as
+manual. Workspace, file, link, Git, URL, tracking-tag, and wildcard declarations
+are not rewritten.
+
+Only `package.json` dependency values are changed. The command never writes a
+lockfile, installs packages, runs lifecycle scripts, or edits overrides,
+resolutions, catalogs, or `packageManager` metadata. See the
+[update command reference](./docs/update.md) for policy and output details.
 
 ## Agent skills
 
@@ -97,6 +132,7 @@ Supported templates for `create`:
 - `spa`
 - `ssr`
 - `ssg`
+- `full-stack`
 - `startkit`
 
 Templates are stored in `templates/`.

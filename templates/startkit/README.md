@@ -8,10 +8,11 @@ of project plumbing.
 
 Stack:
 
-- askr
-- askr-ui
-- askr-themes (default)
-- lucide icons via @askrjs/lucide
+- `@askrjs/askr`
+- `@askrjs/auth`
+- `@askrjs/ui`
+- `@askrjs/themes` (default)
+- Lucide icons via `@askrjs/lucide`
 - plain CSS with layers and design tokens
 
 ## Quick start
@@ -34,12 +35,12 @@ npm run fmt:check
 npm run dev         # Local dev server with HMR
 npm run build       # Production build
 npm run preview     # Preview production build
-npm run type-check  # TypeScript checks
+npm run typecheck   # TypeScript checks
 npm run lint        # ESLint across project files
 npm test            # Vitest suite
 npm run fmt         # Format full project with Prettier
 npm run fmt:check   # Verify formatting
-npm run check       # type-check + lint + tests
+npm run check       # lint + typecheck + tests + production build
 ```
 
 ## Routes and layout model
@@ -51,26 +52,37 @@ Routes are registered in src/router.tsx and split into explicit groups:
 - Protected routes: /dashboard, /accounts, /settings (app shell layout)
 - Fallback route: /\* (not found)
 
-The root app wrapper in src/app.tsx hosts cross-cutting providers such as toast.
+The root app wrapper in `src/pages/_layout.tsx` owns cross-cutting UI such as toast.
 
 ## Project structure
 
 ```text
 src/
-  app.tsx
+  main.tsx
   router.tsx
 
-  layouts/
-    app-layout.tsx
-    auth-layout.tsx
+  routes/
+    index.ts
+    auth.ts
+    auth-config.ts
+    public.ts
+    workspace/
+      index.ts
+      accounts.ts
 
   pages/
-    landing.tsx
-    login.tsx
-    dashboard.tsx
-    accounts.tsx
-    settings.tsx
+    _layout.tsx
+    home.tsx
     not-found.tsx
+    auth/
+      _layout.tsx
+      login.tsx
+    workspace/
+      _layout.tsx
+      dashboard.tsx
+      settings.tsx
+      accounts/
+        index.tsx
 
   components/
     app-sidebar.tsx
@@ -88,7 +100,9 @@ src/
   lib/
     mock-data.ts
     format.ts
+    routes.ts
 
+  styles.css
   styles/
     reset.css
     tokens.css
@@ -99,28 +113,30 @@ src/
 
 ## How routing works
 
-src/router.tsx uses `registerRoutes()`, `group()`, and `route()` to compose route groups:
+`src/router.tsx` creates one registry with `createRouteRegistry()`. The files in
+`src/routes` compose its `group()` and `route()` declarations:
 
 - A shared root wrapper for providers
 - Auth layout only for /login
 - App layout only for protected routes
-- Built-in auth metadata redirects unauthenticated users from protected routes to /login
+- Function-based auth requirements redirect unauthenticated users from protected routes to /login
 
 This keeps route ownership clear and avoids one mega-layout for every page type.
 
 ## How layouts work
 
-- App layout (src/layouts/app-layout.tsx): sidebar + sticky header + content area.
-- Auth layout (src/layouts/auth-layout.tsx): minimal centered shell for forms.
+- App layout (`src/pages/workspace/_layout.tsx`): sidebar + sticky header + content area.
+- Auth layout (`src/pages/auth/_layout.tsx`): minimal centered shell for forms.
 
 Use app layout for authenticated product surfaces and auth layout for onboarding/login flows.
 
 ## How to add a page
 
-1. Create a new page file in src/pages.
-2. Register a route in src/router.tsx.
+1. Create a new page file in the matching branch under `src/pages`.
+2. Register it in the matching file under `src/routes`.
 3. Place the route in the correct layout group (public, auth, protected).
-4. If protected, apply the same `auth`, `role`, `permission`, or `policies` pattern used by existing app routes.
+4. If protected, use the existing function requirements such as `requireUser()`,
+   `requireRole()`, or `requirePermission()` at the narrowest owning route or group.
 
 ## First-hour customization checklist
 
@@ -133,10 +149,10 @@ Use app layout for authenticated product surfaces and auth layout for onboarding
 
 ## How to add a component
 
-1. Put shared UI in src/components.
-2. Put domain-specific pieces in src/features/<feature-name>.
+1. Put shared UI in `src/components`.
+2. Put domain-specific pieces in `src/features/<feature-name>`.
 3. Keep component APIs prop-driven and small.
-4. Prefer composing askr-ui primitives before inventing new abstractions.
+4. Prefer composing `@askrjs/ui` and `@askrjs/themes/components` before inventing new abstractions.
 
 ## Styling organization
 

@@ -10,6 +10,7 @@ The unified CLI for the Askr platform.
 - [skill-system-design](./skill-system-design.md) - Why the bundled skills are layered and how drift is constrained
 - [skill-review-prompts](./skill-review-prompts.md) - Golden prompts for auditing the bundled skill system
 - [add](./add.md) - Generate feature code into an existing project
+- [update](./update.md) - Plan and apply manifest-only dependency updates
 - [Workflows](./workflows.md) - End-to-end CLI workflows
 
 ## Quick start

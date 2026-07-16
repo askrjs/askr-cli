@@ -63,7 +63,7 @@ export default function AppLayout({ children }: { children?: unknown }) {
       </ShellNav>
       <ShellMain>
         <Header position="sticky" class="app-header">
-          <Container size="fluid">
+          <Container size="full">
             <Inline justify="between" align="center" gap="3" wrap="wrap">
               <Stack gap="none">
                 <span class="eyebrow">Operations console</span>
@@ -85,7 +85,7 @@ export default function AppLayout({ children }: { children?: unknown }) {
             </Inline>
           </Container>
         </Header>
-        <Container size="fluid" class="app-main">
+        <Container size="full" class="app-main">
           {children}
         </Container>
       </ShellMain>

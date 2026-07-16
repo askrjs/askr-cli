@@ -143,7 +143,7 @@ const REVIEW_PROMPTS: ReviewPromptDefinition[] = [
     title: "Routing And Layouts",
     relatedSkills: ["askr-project-structure", "askr-routing-layouts"],
     repairFocus:
-      "Move route ownership into the registered route tree and keep layout, auth, and fallback policy in route metadata.",
+      "Move route ownership into the registered route tree and keep layout, auth requirements, and fallback policy in route declarations.",
     prompt:
       "Add a protected /app/workspaces/{workspaceId}/settings route with a nested layout, an index page, and a not-found fallback. Keep routing idiomatic to Askr.",
     assertions: [
@@ -156,8 +156,13 @@ const REVIEW_PROMPTS: ReviewPromptDefinition[] = [
         re("page()", String.raw`\bpage\s*\(`),
         re("route()", String.raw`\broute\s*\(`),
       ]),
-      requireAny("Keeps auth or permission policy in route metadata.", [
-        re("auth metadata", String.raw`\bauth\s*:`),
+      requireAny("Keeps auth or permission policy in route requirements.", [
+        re("auth requirement", String.raw`\bauth\s*:\s*require[A-Z][A-Za-z]*\s*\(`),
+        re("auth policy", String.raw`\bpolicies\s*:`),
+      ]),
+      forbid("Rejects obsolete boolean and guest-string auth declarations.", [
+        re("boolean auth", String.raw`\bauth\s*:\s*(?:true|false)\b`),
+        re("guest auth", String.raw`\bauth\s*:\s*["']guest["']`),
         re("permission metadata", String.raw`\bpermissions?\s*:`),
       ]),
     ],
@@ -167,16 +172,21 @@ const REVIEW_PROMPTS: ReviewPromptDefinition[] = [
     title: "Auth And Authorization",
     relatedSkills: ["askr-auth-access", "askr-routing-layouts"],
     repairFocus:
-      "Keep auth and permission policy in route metadata or auth workflow boundaries, then render an explicit forbidden state.",
+      "Keep auth and permission policy in function requirements or auth workflow boundaries, then render an explicit forbidden state.",
     prompt:
       "Add a billing admin screen that is only available to authenticated users with the billing.manage permission. Show a signed-in forbidden state when the user lacks access.",
     assertions: [
-      requireAny("Uses auth or session policy metadata.", [
-        re("auth metadata", String.raw`\bauth\s*:`),
+      requireAny("Uses an auth requirement or session workflow.", [
+        re("auth requirement", String.raw`\brequire(?:User|Anonymous|Permission|Role|Scope)\s*\(`),
         re("session gate", String.raw`\bsignedIn\b|\bsession\b`),
       ]),
-      requireAny("Preserves permission policy in code or route metadata.", [
+      requireAny("Preserves permission policy in code or route requirements.", [
         re("billing.manage", String.raw`billing\.manage`),
+        re("permission requirement", String.raw`\brequirePermission\s*\(`),
+      ]),
+      forbid("Rejects obsolete boolean and guest-string auth declarations.", [
+        re("boolean auth", String.raw`\bauth\s*:\s*(?:true|false)\b`),
+        re("guest auth", String.raw`\bauth\s*:\s*["']guest["']`),
         re("permission metadata", String.raw`\bpermissions?\s*:`),
       ]),
       requireAny("Renders a forbidden or access-denied state.", [
@@ -416,6 +426,7 @@ const REVIEW_PROMPTS: ReviewPromptDefinition[] = [
       ]),
       requireAny("Keeps Askr-native route or state primitives in use.", [
         re("registerRoutes", String.raw`\bregisterRoutes\s*\(`),
+        re("createRouteRegistry", String.raw`\bcreateRouteRegistry\s*\(`),
         re("state()", String.raw`\bstate\s*\(`),
         re("resource()", String.raw`\bresource\s*\(`),
       ]),

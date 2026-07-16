@@ -7,25 +7,28 @@
     "build": "vp build && vp build --ssr server.ts --outDir dist/server",
     "preview": "node dist/server/server.js",
     "test": "vp test run",
-    "type-check": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "lint": "vp lint src server.ts tests vite.config.ts",
-    "lint:fix": "vp lint --fix src server.ts tests vite.config.ts",
-    "fmt": "vp fmt \"src/**/*.{ts,tsx,css}\" \"server.ts\" \"tests/**/*.{ts,tsx}\" \"*.md\""
+    "lint:fix": "npm run lint -- --fix",
+    "fmt": "vp fmt \"src/**/*.{ts,tsx,css}\" \"server.ts\" \"tests/**/*.{ts,tsx}\" \"*.md\"",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
-    "@askrjs/askr": ">=0.0.34 <0.1.0",
+    "@askrjs/askr": ">=0.0.53 <0.1.0",
     "@askrjs/node": ">=0.0.1 <0.1.0",
     "@askrjs/server": ">=0.0.1 <0.1.0",
-    "@askrjs/themes": ">=0.0.3 <0.1.0",
-    "@askrjs/ui": ">=0.0.5 <0.1.0"
+    "@askrjs/themes": ">=0.0.12 <0.1.0",
+    "@askrjs/ui": ">=0.0.13 <0.1.0"
   },
   "devDependencies": {
-    "@askrjs/vite": ">=0.0.2 <0.1.0",
-    "@types/node": "^25.5.0",
-    "jiti": "^2.6.1",
-    "jsdom": "^29.0.1",
-    "tsx": "^4.21.0",
-    "typescript": "^6.0.2",
-    "vite-plus": "^0.1.19"
+    "@askrjs/vite": ">=0.0.6 <0.1.0",
+    "@types/node": "^26.0.0",
+    "jsdom": "^29.1.1",
+    "tsx": "^4.23.1",
+    "typescript": "^6.0.3",
+    "vite-plus": "^0.2.4"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
   }
 }

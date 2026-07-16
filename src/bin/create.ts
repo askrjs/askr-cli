@@ -12,6 +12,7 @@ type CliIo = Pick<Console, "error" | "log">;
 type PackageManager = "npm" | "yarn";
 
 const TEMPLATE_LABELS = {
+  "full-stack": "Full-stack",
   spa: "SPA",
   ssr: "SSR",
   ssg: "SSG",
@@ -61,8 +62,8 @@ interface Blueprint {
   guardrails: string[];
 }
 
-const TEMPLATE_TYPES = new Set<TemplateType>(["startkit", "spa", "ssr", "ssg"]);
-const TEMPLATE_ORDER: TemplateType[] = ["startkit", "spa", "ssr", "ssg"];
+const TEMPLATE_TYPES = new Set<TemplateType>(["startkit", "spa", "ssr", "ssg", "full-stack"]);
+const TEMPLATE_ORDER: TemplateType[] = ["startkit", "spa", "ssr", "ssg", "full-stack"];
 const PROMPT_STOP_WORDS = new Set([
   "a",
   "an",
@@ -86,6 +87,15 @@ const PROMPT_STOP_WORDS = new Set([
   "with",
 ]);
 const TEMPLATE_DEFAULT_CAPABILITIES: Record<TemplateType, Capability[]> = {
+  "full-stack": [
+    "routing-layouts",
+    "ssr-ssg",
+    "api-integration",
+    "auth-access",
+    "forms-tables-crud",
+    "query-mutation",
+    "design-system",
+  ],
   spa: ["routing-layouts", "dashboard-charts", "agent-workflows", "design-system"],
   ssr: ["routing-layouts", "ssr-ssg", "query-mutation", "design-system"],
   ssg: ["routing-layouts", "ssr-ssg", "design-system"],
@@ -97,6 +107,19 @@ const TEMPLATE_PROMPT_RULES: Array<{
   terms: string[];
   weight: number;
 }> = [
+  {
+    template: "full-stack",
+    reason: "Prompt requires server APIs, authenticated actions, and request-time rendering.",
+    terms: [
+      "api and ssr",
+      "authenticated api",
+      "backend and frontend",
+      "full stack",
+      "full-stack",
+      "server action",
+    ],
+    weight: 6,
+  },
   {
     template: "ssg",
     reason: "Prompt emphasizes static content or documentation publishing.",
@@ -288,6 +311,17 @@ const SKILL_SUMMARIES: Record<string, string> = {
   "askr-ui-composition": "Use askr-ui behavior primitives before inventing local components.",
 };
 const TEMPLATE_INSPECT_PATHS: Record<TemplateType, string[]> = {
+  "full-stack": [
+    "AGENTS.md",
+    "src/routes.tsx",
+    "src/actions/create-message.ts",
+    "src/schemas.ts",
+    "src/server/app.ts",
+    "src/server/action-registry.ts",
+    "src/server/dependencies.ts",
+    "src/server/entry-server.ts",
+    "server.ts",
+  ],
   spa: [
     "AGENTS.md",
     "src/main.tsx",
@@ -317,7 +351,6 @@ const TEMPLATE_INSPECT_PATHS: Record<TemplateType, string[]> = {
     "src/components/site-shell.tsx",
     "src/pages/home.tsx",
     "ssg.config.ts",
-    "ssg-build.ts",
   ],
   startkit: [
     "AGENTS.md",
@@ -328,6 +361,13 @@ const TEMPLATE_INSPECT_PATHS: Record<TemplateType, string[]> = {
   ],
 };
 const TEMPLATE_GOLDEN_EXAMPLES: Record<TemplateType, string[]> = {
+  "full-stack": [
+    "src/routes.tsx",
+    "src/pages/home.tsx",
+    "src/actions/create-message.ts",
+    "src/server/action-registry.ts",
+    "src/server/app.ts",
+  ],
   spa: [
     "src/pages/public/home.tsx",
     "src/pages/auth/login.tsx",
@@ -363,7 +403,7 @@ function helpText(): string {
     "  askr create --prompt <text> [name] [--no-install] [--no-skills]",
     "",
     "Templates:",
-    "  startkit, spa, ssr, ssg",
+    "  startkit, spa, ssr, ssg, full-stack",
     "",
     "Options:",
     "  --prompt <text>  Infer the best template from a product prompt and emit a builder blueprint",
@@ -373,6 +413,7 @@ function helpText(): string {
     "",
     "Examples:",
     "  askr create startkit my-app",
+    "  askr create full-stack my-app",
     "  askr create startkit acme-dashboard",
     '  askr create --prompt "Agent workflow console with approvals and analytics"',
   ].join("\n");
@@ -426,7 +467,8 @@ async function copyDir(
     }
 
     const srcPath = path.join(src, entry.name);
-    const outputName = entry.name.replace(/\{\{\s*appName\s*\}\}/g, replacements.appName);
+    const sourceName = entry.name === "gitignore.template" ? ".gitignore" : entry.name;
+    const outputName = sourceName.replace(/\{\{\s*appName\s*\}\}/g, replacements.appName);
     const destPath = path.join(dest, outputName);
 
     if (entry.isDirectory()) {
@@ -535,18 +577,21 @@ function inferTemplateFromPrompt(promptText: string): {
 } {
   const normalizedPrompt = promptText.toLowerCase();
   const templateScores: Record<TemplateType, number> = {
+    "full-stack": 0,
     startkit: 1,
     spa: 0,
     ssr: 0,
     ssg: 0,
   };
   const templateMatches: Record<TemplateType, string[]> = {
+    "full-stack": [],
     startkit: [],
     spa: [],
     ssr: [],
     ssg: [],
   };
   const templateReasons: Record<TemplateType, string> = {
+    "full-stack": "Prompt requires server APIs, authenticated actions, and request-time rendering.",
     startkit:
       "No stronger prompt signal was detected, so the CLI defaulted to the full app startkit.",
     spa: "Prompt emphasizes interactive workflows, control planes, or agent operations.",
@@ -865,11 +910,12 @@ export async function runCreateCli(
 
   if (!name) {
     if (!explicitTemplate) {
-      io.log("Available templates: startkit, spa, ssr, ssg");
+      io.log("Available templates: startkit, spa, ssr, ssg, full-stack");
       io.log("");
 
       const selectedTemplate =
-        (await prompt("Template type (startkit/spa/ssr/ssg) [startkit]: ")).trim() || "startkit";
+        (await prompt("Template type (startkit/spa/ssr/ssg/full-stack) [startkit]: ")).trim() ||
+        "startkit";
       if (!isTemplateType(selectedTemplate)) {
         io.error("Invalid template type");
         return 1;

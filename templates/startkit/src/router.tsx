@@ -1,7 +1,7 @@
-import { registerRoutes } from '@askrjs/askr/router';
+import { createRouteRegistry } from '@askrjs/askr/router';
 import { registerAppRoutes } from './routes';
 import { routeAuth } from './routes/auth-config';
 
-registerRoutes(registerAppRoutes, {
+export const pageRegistry = createRouteRegistry(registerAppRoutes, {
   auth: routeAuth,
 });

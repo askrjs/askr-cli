@@ -1,5 +1,4 @@
-import { Inline } from '@askrjs/ui/inline';
-import { Spacer } from '@askrjs/ui/spacer';
+import { Inline } from '@askrjs/themes/components';
 
 export default function PageHeader(props: {
   title: string;
@@ -10,6 +9,7 @@ export default function PageHeader(props: {
     <Inline
       class="page-header"
       align="center"
+      justify="between"
       gap="var(--ak-space-lg)"
       wrap="wrap"
     >
@@ -17,7 +17,6 @@ export default function PageHeader(props: {
         <h1>{props.title}</h1>
         <p>{props.description}</p>
       </div>
-      <Spacer />
       {props.actions && <div>{props.actions}</div>}
     </Inline>
   );

@@ -26,7 +26,7 @@ Use this only when a task, sample, or codebase slice is React-shaped and must be
 - React `useMemo` -> Askr `derive()` when a reactive computation is needed.
 - React `useEffect` data loading -> Askr `resource()` or `createQuery()` based on ownership.
 - React Router component routes -> Askr route registration with `group()`, `page()`, `route()`, and `fallback()`.
-- React context -> Askr `defineContext()` and `readContext()`.
+- React context -> Askr `defineScope()` and `readScope()`.
 - React keyed list `.map` -> `For` when identity or dynamic list updates matter.
 
 ## Do This In Order

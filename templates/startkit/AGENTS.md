@@ -16,7 +16,7 @@ npm run dev        # Vite dev server with HMR (port 5173)
 npm run build      # Production build to dist/
 npm run preview    # Serve production build locally
 npm test           # Vitest (jsdom)
-npm run type-check # tsc --noEmit
+npm run typecheck  # tsc --noEmit
 npm run lint       # ESLint
 npm run fmt        # Prettier
 ```
@@ -26,7 +26,7 @@ npm run fmt        # Prettier
 - **Framework:** Askr - actor-backed, fine-grained reactive UI. No virtual DOM.
 - **Components:** askr-ui headless components (Button, Accordion, Toggle, Input, etc.). Props use `onPress` (not `onClick`), `asChild` for polymorphism, `data-slot` attributes for styling hooks.
 - **Styling:** askr-themes CSS via `[data-slot]` selectors. Keep `src/styles.css` as a thin entrypoint and organize styles in `src/styles/*` using layers (reset/tokens/theme/layout/components).
-- **Routing:** `registerRoutes()` composes `group()` and `route()` declarations in `src/router.tsx`. Use `currentRoute()` inside components and navigate with `<Link href="...">`.
+- **Routing:** `createRouteRegistry()` composes `group()` and `route()` declarations in `src/router.tsx`. Use `currentRoute()` inside components and navigate with `<Link href="...">`.
 - **State:** Prefer `const [value, setValue] = state(initial)`. Read with `value()`, update with `setValue(...)`. `derive()` for computed values. `resource()` for async data.
 - **Data flow:** Keep sample data in `src/lib/mock-data.ts`, not inline in pages. Read async data with `resource()` and keep mock mutations in the same lib boundary.
 - **Preferences:** Keep persistent appearance/session helpers in the lib boundary and initialize at app bootstrap.
@@ -72,6 +72,6 @@ tests/               # Vitest tests
 ## Validation
 
 - Run the narrowest relevant test first.
-- Run `npm run type-check` for type-sensitive changes.
+- Run `npm run typecheck` for type-sensitive changes.
 - Run `npm run build` when app boot, routing, or packaging changes.
 - Confirm loading, empty, error, stale, and pending states remain truthful for user-visible flows.

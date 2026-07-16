@@ -1,7 +1,7 @@
 {
   "name": "@askrjs/cli",
   "version": "0.0.2",
-  "description": "Unified CLI for the askr platform",
+  "description": "Unified CLI for the Askr platform",
   "homepage": "https://github.com/askrjs/askr-cli#readme",
   "bugs": {
     "url": "https://github.com/askrjs/askr-cli/issues"
@@ -16,18 +16,17 @@
     "url": "git+https://github.com/askrjs/askr-cli.git"
   },
   "bin": {
-    "askr": "./dist/cli.js",
-    "askr-add": "./dist/add.js",
-    "askr-create": "./dist/create.js",
-    "askr-openapi": "./dist/openapi.js",
-    "askr-ssg": "./dist/ssg.js",
-    "asrk": "./dist/cli.js"
+    "askr": "./dist/cli.js"
   },
   "files": [
     "dist",
-    "skills"
+    "skills",
+    "templates"
   ],
   "type": "module",
+  "exports": {
+    "./package.json": "./package.json"
+  },
   "publishConfig": {
     "access": "public"
   },
@@ -39,28 +38,41 @@
     "fmt": "vp fmt .",
     "lint": "vp lint src tests vite.config.ts vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "check": "npm run lint && npm run typecheck && npm test",
-    "prepublishOnly": "npm run check && npm run build"
-  },
-  "devDependencies": {
-    "@askrjs/askr": ">=0.0.30 <0.1.0",
-    "@askrjs/charts": ">=0.0.1 <0.1.0",
-    "@askrjs/logos": ">=0.0.1 <0.1.0",
-    "@askrjs/lucide": ">=0.0.1 <0.1.0",
-    "@askrjs/themes": ">=0.0.1 <0.1.0",
-    "@askrjs/ui": ">=0.0.1 <0.1.0",
-    "@askrjs/vite": ">=0.0.1 <0.1.0",
-    "@types/node": "^25.9.2",
-    "typescript": "^6.0.3",
-    "vite-plus": "^0.1.24",
-    "vitest": "^4.1.10"
+    "test:publint": "publint",
+    "pack:check": "npm pack --ignore-scripts --dry-run --json",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run test:publint && npm run pack:check",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run check"
   },
   "dependencies": {
+    "@npmcli/config": "^9.0.0",
+    "@npmcli/map-workspaces": "^4.0.2",
+    "@redocly/openapi-core": "^2.39.0",
+    "jsonc-parser": "^3.3.1",
+    "minimatch": "^10.2.5",
+    "npm-package-arg": "^13.0.2",
+    "npm-registry-fetch": "^19.1.1",
+    "semver": "^7.8.5",
     "tsx": "^4.23.1",
     "yaml": "^2.9.0"
   },
+  "devDependencies": {
+    "@askrjs/askr": "file:../askr",
+    "@askrjs/charts": "file:../askr-charts",
+    "@askrjs/logos": "file:../askr-logos",
+    "@askrjs/lucide": "file:../askr-lucide",
+    "@askrjs/themes": "file:../askr-themes",
+    "@askrjs/ui": "file:../askr-ui",
+    "@askrjs/vite": "file:../askr-vite",
+    "@types/node": "^25.9.2",
+    "@types/semver": "^7.7.1",
+    "publint": "^0.3.21",
+    "typescript": "^6.0.3",
+    "vite-plus": "^0.2.4",
+    "vitest": "^4.1.10"
+  },
   "peerDependencies": {
-    "@askrjs/askr": ">=0.0.30 <0.1.0"
+    "@askrjs/askr": ">=0.0.53 <0.1.0"
   },
   "peerDependenciesMeta": {
     "@askrjs/askr": {
@@ -68,6 +80,6 @@
     }
   },
   "engines": {
-    "node": ">=18"
+    "node": "^20.19.0 || >=22.12.0"
   }
 }

@@ -38,7 +38,7 @@ export default function SettingsPage() {
         </Stack>
       </section>
 
-      <Block size="lg" gap="4" align="start" class="settings-grid">
+      <Block gap="md" align="start" class="settings-grid">
         <Card>
           <CardHeader>
             <CardTitle>API adapter</CardTitle>
@@ -49,7 +49,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <Field>
-              <label for="api-endpoint">Base URL</label>
+              <label htmlFor="api-endpoint">Base URL</label>
               <InputGroup>
                 <InputGroupText>URL</InputGroupText>
                 <Input

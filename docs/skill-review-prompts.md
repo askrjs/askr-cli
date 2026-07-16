@@ -43,7 +43,7 @@ Expected:
 
 - Uses `group()`, `page()`, `index()`, `route()`, and `fallback()` correctly.
 - Uses relative child paths inside `page()`.
-- Keeps auth and permission metadata in route registration, not page-local checks.
+- Keeps function-based auth and permission requirements in route registration, not page-local checks.
 
 ## Auth And Authorization
 
@@ -55,7 +55,7 @@ Add a billing admin screen that is only available to authenticated users with th
 
 Expected:
 
-- Puts auth and permission policy in route metadata or auth workflow boundaries.
+- Puts auth and permission policy in function requirements or auth workflow boundaries.
 - Does not rely on visual-only client checks.
 - Keeps token and adapter policy outside UI components.
 

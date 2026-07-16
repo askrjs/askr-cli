@@ -14,7 +14,7 @@ const highlights = [
   },
   {
     title: 'Deterministic output',
-    body: 'Keep the route map explicit in ssg.config.ts so the generated site is easy to reason about.',
+    body: 'Keep one explicit route registry in src/routes.tsx so dev and generated output cannot drift.',
   },
   {
     title: 'Hydrated preview',

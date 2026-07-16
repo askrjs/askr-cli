@@ -1,6 +1,8 @@
 import fs from "node:fs/promises";
+import { execFile } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import { expect, test } from "vitest";
 import { runAddCli } from "../src/bin/add";
 import { runCli } from "../src/bin/cli";
@@ -8,6 +10,8 @@ import { runCreateCli } from "../src/bin/create";
 import { listSkillReviewPrompts } from "../src/bin/skill-review";
 import { runSkillsCli } from "../src/bin/skills";
 import { runSsgCli } from "../src/bin/ssg";
+
+const execFileAsync = promisify(execFile);
 
 function createIo(): {
   io: {
@@ -80,6 +84,18 @@ function normalizePromptText(markdown: string): string {
     .trim();
 }
 
+async function sourceFiles(directory: string): Promise<string[]> {
+  const entries = await fs.readdir(directory, { withFileTypes: true });
+  const nested = await Promise.all(
+    entries.map(async (entry) => {
+      const target = path.join(directory, entry.name);
+      if (entry.isDirectory()) return sourceFiles(target);
+      return entry.isFile() && /\.(?:md|ts|tsx)$/.test(entry.name) ? [target] : [];
+    }),
+  );
+  return nested.flat();
+}
+
 function getSkillReviewDocEntries(
   markdown: string,
 ): Array<{ id: string; title: string; prompt: string }> {
@@ -108,6 +124,22 @@ test("runCli prints top-level help", async () => {
   expect(logs.join("\n")).toMatch(/openapi/);
 });
 
+test("package surface ships project templates for installed create commands", async () => {
+  const manifest = JSON.parse(
+    await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),
+  ) as { files: string[] };
+
+  expect(manifest.files).toContain("templates");
+
+  for (const template of ["full-stack", "spa", "ssr", "ssg", "startkit"]) {
+    const templateRoot = new URL(`../templates/${template}/`, import.meta.url);
+    const npmIgnore = await fs.readFile(new URL(".npmignore", templateRoot), "utf8");
+
+    expect(npmIgnore.split(/\r?\n/)).not.toContain("*");
+    await expect(fs.access(new URL("gitignore.template", templateRoot))).resolves.toBeUndefined();
+  }
+});
+
 test("runCli prints version for short and long flags", async () => {
   const packageJson = JSON.parse(
     await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -127,15 +159,41 @@ test("runCli prints version for short and long flags", async () => {
   expect(shortFlag.logs).toEqual([packageJson.version]);
 });
 
-test("package exports the asrk compatibility alias", async () => {
+test("package exports only the canonical askr command", async () => {
   const packageJson = JSON.parse(
     await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),
   ) as {
     bin: Record<string, string>;
   };
 
-  expect(packageJson.bin.asrk).toBe("./dist/cli.js");
-  expect(packageJson.bin["askr-openapi"]).toBe("./dist/openapi.js");
+  expect(packageJson.bin).toEqual({ askr: "./dist/cli.js" });
+});
+
+test("public docs and templates use the clean-break scope vocabulary", async () => {
+  const root = path.resolve(new URL("..", import.meta.url).pathname);
+  const files = [
+    ...(await sourceFiles(path.join(root, "docs"))),
+    ...(await sourceFiles(path.join(root, "templates"))),
+  ];
+  const obsolete = [
+    "defineContext",
+    "readContext",
+    "ThemeProvider",
+    "useTheme",
+    "ToastProvider",
+    "SidebarProvider",
+  ];
+  const violations = (
+    await Promise.all(
+      files.map(async (file) => {
+        const source = await fs.readFile(file, "utf8");
+        return obsolete
+          .filter((name) => source.includes(name))
+          .map((name) => `${path.relative(root, file)}: ${name}`);
+      }),
+    )
+  ).flat();
+  expect(violations).toEqual([]);
 });
 
 test("runCreateCli defaults to startkit when template is omitted", async () => {
@@ -163,11 +221,12 @@ test("runCreateCli defaults to startkit when template is omitted", async () => {
     expect(packageJson).toMatch(/"name": "sample-app"/);
     expect(packageJson).toMatch(/"@askrjs\/lucide"/);
     expect(landingFile).toMatch(/Production-ready starter/);
-    expect(routesFile).toMatch(/auth:\s*["']guest["']/);
-    expect(routesFile).toMatch(/auth:\s*true/);
+    expect(routesFile).toMatch(/auth:\s*requireAnonymous\(\)/);
+    expect(routesFile).toMatch(/auth:\s*requireUser\(\)/);
     expect(routesFile).toMatch(/group\(\{\s*layout:\s*App\s*\}/);
     expect(routesFile).toMatch(/fallback\(/);
-    expect(routerFile).toMatch(/registerRoutes/);
+    expect(routerFile).toMatch(/createRouteRegistry/);
+    expect(routerFile).toMatch(/export const pageRegistry/);
     expect(routerFile).toMatch(/auth:\s*routeAuth/);
     expect(sidebarFile).toMatch(/Navbar\s+orientation="vertical"/);
     expect(sidebarFile).toMatch(/NavGroup id="workspace-nav-group" label="Workspace"/);
@@ -260,7 +319,7 @@ test("runCreateCli scaffolds SPA with the route-first themed app shell", async (
       "utf8",
     );
 
-    expect(rootLayoutFile).toMatch(/ThemeProvider/);
+    expect(rootLayoutFile).toMatch(/ThemeScope/);
     expect(rootLayoutFile).toMatch(/defaultTheme=["']tabby["']/);
     expect(appLayoutFile).toMatch(/Shell/);
     expect(appLayoutFile).toMatch(/Sidebar/);
@@ -323,37 +382,36 @@ test("runCreateCli scaffolds SSG with shared route registration and current buil
       "utf8",
     );
     const ssgConfigFile = await fs.readFile(path.join(appRoot, "ssg.config.ts"), "utf8");
-    const ssgBuildFile = await fs.readFile(path.join(appRoot, "ssg-build.ts"), "utf8");
-    const tsconfigSsgFile = await fs.readFile(path.join(appRoot, "tsconfig.ssg.json"), "utf8");
     const readmeFile = await fs.readFile(path.join(appRoot, "README.md"), "utf8");
     const brief = await fs.readFile(path.join(appRoot, ".askr", "builder-brief.md"), "utf8");
 
     expect(packageJson).toMatch(/"name": "sample-ssg"/);
-    expect(packageJson).toMatch(/"generate": "tsx --tsconfig tsconfig\.ssg\.json ssg-build\.ts"/);
+    expect(packageJson).toMatch(
+      /"generate": "askr ssg --config \.\/ssg\.config\.ts --output \.\/dist"/,
+    );
+    expect(packageJson).toMatch(/"@askrjs\/cli": ">=0\.0\.2 <0\.1\.0"/);
     expect(packageJson).toMatch(/"test": "vp test run -c \.\/vitest\.config\.ts"/);
     expect(packageJson).toMatch(/"fmt": "vp fmt \."/);
-    expect(mainFile).toMatch(/registerRoutes\(registerAppRoutes\)/);
-    expect(mainFile).toMatch(/manifest:\s*getManifest\(\)/);
-    expect(routesFile).toMatch(/export function registerAppRoutes/);
+    expect(mainFile).toMatch(/registry:\s*pageRegistry/);
+    expect(routesFile).toMatch(/export const pageRegistry = createRouteRegistry/);
     expect(routesFile).toMatch(/route\('\/', Home\);/);
     expect(routesFile).toMatch(/route\('\/preview', Preview\);/);
     expect(shellFile).toMatch(/@askrjs\/themes\/components/);
     expect(shellFile).toMatch(/export function SiteHeader/);
-    expect(ssgConfigFile).toMatch(/registerRoutes\(registerAppRoutes\)/);
-    expect(ssgConfigFile).toMatch(/manifest\.records\.map/);
-    expect(ssgConfigFile).toMatch(/handler:\s*record\.handler/);
-    expect(ssgBuildFile).toMatch(/result\.failed > 0/);
-    expect(ssgBuildFile).toMatch(/route\.status === 'error'/);
-    expect(tsconfigSsgFile).toMatch(/"jsxImportSource": "@askrjs\/askr"/);
+    expect(ssgConfigFile).toMatch(/registry:\s*pageRegistry/);
+    expect(ssgConfigFile).toMatch(/export const staticConfig/);
+    expect(ssgConfigFile).toMatch(/\.askr\/client\/assets/);
     expect(readmeFile).toMatch(/Register routes in `src\/routes\.tsx`\./);
-    expect(readmeFile).toMatch(/`ssg\.config\.ts` derives its static route list/);
+    expect(readmeFile).toMatch(/`ssg\.config\.ts` passes the same immutable route registry/);
     expect(brief).toMatch(/## Inspect First In This Scaffold/);
     expect(brief).toMatch(/- src\/routes\.tsx/);
     expect(brief).toMatch(/- src\/components\/site-shell\.tsx/);
-    expect(brief).toMatch(/- ssg-build\.ts/);
+    expect(brief).toMatch(/- ssg\.config\.ts/);
     expect(brief).toMatch(/## Golden Examples In This Scaffold/);
     expect(brief).toMatch(/- src\/routes\.tsx/);
     expect(brief).not.toMatch(/src\/pages\/_routes\.tsx/);
+    await expect(fs.access(path.join(appRoot, "ssg-build.ts"))).rejects.toThrow();
+    await expect(fs.access(path.join(appRoot, "tsconfig.ssg.json"))).rejects.toThrow();
     await expect(fs.access(path.join(appRoot, "node_modules"))).rejects.toThrow();
     await expect(fs.access(path.join(appRoot, "dist"))).rejects.toThrow();
   } finally {
@@ -422,6 +480,87 @@ test("runCreateCli derives a prompt-aware builder blueprint and installs skills"
   } finally {
     process.chdir(previousCwd);
     await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runCreateCli scaffolds a function-first full-stack project", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-"));
+  const previousCwd = process.cwd();
+
+  try {
+    process.chdir(tempRoot);
+    const { io, errors } = createIo();
+    const code = await runCreateCli(
+      ["full-stack", "sample-full-stack", "--no-install", "--no-skills"],
+      io,
+    );
+
+    expect(code).toBe(0);
+    expect(errors).toHaveLength(0);
+
+    const appRoot = path.join(tempRoot, "sample-full-stack");
+    const packageJson = await fs.readFile(path.join(appRoot, "package.json"), "utf8");
+    const packageManifest = JSON.parse(packageJson) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    const indexHtml = await fs.readFile(path.join(appRoot, "index.html"), "utf8");
+    const gitignore = await fs.readFile(path.join(appRoot, ".gitignore"), "utf8");
+    const actionsFile = await fs.readFile(
+      path.join(appRoot, "src", "server", "action-registry.ts"),
+      "utf8",
+    );
+    const routesFile = await fs.readFile(path.join(appRoot, "src", "routes.tsx"), "utf8");
+    const homeFile = await fs.readFile(path.join(appRoot, "src", "pages", "home.tsx"), "utf8");
+    const serverFile = await fs.readFile(path.join(appRoot, "src", "server", "app.ts"), "utf8");
+    const brief = await fs.readFile(path.join(appRoot, ".askr", "builder-brief.md"), "utf8");
+
+    expect(packageJson).toMatch(/"@askrjs\/schema"/);
+    expect(packageJson).toMatch(/"@askrjs\/i18n"/);
+    expect(packageJson).toMatch(/"@askrjs\/otel"/);
+    expect(packageManifest.dependencies["@askrjs/askr"]).toBe(">=0.0.53 <0.1.0");
+    expect(packageManifest.dependencies["@askrjs/themes"]).toBe(">=0.0.12 <0.1.0");
+    expect(packageManifest.dependencies["@askrjs/ui"]).toBe(">=0.0.13 <0.1.0");
+    expect(packageManifest.devDependencies["@askrjs/vite"]).toBe(">=0.0.6 <0.1.0");
+    expect(indexHtml.match(/<!--askr-app-->/g)).toHaveLength(1);
+    expect(indexHtml.match(/<!--askr-head-->/g)).toHaveLength(1);
+    expect(gitignore).toContain("node_modules");
+    expect(actionsFile).toMatch(/createActionRegistry/);
+    expect(actionsFile).toMatch(/export function createActions/);
+    expect(routesFile).toMatch(/actionsFor\('\/'\)/);
+    expect(homeFile).toMatch(/ActionForm\(\{/);
+    expect(homeFile).toMatch(/htmlFor="message"/);
+    expect(homeFile).toMatch(/<input id="message" name="value" required \/>/);
+    expect(serverFile).toMatch(/createAskrPageHandler/);
+    expect(serverFile).toMatch(/createApi/);
+    expect(serverFile).toMatch(/schema: MessageInput/);
+    expect(serverFile).toMatch(/mediaTypes: \['application\/json'\]/);
+    expect(serverFile).toMatch(/csrf/);
+    expect(serverFile).toMatch(/rateLimit/);
+    expect(brief).toMatch(/src\/server\/action-registry\.ts/);
+    expect(brief).toMatch(/src\/schemas\.ts/);
+  } finally {
+    process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("template package floors require the clean-break scope vocabulary", async () => {
+  for (const template of ["full-stack", "spa", "ssr", "ssg", "startkit"]) {
+    const manifest = JSON.parse(
+      await fs.readFile(new URL(`../templates/${template}/package.json`, import.meta.url), "utf8"),
+    ) as { dependencies: Record<string, string> };
+
+    expect(manifest.dependencies["@askrjs/askr"], template).toBe(">=0.0.53 <0.1.0");
+    if (manifest.dependencies["@askrjs/themes"]) {
+      expect(manifest.dependencies["@askrjs/themes"], template).toBe(">=0.0.12 <0.1.0");
+    }
+    if (manifest.dependencies["@askrjs/ui"]) {
+      expect(manifest.dependencies["@askrjs/ui"], template).toBe(">=0.0.13 <0.1.0");
+    }
+    if (manifest.dependencies["@askrjs/auth"]) {
+      expect(manifest.dependencies["@askrjs/auth"], template).toBe(">=0.0.1 <0.1.0");
+    }
   }
 });
 
@@ -545,6 +684,73 @@ test("runCli routes add page through the top-level command", async () => {
   }
 });
 
+test("runAddCli generates a browser-safe action and server registration", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-add-"));
+  const previousCwd = process.cwd();
+
+  try {
+    process.chdir(tempRoot);
+    const createCode = await runCreateCli(
+      ["full-stack", "sample-full-stack", "--no-install", "--no-skills"],
+      createIo().io,
+    );
+    expect(createCode).toBe(0);
+
+    const appRoot = path.join(tempRoot, "sample-full-stack");
+    const { io, errors } = createIo();
+    const code = await runAddCli(
+      ["action", "archive-project", "--route", "/", "--cwd", appRoot],
+      io,
+    );
+
+    expect(code).toBe(0);
+    expect(errors).toHaveLength(0);
+
+    const descriptorFile = await fs.readFile(
+      path.join(appRoot, "src", "actions", "archive-project.ts"),
+      "utf8",
+    );
+    const handlerFile = await fs.readFile(
+      path.join(appRoot, "src", "server", "actions", "archive-project.ts"),
+      "utf8",
+    );
+    const registryFile = await fs.readFile(
+      path.join(appRoot, "src", "server", "action-registry.ts"),
+      "utf8",
+    );
+    const authorizationFile = await fs.readFile(
+      path.join(appRoot, "src", "action-authorizations.ts"),
+      "utf8",
+    );
+    const testFile = await fs.readFile(
+      path.join(appRoot, "tests", "actions", "archive-project.test.ts"),
+      "utf8",
+    );
+
+    expect(descriptorFile).toMatch(/defineAction/);
+    expect(descriptorFile).not.toMatch(/@askrjs\/server/);
+    expect(handlerFile).toMatch(/export async function archiveProject/);
+    expect(registryFile).toMatch(/registry\.register\(archiveProjectAction, archiveProject\)/);
+    expect(authorizationFile).toMatch(/"\/": \[[^\]]*archiveProjectAction[^\]]*\]/);
+    expect(testFile).toMatch(/archiveProjectAction/);
+
+    const forceCode = await runAddCli(
+      ["action", "archive-project", "--route", "/", "--cwd", appRoot, "--force"],
+      io,
+    );
+    expect(forceCode).toBe(0);
+    expect(
+      await fs.readFile(path.join(appRoot, "src", "server", "action-registry.ts"), "utf8"),
+    ).toBe(registryFile);
+    expect(await fs.readFile(path.join(appRoot, "src", "action-authorizations.ts"), "utf8")).toBe(
+      authorizationFile,
+    );
+  } finally {
+    process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("runSsgCli prints help without requiring config", async () => {
   const { io, logs, errors } = createIo();
   const code = await runSsgCli(["--help"], undefined, io);
@@ -552,6 +758,140 @@ test("runSsgCli prints help without requiring config", async () => {
   expect(code).toBe(0);
   expect(errors).toHaveLength(0);
   expect(logs.join("\n")).toMatch(/askr ssg - Static Site Generation for Askr/);
+});
+
+test("runSsgCli loads TypeScript configs without an external loader", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-ssg-"));
+  const configPath = path.join(tempRoot, "ssg.config.ts");
+  await fs.writeFile(
+    configPath,
+    'const routes: Array<{ path: string }> = [{ path: "/" }]; export { routes };\n',
+    "utf8",
+  );
+  const generate = async () => ({
+    mode: "full",
+    successful: 1,
+    totalRoutes: 1,
+    failed: 0,
+    rebuilt: 1,
+    skipped: 0,
+    removed: 0,
+    cacheHits: 0,
+    routes: [{ path: "/", status: "success" }],
+  });
+  const createStaticGen = () => ({ generate });
+  const { io, errors } = createIo();
+
+  try {
+    const code = await runSsgCli(
+      ["--config", configPath, "--output", path.join(tempRoot, "dist")],
+      { createStaticGen },
+      io,
+    );
+    expect(errors).toHaveLength(0);
+    expect(code).toBe(0);
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("askr ssg executes TSX route modules with the project JSX runtime", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(process.cwd(), ".tmp-askr-cli-ssg-"));
+  const configPath = path.join(tempRoot, "ssg.config.ts");
+  const outputDir = path.join(tempRoot, "dist");
+
+  try {
+    await fs.writeFile(
+      path.join(tempRoot, "tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: {
+          jsx: "react-jsx",
+          jsxImportSource: "@askrjs/askr",
+          module: "ESNext",
+          moduleResolution: "Bundler",
+        },
+      }),
+      "utf8",
+    );
+    await fs.writeFile(
+      path.join(tempRoot, "page.tsx"),
+      "export function Page() { return <main>Ready</main>; }\n",
+      "utf8",
+    );
+    await fs.writeFile(
+      configPath,
+      'import { Page } from "./page.tsx"; export const routes = [{ path: "/", component: Page }];\n',
+      "utf8",
+    );
+
+    await execFileAsync(
+      process.execPath,
+      [
+        "--import",
+        "tsx",
+        path.join(process.cwd(), "src", "bin", "ssg.ts"),
+        "--config",
+        configPath,
+        "--output",
+        outputDir,
+      ],
+      { cwd: tempRoot },
+    );
+
+    await expect(fs.readFile(path.join(outputDir, "index.html"), "utf8")).resolves.toContain(
+      "<main>Ready</main>",
+    );
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runSsgCli forwards complete registry-based static config", async () => {
+  const registry = { records: [] };
+  const document = () => "<!doctype html>";
+  const assets = [{ from: ".askr/client/assets", to: "assets" }];
+  const generate = async () => ({
+    mode: "full",
+    successful: 1,
+    totalRoutes: 1,
+    failed: 0,
+    rebuilt: 1,
+    skipped: 0,
+    removed: 0,
+    cacheHits: 0,
+    routes: [{ path: "/", status: "success" }],
+  });
+  let received: Record<string, unknown> | undefined;
+  const { io, errors } = createIo();
+
+  const code = await runSsgCli(
+    ["--config", "ssg.config.ts", "--output", "dist"],
+    {
+      cwd: () => "/workspace",
+      existsSync: () => true,
+      importConfig: async () => ({
+        staticConfig: { registry, document, assets, seed: 42, concurrency: 2 },
+      }),
+      createStaticGen: (options) => {
+        received = options;
+        return { generate };
+      },
+    },
+    io,
+  );
+
+  expect(code).toBe(0);
+  expect(errors).toHaveLength(0);
+  expect(received).toMatchObject({
+    registry,
+    document,
+    assets,
+    seed: 42,
+    concurrency: 2,
+    parallelism: 1,
+    outputDir: path.resolve("/workspace/dist"),
+  });
+  expect(received).not.toHaveProperty("routes");
 });
 
 test("runSkillsCli lists bundled skills", async () => {
@@ -737,7 +1077,8 @@ test("runSkillsCli passes routing-layouts review for an idiomatic route tree", a
     await fs.writeFile(
       path.join(tempRoot, "src", "pages", "app", "_routes.tsx"),
       [
-        "import { fallback, group, index, page } from '@askrjs/askr/router';",
+        "import { requirePermission, requireUser } from '@askrjs/auth';",
+        "import { fallback, group, index, page, route } from '@askrjs/askr/router';",
         "",
         "import SettingsLayout from './_layout';",
         "import SettingsIndexPage from './settings-index';",
@@ -745,16 +1086,14 @@ test("runSkillsCli passes routing-layouts review for an idiomatic route tree", a
         "import NotFoundPage from '../not-found';",
         "",
         "export function registerWorkspaceSettingsRoutes() {",
-        "  return group({",
-        "    path: '/app/workspaces/:workspaceId',",
-        "    layout: SettingsLayout,",
-        "    auth: true,",
-        "    permissions: ['workspace.settings.manage'],",
-        "    children: [",
-        "      page('/settings', WorkspaceSettingsPage),",
-        "      index(SettingsIndexPage),",
-        "      fallback(NotFoundPage),",
-        "    ],",
+        "  group({ auth: requireUser() }, () => {",
+        "    page('/app/workspaces/{workspaceId}', SettingsLayout, () => {",
+        "      index(SettingsIndexPage);",
+        "      route('settings', WorkspaceSettingsPage, {",
+        "        auth: requirePermission('workspace.settings.manage'),",
+        "      });",
+        "      fallback(NotFoundPage);",
+        "    });",
         "  });",
         "}",
       ].join("\n"),
@@ -791,18 +1130,19 @@ test("runSkillsCli passes auth-authorization review for route-owned access polic
     await fs.writeFile(
       path.join(tempRoot, "src", "pages", "app", "billing", "admin.tsx"),
       [
-        "export const billingAdminRoute = {",
-        "  path: '/app/billing/admin',",
-        "  auth: true,",
-        "  permissions: ['billing.manage'],",
-        "};",
+        "import { requirePermission } from '@askrjs/auth';",
+        "import { route } from '@askrjs/askr/router';",
         "",
-        "export default function BillingAdminPage({ session }: { session: { permissions: string[] } | null }) {",
-        "  if (session && !session.permissions.includes('billing.manage')) {",
-        '    return <p role="alert">Access denied</p>;',
-        "  }",
+        "export const billingAdminRoute = route('/app/billing/admin', BillingAdminPage, {",
+        "  auth: requirePermission('billing.manage'),",
+        "});",
         "",
+        "export default function BillingAdminPage() {",
         "  return <section>Billing admin</section>;",
+        "}",
+        "",
+        "export function BillingAdminForbiddenPage() {",
+        '  return <p role="alert">Access denied</p>;',
         "}",
       ].join("\n"),
       "utf8",

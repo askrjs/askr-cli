@@ -1,8 +1,8 @@
 import { state } from '@askrjs/askr';
 import { Link, currentRoute, navigate } from '@askrjs/askr/router';
 import { Button } from '@askrjs/ui/button';
-import { Field, FieldLabel } from '@askrjs/ui/field';
 import { Input } from '@askrjs/ui/input';
+import { Field } from '@askrjs/themes/components';
 import { LockKeyholeIcon, MailIcon } from '@askrjs/lucide';
 import { signIn } from '../../lib/mock-data';
 import {
@@ -68,11 +68,12 @@ export default function LoginPage() {
 
       <form class="auth-form" onSubmit={submit}>
         <Field id="login-email">
-          <FieldLabel fieldId="login-email">Email</FieldLabel>
+          <label htmlFor="login-email">Email</label>
           <label class="input-row">
             <MailIcon size={15} aria-hidden="true" />
             <Input
               type="email"
+              id="login-email"
               value={emailState()}
               onInput={(event: Event) =>
                 setEmailState((event.target as HTMLInputElement).value)
@@ -82,11 +83,12 @@ export default function LoginPage() {
         </Field>
 
         <Field id="login-password">
-          <FieldLabel fieldId="login-password">Password</FieldLabel>
+          <label htmlFor="login-password">Password</label>
           <label class="input-row">
             <LockKeyholeIcon size={15} aria-hidden="true" />
             <Input
               type="password"
+              id="login-password"
               value={passwordState()}
               onInput={(event: Event) =>
                 setPasswordState((event.target as HTMLInputElement).value)
