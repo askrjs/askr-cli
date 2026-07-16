@@ -1,7 +1,7 @@
-type IconComponent = (props: {
-  size?: number;
-  'aria-hidden'?: boolean | 'true' | 'false';
-}) => JSX.Element;
+import type { JSXElement } from '@askrjs/askr/foundations';
+import type { IconProps } from '@askrjs/lucide';
+
+type IconComponent = (props: IconProps) => JSXElement;
 
 export default function StatCard(props: {
   label: string;

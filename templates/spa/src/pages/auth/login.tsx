@@ -4,6 +4,7 @@ import { LockKeyholeIcon } from '@askrjs/lucide';
 import { Input } from '@askrjs/ui';
 import {
   Button,
+  Container,
   Field,
   FieldHint,
   InputGroup,
@@ -37,7 +38,7 @@ export default function LoginPage() {
         <CardContent>
           <Stack gap="4">
             <Field>
-              <label for="email">Work email</label>
+              <label htmlFor="email">Work email</label>
               <InputGroup>
                 <InputGroupText>@</InputGroupText>
                 <Input

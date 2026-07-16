@@ -1,17 +1,17 @@
-import { SidebarLayout } from '@askrjs/themes/default/sidebar-layout';
+import { Shell, ShellMain, ShellNav } from '@askrjs/themes/components';
 import AppHeader from '../../components/app-header';
 import AppSidebar from '../../components/app-sidebar';
 
 export default function AppLayout(props: { children?: unknown }) {
   return (
-    <SidebarLayout
-      sidebar={<AppSidebar />}
-      sidebarWidth="17rem"
-      collapseBelow="lg"
-      class="app-shell"
-    >
-      <AppHeader />
-      <div class="app-main">{props.children}</div>
-    </SidebarLayout>
+    <Shell variant="sidebar" class="app-shell">
+      <ShellNav class="app-shell-nav">
+        <AppSidebar />
+      </ShellNav>
+      <ShellMain class="app-shell-main">
+        <AppHeader />
+        <div class="app-main">{props.children}</div>
+      </ShellMain>
+    </Shell>
   );
 }

@@ -11,10 +11,10 @@ askr create --prompt <text> [name] [--no-install] [--no-skills]
 
 ## Arguments
 
-| Argument   | Description                                         |
-| ---------- | --------------------------------------------------- |
-| `template` | Template to use: `spa`, `ssr`, `ssg`, or `startkit` |
-| `name`     | Output directory name for the new project           |
+| Argument   | Description                                                       |
+| ---------- | ----------------------------------------------------------------- |
+| `template` | Template to use: `spa`, `ssr`, `ssg`, `full-stack`, or `startkit` |
+| `name`     | Output directory name for the new project                         |
 
 If `name` is omitted while `--prompt` is present, the CLI derives a deterministic
 slug from the prompt.
@@ -80,6 +80,18 @@ Static site generation scaffold with a `ssg.config.ts` file pre-configured.
 askr create ssg my-docs-site
 ```
 
+### `full-stack`
+
+The progressive stage after SPA and SSR. It composes pages and APIs with executable
+schemas, declared actions, auth and CSRF seams, metadata, i18n, telemetry, and
+Node/Vite production entrypoints.
+
+```bash
+askr create full-stack my-platform
+cd my-platform
+askr add action approve-request --route /requests/{id}
+```
+
 ### `startkit`
 
 Full application starter with common screens pre-built: dashboard, settings, accounts,
@@ -95,6 +107,10 @@ Stack included:
 - `askr-ui` - UI primitives
 - `askr-themes` - default visual layer
 - `askr-lucide` - icon set
+
+The full-stack template additionally includes `@askrjs/schema`, `@askrjs/i18n`,
+`@askrjs/otel`, `@askrjs/auth`, `@askrjs/server`, `@askrjs/node`, and
+`@askrjs/vite/server`.
 
 ## See also
 

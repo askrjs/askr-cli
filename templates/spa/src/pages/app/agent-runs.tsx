@@ -60,7 +60,7 @@ export default function AgentRunsPage() {
         </Stack>
       </section>
 
-      <Block size="md" gap="4" class="agent-grid">
+      <Block gap="md" class="agent-grid">
         {runs.map((run) => (
           <Card>
             <CardHeader>

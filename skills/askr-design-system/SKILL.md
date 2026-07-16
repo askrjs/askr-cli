@@ -49,7 +49,7 @@ Use this only when a repeated product pattern must become shared across multiple
 - Async states: `EmptyState`, `Spinner`, plus query/resource state-specific copy.
 - App chrome: `Shell`, `ShellNav`, `ShellMain`, `Header`, `Sidebar`, `Navbar`.
 - Navigation: `Nav`, `NavLink`, `NavGroup`, `NavBrand`, `Breadcrumb`, `Pagination`.
-- Menus: themed `Dropdown`, `Menu`, and `Menubar` from `@askrjs/themes/overlays`.
+- Menus: themed `Dropdown`, `Menu`, and `Menubar` from `@askrjs/themes/components`.
 
 ## Never Do These
 

@@ -1,6 +1,6 @@
 ---
 name: askr-theming
-description: Use when styling Askr apps with @askrjs/themes, tokens, data-theme, ThemeProvider, shell/nav/layout primitives, data-slot selectors, visual quality audits, dark mode, and theme/app boundary decisions.
+description: Use when styling Askr apps with @askrjs/themes, tokens, data-theme, ThemeScope, shell/nav/layout primitives, data-slot selectors, visual quality audits, dark mode, and theme/app boundary decisions.
 ---
 
 # Askr Theming
@@ -39,12 +39,21 @@ Use this when styling an Askr app with the theme layer. The goal is one obvious 
 
 ```ts
 import "@askrjs/themes/default";
-import { ThemeProvider } from "@askrjs/themes/theme";
-import { Container, Section, Stack } from "@askrjs/themes/layouts";
-import { Button } from "@askrjs/themes/controls";
-import { Card, CardContent, CardHeader, CardTitle } from "@askrjs/themes/surfaces";
-import { EmptyState } from "@askrjs/themes/feedback";
-import { Shell, ShellMain, ShellNav } from "@askrjs/themes/shells";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Container,
+  EmptyState,
+  Section,
+  Shell,
+  ShellMain,
+  ShellNav,
+  Stack,
+  ThemeScope,
+} from "@askrjs/themes/components";
 ```
 
 ## Never Do These

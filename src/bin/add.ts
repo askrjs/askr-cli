@@ -3,6 +3,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { isDirectExecution } from "./is-direct-execution";
+import { writeFileChanges } from "../file-changes";
 
 type CliIo = Pick<Console, "error" | "log">;
 
@@ -39,9 +40,11 @@ function helpText(): string {
     "",
     "Usage:",
     "  askr add page <name> [--branch app|public] [--cwd <dir>] [--title <title>] [--route <path>] [--force]",
+    "  askr add action <name> --route <path> [--cwd <dir>] [--force]",
     "",
     "Commands:",
     "  page      Scaffold a route page and register it in a route-first SPA branch",
+    "  action    Scaffold a browser descriptor, server handler, registration, authorization, and test",
     "",
     "Options:",
     "  --branch <name>  Route branch to target (default: app)",
@@ -55,9 +58,11 @@ function helpText(): string {
     "  askr add page audit-log",
     "  askr add page ops/audit-log --branch public",
     '  askr add page approvals --title "Human approvals" --route /app/approvals',
+    "  askr add action approve-request --route /requests/{id}",
     "",
     "Notes:",
-    "  The initial shipped generator supports route-first SPA projects created from `askr create spa`.",
+    "  Page generation supports route-first SPA projects created from `askr create spa`.",
+    "  Action generation supports projects created from `askr create full-stack`.",
   ].join("\n");
 }
 
@@ -158,6 +163,168 @@ function buildComponentName(segments: string[]): string {
   return `${toWords(segments)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join("")}Page`;
+}
+
+function buildIdentifier(segments: string[]): string {
+  const [first = "action", ...rest] = toWords(segments);
+  return [first.toLowerCase(), ...rest.map((word) => word.charAt(0).toUpperCase() + word.slice(1))]
+    .join("")
+    .replace(/^[^a-z_$]/i, "action");
+}
+
+interface DeclaredAction {
+  readonly slug: string;
+  readonly descriptorName: string;
+  readonly handlerName: string;
+  readonly routePath: string;
+}
+
+function renderAuthorizationRegistry(actions: readonly DeclaredAction[]): string {
+  const imports = actions.map(
+    (action) => `import { ${action.descriptorName} } from './actions/${action.slug}.js';`,
+  );
+  const routes = new Map<string, DeclaredAction[]>();
+  for (const action of actions) {
+    const entries = routes.get(action.routePath) ?? [];
+    entries.push(action);
+    routes.set(action.routePath, entries);
+  }
+  const routeLines = [...routes]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(
+      ([routePath, entries]) =>
+        `  ${JSON.stringify(routePath)}: [${entries.map((entry) => entry.descriptorName).join(", ")}],`,
+    );
+  return [
+    "import type { ActionDescriptor } from '@askrjs/askr/actions';",
+    ...imports,
+    "",
+    "const actionsByRoute: Readonly<Record<string, readonly ActionDescriptor[]>> = Object.freeze({",
+    ...routeLines,
+    "});",
+    "",
+    "export function actionsFor(path: string): readonly ActionDescriptor[] {",
+    "  return actionsByRoute[path] ?? [];",
+    "}",
+    "",
+  ].join("\n");
+}
+
+function renderServerActionRegistry(actions: readonly DeclaredAction[]): string {
+  return [
+    "import { createActionRegistry } from '@askrjs/server/askr';",
+    ...actions.map(
+      (action) => `import { ${action.descriptorName} } from '../actions/${action.slug}.js';`,
+    ),
+    ...actions.map(
+      (action) => `import { ${action.handlerName} } from './actions/${action.slug}.js';`,
+    ),
+    "import type { AppDependencies } from './dependencies.js';",
+    "",
+    "export function createActions(deps: AppDependencies) {",
+    "  const registry = createActionRegistry(deps, {",
+    "    csrf: { secret: process.env.CSRF_SECRET ?? 'development-only-secret' },",
+    "  });",
+    ...actions.map(
+      (action) => `  registry.register(${action.descriptorName}, ${action.handlerName});`,
+    ),
+    "  return registry;",
+    "}",
+    "",
+  ].join("\n");
+}
+
+async function discoverDeclaredActions(
+  projectRoot: string,
+  replacement: { readonly filePath: string; readonly content: string },
+): Promise<DeclaredAction[]> {
+  const actionsDir = path.join(projectRoot, "src", "actions");
+  const names = await fs.readdir(actionsDir).catch(() => []);
+  const files = new Set(
+    names.filter((name) => name.endsWith(".ts")).map((name) => path.join(actionsDir, name)),
+  );
+  files.add(replacement.filePath);
+  const actions: DeclaredAction[] = [];
+  for (const filePath of [...files].sort()) {
+    const content =
+      filePath === replacement.filePath ? replacement.content : await fs.readFile(filePath, "utf8");
+    const descriptor = /export const (\w+Action) = defineAction\(/.exec(content)?.[1];
+    if (!descriptor) continue;
+    const routeName = `${descriptor}Route`;
+    const routeMatch = new RegExp(`export const ${routeName} = (['"])(.*?)\\1;`).exec(content);
+    if (!routeMatch)
+      throw new Error(`Action descriptor ${path.basename(filePath)} must declare ${routeName}.`);
+    const slug = path.basename(filePath, ".ts");
+    actions.push({
+      slug,
+      descriptorName: descriptor,
+      handlerName: buildIdentifier([slug]),
+      routePath: routeMatch[2]!,
+    });
+  }
+  return actions.sort((left, right) => left.slug.localeCompare(right.slug));
+}
+
+function renderActionDescriptor(options: {
+  descriptorName: string;
+  routePath: string;
+  slug: string;
+}): string {
+  return [
+    "import { defineAction } from '@askrjs/askr/actions';",
+    "import { schema } from '@askrjs/schema';",
+    "",
+    `export const ${options.descriptorName}Route = ${JSON.stringify(options.routePath)};`,
+    "",
+    `export const ${options.descriptorName} = defineAction({`,
+    `  id: '${options.slug}',`,
+    "  input: schema.object({ value: schema.string({ minLength: 1 }) }),",
+    "  invalidates: [],",
+    "});",
+    "",
+  ].join("\n");
+}
+
+function renderActionHandler(options: {
+  descriptorName: string;
+  handlerName: string;
+  slug: string;
+}): string {
+  return [
+    "import type { InferSchema } from '@askrjs/schema';",
+    `import { ${options.descriptorName} } from '../../actions/${options.slug}.js';`,
+    "import type { AppDependencies } from '../dependencies.js';",
+    "",
+    `type Input = InferSchema<typeof ${options.descriptorName}.input>;`,
+    "",
+    `export async function ${options.handlerName}(`,
+    "  _context: unknown,",
+    "  input: Input,",
+    "  deps: Pick<AppDependencies, 'actions'>,",
+    ") {",
+    "  await deps.actions.record({ action: " +
+      JSON.stringify(options.slug) +
+      ", value: input.value });",
+    "  return { result: { accepted: true } };",
+    "}",
+    "",
+  ].join("\n");
+}
+
+function renderActionTest(options: { descriptorName: string; slug: string }): string {
+  return [
+    "import { describe, expect, it } from 'vitest';",
+    `import { ${options.descriptorName} } from '../../src/actions/${options.slug}.js';`,
+    "",
+    `describe('${options.slug} action', () => {`,
+    "  it('should expose a browser-safe executable input contract', () => {",
+    `    expect(${options.descriptorName}.id).toBe('${options.slug}');`,
+    `    expect(${options.descriptorName}.input.safeParse({ value: 'example' }).success).toBe(true);`,
+    `    expect(${options.descriptorName}.input.safeParse({ value: '' }).success).toBe(false);`,
+    "  });",
+    "});",
+    "",
+  ].join("\n");
 }
 
 function buildRoutePath(branch: BranchName, segments: string[], overridePath = ""): string {
@@ -358,6 +525,74 @@ async function addPage(parsed: ParsedArgs, io: CliIo): Promise<number> {
   return 0;
 }
 
+async function addAction(parsed: ParsedArgs, io: CliIo): Promise<number> {
+  if (!parsed.name) {
+    io.error("Action name is required.");
+    return 1;
+  }
+  if (!parsed.routePath || !parsed.routePath.startsWith("/")) {
+    io.error("Action generation requires an absolute --route path.");
+    return 1;
+  }
+
+  const segments = normalizePageSegments(parsed.name);
+  if (segments.length === 0) {
+    io.error("Action name must contain at least one non-empty path segment.");
+    return 1;
+  }
+
+  const projectRoot = path.resolve(parsed.cwd);
+  const slug = segments.join("-");
+  const handlerName = buildIdentifier(segments);
+  const descriptorName = `${handlerName}Action`;
+  const descriptorFile = path.join(projectRoot, "src", "actions", `${slug}.ts`);
+  const handlerFile = path.join(projectRoot, "src", "server", "actions", `${slug}.ts`);
+  const registryFile = path.join(projectRoot, "src", "server", "action-registry.ts");
+  const authorizationFile = path.join(projectRoot, "src", "action-authorizations.ts");
+  const testFile = path.join(projectRoot, "tests", "actions", `${slug}.test.ts`);
+
+  if (!(await pathExists(registryFile)) || !(await pathExists(authorizationFile))) {
+    io.error("Unsupported project layout. Expected an `askr create full-stack` project.");
+    return 1;
+  }
+  if (!parsed.force && ((await pathExists(descriptorFile)) || (await pathExists(handlerFile)))) {
+    io.error(`Action '${slug}' already exists. Pass --force to replace its generated files.`);
+    return 1;
+  }
+
+  try {
+    const descriptor = renderActionDescriptor({
+      descriptorName,
+      routePath: parsed.routePath,
+      slug,
+    });
+    const actions = await discoverDeclaredActions(projectRoot, {
+      filePath: descriptorFile,
+      content: descriptor,
+    });
+    await writeFileChanges([
+      { filePath: descriptorFile, content: descriptor },
+      {
+        filePath: handlerFile,
+        content: renderActionHandler({ descriptorName, handlerName, slug }),
+      },
+      { filePath: testFile, content: renderActionTest({ descriptorName, slug }) },
+      { filePath: registryFile, content: renderServerActionRegistry(actions) },
+      { filePath: authorizationFile, content: renderAuthorizationRegistry(actions) },
+    ]);
+  } catch (error) {
+    io.error("Failed to write generated action artifacts.");
+    io.error(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
+
+  io.log(`Added action '${slug}' for ${parsed.routePath}.`);
+  io.log(`  Descriptor: ${path.relative(projectRoot, descriptorFile).replace(/\\/g, "/")}`);
+  io.log(`  Handler: ${path.relative(projectRoot, handlerFile).replace(/\\/g, "/")}`);
+  io.log(`  Test: ${path.relative(projectRoot, testFile).replace(/\\/g, "/")}`);
+  return 0;
+}
+
 export async function runAddCli(
   args: string[] = process.argv.slice(2),
   io: CliIo = console,
@@ -378,6 +613,10 @@ export async function runAddCli(
 
   if (parsed.command === "page") {
     return addPage(parsed, io);
+  }
+
+  if (parsed.command === "action") {
+    return addAction(parsed, io);
   }
 
   io.error(`Unknown add command: ${parsed.command}`);

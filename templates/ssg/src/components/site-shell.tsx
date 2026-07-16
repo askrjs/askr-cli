@@ -20,7 +20,7 @@ export const navItems = [
 export function SiteHeader() {
   return (
     <Header position="sticky">
-      <Container size="4" py="4">
+      <Container size="xl" paddingY="md">
         <Box class="navbar-shell">
           <Box class="navbar-brand">
             <Link class="brand" href="/">
@@ -47,7 +47,7 @@ export function SiteHeader() {
 
 export function PageFrame({ children }: { children?: unknown }) {
   return (
-    <Container size="4" py="8">
+    <Container size="xl" paddingY="2xl">
       <Stack gap="8">{children}</Stack>
     </Container>
   );
@@ -65,8 +65,8 @@ export function SectionHeader({
   actions?: unknown;
 }) {
   return (
-    <Section class="section-header" size="3">
-      <Block gap="4">
+    <Section class="section-header" paddingY="xl">
+      <Block gap="md">
         <Stack gap="3" class="section-header-copy">
           <Badge>{eyebrow}</Badge>
           <h1>{title}</h1>

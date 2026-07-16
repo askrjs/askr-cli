@@ -9,7 +9,7 @@ export default function AuthLayout({ children }: { children?: unknown }) {
   return (
     <div class="auth-shell">
       <Header position="sticky" class="auth-header">
-        <Container size="fluid">
+        <Container size="full">
           <Inline justify="between" align="center" gap="3" wrap="wrap">
             <Link href="/" class="brand-link">
               <span class="brand-mark">A</span>

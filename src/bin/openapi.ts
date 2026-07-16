@@ -55,7 +55,12 @@ const defaultDeps: OpenApiDeps = {
 };
 
 export function parseOpenApiArgs(args: readonly string[]): ParsedArgs {
-  const parsed: ParsedArgs = { entry: "./src/api.ts", output: "./openapi.yml", check: false, help: false };
+  const parsed: ParsedArgs = {
+    entry: "./src/api.ts",
+    output: "./openapi.yml",
+    check: false,
+    help: false,
+  };
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--entry" || value === "--output") {
@@ -76,13 +81,22 @@ function exporterFrom(moduleValue: unknown): DocumentExporter {
     throw new Error("API module must have a default export with toOpenApiDocument()");
   }
   let exported = (moduleValue as { default?: unknown }).default;
-  for (let depth = 0; depth < 3 && exported && typeof exported === "object" &&
-       typeof (exported as Partial<DocumentExporter>).toOpenApiDocument !== "function" &&
-       "default" in exported; depth += 1) {
+  for (
+    let depth = 0;
+    depth < 3 &&
+    exported &&
+    typeof exported === "object" &&
+    typeof (exported as Partial<DocumentExporter>).toOpenApiDocument !== "function" &&
+    "default" in exported;
+    depth += 1
+  ) {
     exported = (exported as { default?: unknown }).default;
   }
-  if (!exported || typeof exported !== "object" ||
-      typeof (exported as Partial<DocumentExporter>).toOpenApiDocument !== "function") {
+  if (
+    !exported ||
+    typeof exported !== "object" ||
+    typeof (exported as Partial<DocumentExporter>).toOpenApiDocument !== "function"
+  ) {
     throw new Error("API module must have a default export with toOpenApiDocument()");
   }
   return exported as DocumentExporter;

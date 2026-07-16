@@ -12,20 +12,25 @@ export const routeAuth: RouteAuthOptions = {
 
     if (!email) {
       return {
+        authenticated: false,
+        principal: null,
         session: null,
-        user: null,
+        tenant: null,
       };
     }
 
-    const identity = { email };
+    const principal = { id: email, subject: email, email };
+    const session = { id: `browser:${email}`, subject: email };
 
     return {
-      session: identity,
-      user: identity,
+      authenticated: true,
+      principal,
+      session,
+      tenant: null,
     };
   },
   loginPath: loginRoute.href,
-  guestRedirectTo: ({ search }) => {
+  authenticatedRedirectTo: ({ search }) => {
     const nextTarget = new URLSearchParams(search).get('next');
     const resolvedTarget = normalizeProtectedRouteTarget(nextTarget);
     return resolvedTarget || dashboardRoute.href;

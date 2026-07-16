@@ -6,6 +6,8 @@ import {
   LayersIcon,
   ShieldCheckIcon,
 } from '@askrjs/lucide';
+import type { IconProps } from '@askrjs/lucide';
+import type { JSXElement } from '@askrjs/askr/foundations';
 import { NavBrand, NavGroup, NavLink, Navbar } from '@askrjs/themes/components';
 import {
   accountsRoute,
@@ -18,7 +20,7 @@ import {
 type NavItem = {
   href: string;
   label: string;
-  icon: (props: { size?: number; 'aria-hidden'?: boolean }) => unknown;
+  icon: (props: IconProps) => JSXElement;
 };
 
 const primaryNav: NavItem[] = [

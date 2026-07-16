@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { register } from "tsx/esm/api";
 import { isDirectExecution } from "./is-direct-execution";
 
 type CliIo = Pick<Console, "error" | "log">;
@@ -18,10 +20,13 @@ interface ParsedSsgArgs {
 }
 
 interface LoadedConfig {
-  routes: unknown[];
+  routes?: unknown[];
+  registry?: unknown;
   seed?: unknown;
   dataOverrides?: unknown;
   concurrency?: number;
+  document?: unknown;
+  assets?: unknown[];
 }
 
 interface RouteResult {
@@ -52,19 +57,16 @@ interface SsgDeps {
   existsSync?: typeof existsSync;
   importConfig?: (filePath: string) => Promise<unknown>;
   createStaticGen?: (options: {
-    routes: unknown[];
+    routes?: unknown[];
+    registry?: unknown;
     outputDir: string;
     seed?: unknown;
     dataOverrides?: unknown;
     concurrency?: number;
     parallelism: number | "auto";
+    document?: unknown;
+    assets?: unknown[];
   }) => StaticGen;
-}
-
-function toFileUrl(filePath: string): string {
-  const normalized = resolve(filePath).replace(/\\/g, "/");
-  const leadingSlash = normalized.startsWith("/") ? "" : "/";
-  return `file://${leadingSlash}${encodeURI(normalized)}`;
 }
 
 const helpText = `
@@ -88,12 +90,29 @@ Examples:
   askr ssg --config ./ssg.config.ts --output ./dist/static --incremental
 `;
 
-const defaultDeps: Required<Pick<SsgDeps, "cwd" | "existsSync" | "importConfig" | "now">> = {
+const defaultDeps: Required<Pick<SsgDeps, "cwd" | "existsSync" | "now">> = {
   cwd: () => process.cwd(),
   now: () => Date.now(),
   existsSync,
-  importConfig: async (filePath: string) => import(toFileUrl(filePath)),
 };
+
+async function importProjectConfig(filePath: string): Promise<{
+  module: unknown;
+  unregister: () => Promise<void>;
+}> {
+  const tsconfig = resolve(dirname(filePath), "tsconfig.json");
+  const unregister = register(existsSync(tsconfig) ? { tsconfig } : undefined);
+
+  try {
+    return {
+      module: await import(pathToFileURL(filePath).href),
+      unregister,
+    };
+  } catch (error) {
+    await unregister();
+    throw error;
+  }
+}
 
 async function loadCreateStaticGen(): Promise<NonNullable<SsgDeps["createStaticGen"]>> {
   const mod = (await import("@askrjs/askr/ssg")) as {
@@ -209,25 +228,44 @@ export async function runSsgCli(
     return 1;
   }
 
+  let unregisterProjectLoader: (() => Promise<void>) | undefined;
   try {
     io.log(`Loading config: ${resolvedConfigPath}`);
 
-    const configModule = (await resolvedDeps.importConfig(resolvedConfigPath)) as {
+    let imported: unknown;
+    if (deps.importConfig) {
+      imported = await deps.importConfig(resolvedConfigPath);
+    } else {
+      const loaded = await importProjectConfig(resolvedConfigPath);
+      imported = loaded.module;
+      unregisterProjectLoader = loaded.unregister;
+    }
+    const configModule = imported as {
       default?: LoadedConfig;
+      staticConfig?: LoadedConfig;
       routes?: unknown[];
+      registry?: unknown;
       seed?: unknown;
       dataOverrides?: unknown;
       concurrency?: number;
+      document?: unknown;
+      assets?: unknown[];
     };
-    const candidate = configModule.default ?? configModule;
+    const candidate = configModule.default ?? configModule.staticConfig ?? configModule;
+    const hasRoutes = Array.isArray(candidate.routes);
+    const hasRegistry = candidate.registry !== undefined;
 
-    if (!Array.isArray(candidate.routes)) {
-      io.error("Error: Config must export routes array");
+    if (hasRoutes === hasRegistry) {
+      io.error("Error: Config must provide exactly one route source: routes or registry");
       return 1;
     }
     const config = candidate as LoadedConfig;
 
-    io.log(`Generating ${config.routes.length} routes...`);
+    io.log(
+      hasRoutes
+        ? `Generating ${config.routes?.length ?? 0} routes...`
+        : "Generating registered routes...",
+    );
 
     const createStaticGen =
       typeof resolvedDeps.createStaticGen === "function"
@@ -235,12 +273,14 @@ export async function runSsgCli(
         : await loadCreateStaticGen();
 
     const ssg = createStaticGen({
-      routes: config.routes,
+      ...(hasRoutes ? { routes: config.routes } : { registry: config.registry }),
       outputDir: resolvedOutputDir,
       seed: config.seed,
       dataOverrides: config.dataOverrides,
       concurrency: config.concurrency,
       parallelism: parsed.workers,
+      document: config.document,
+      assets: config.assets,
     });
 
     const startTime = resolvedDeps.now();
@@ -268,6 +308,8 @@ export async function runSsgCli(
       io.error(error.stack);
     }
     return 1;
+  } finally {
+    await unregisterProjectLoader?.();
   }
 }
 

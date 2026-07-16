@@ -1,8 +1,8 @@
 import { currentRoute, Link } from '@askrjs/askr/router';
 import { Input } from '@askrjs/ui/input';
-import { Inline } from '@askrjs/ui/inline';
-import { Spacer } from '@askrjs/ui/spacer';
 import {
+  Avatar,
+  AvatarFallback,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -11,8 +11,8 @@ import {
   DropdownMenuPortal,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@askrjs/ui/dropdown-menu';
-import { Avatar, AvatarFallback } from '@askrjs/ui/avatar';
+  Inline,
+} from '@askrjs/themes/components';
 import { SearchIcon } from '@askrjs/lucide';
 import { buildLoginHref, getRouteLabel, settingsRoute } from '../lib/routes';
 import { showToast } from '../toast';
@@ -23,7 +23,12 @@ export default function AppHeader() {
 
   return (
     <header class="app-header">
-      <Inline align="center" gap="var(--ak-space-lg)" wrap="wrap">
+      <Inline
+        align="center"
+        justify="between"
+        gap="var(--ak-space-lg)"
+        wrap="wrap"
+      >
         <div class="breadcrumbs">
           <span>App</span>
           <span aria-hidden="true">/</span>
@@ -34,8 +39,6 @@ export default function AppHeader() {
           <SearchIcon size={15} aria-hidden="true" />
           <Input placeholder="Search docs, accounts, settings..." disabled />
         </label>
-
-        <Spacer />
 
         <DropdownMenu>
           <DropdownMenuTrigger class="header-account-trigger">

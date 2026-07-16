@@ -5,7 +5,7 @@ import { EmptyState } from '@askrjs/themes/components';
 
 export default function NotFoundPage() {
   return (
-    <Section size="4">
+    <Section paddingY="2xl">
       <Container size="sm">
         <EmptyState
           title="Page not found"

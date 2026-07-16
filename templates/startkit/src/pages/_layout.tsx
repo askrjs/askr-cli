@@ -1,6 +1,6 @@
-import './styles.css';
+import '../styles.css';
 import {
-  ToastProvider,
+  ToastHost,
   Toast,
   ToastClose,
   ToastDescription,
@@ -25,8 +25,11 @@ export default function App({ children }: { children?: unknown }) {
     setOpen: setOpenState,
   });
 
+  const messageTitle = () => messageState()?.title ?? '';
+  const messageDescription = () => messageState()?.description;
+
   return (
-    <ToastProvider duration={2400}>
+    <ToastHost duration={2400}>
       <div class="app-root">{children}</div>
 
       <ToastViewport class="app-toast-viewport" />
@@ -41,13 +44,13 @@ export default function App({ children }: { children?: unknown }) {
           }}
           class="app-toast"
         >
-          <ToastTitle>{messageState().title}</ToastTitle>
-          {messageState().description && (
-            <ToastDescription>{messageState().description}</ToastDescription>
+          <ToastTitle>{messageTitle()}</ToastTitle>
+          {messageDescription() && (
+            <ToastDescription>{messageDescription()}</ToastDescription>
           )}
           <ToastClose aria-label="Dismiss notification">Dismiss</ToastClose>
         </Toast>
       )}
-    </ToastProvider>
+    </ToastHost>
   );
 }

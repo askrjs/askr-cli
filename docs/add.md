@@ -2,8 +2,8 @@
 
 Generate feature code into an existing Askr project.
 
-`askr add` now ships with an initial `page` generator for route-first SPA apps.
-Additional generators remain on the roadmap.
+`askr add` ships page generation for route-first SPA apps and action generation
+for full-stack apps.
 
 ## Philosophy
 
@@ -16,6 +16,7 @@ should remain ordinary Askr code: no runtime magic and no generator dependency.
 askr add page <name>
 askr add page <name> --branch public
 askr add page ops/audit-log --cwd ./my-app
+askr add action approve-request --route /requests/{id} --cwd ./my-platform
 ```
 
 Options:
@@ -36,6 +37,19 @@ Generated output:
 
 - `src/pages/<branch>/<name>.tsx`
 - Route registration in `src/pages/<branch>/_routes.tsx`
+
+## `add action`
+
+`add action` generates the browser-safe and server-only halves separately:
+
+- `src/actions/<name>.ts` - descriptor and executable input schema
+- `src/server/actions/<name>.ts` - server handler
+- registration in `src/server/action-registry.ts`
+- matched-route authorization in `src/action-authorizations.ts`
+- `tests/actions/<name>.test.ts` - descriptor contract regression
+
+The generated browser descriptor never imports `@askrjs/server`. Dependencies
+are captured once by the function-first server composition root.
 
 ## Planned commands
 

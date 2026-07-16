@@ -6,9 +6,11 @@ export default defineConfig({
       add: "src/bin/add.ts",
       cli: "src/bin/cli.ts",
       create: "src/bin/create.ts",
+      generate: "src/bin/generate.ts",
       openapi: "src/bin/openapi.ts",
       skills: "src/bin/skills.ts",
       ssg: "src/bin/ssg.ts",
+      update: "src/bin/update.ts",
     },
     format: ["esm"],
     outDir: "dist",
@@ -19,7 +21,7 @@ export default defineConfig({
     sourcemap: true,
     copy: ["templates", "skills"],
     deps: {
-      neverBundle: [/^@askrjs\/askr(?:\/.*)?$/],
+      neverBundle: [/^@askrjs\/askr(?:\/.*)?$/, "tsx/esm/api"],
     },
   },
 });

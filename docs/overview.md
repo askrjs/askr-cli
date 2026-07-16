@@ -25,11 +25,8 @@ npm install -g @askrjs/cli
 askr --help
 ```
 
-Compatibility aliases are also exposed:
-
-- `askr-cli`
-- `askr-create`
-- `askr-ssg`
+No compatibility command aliases are published. Use the `askr` command and
+its named subcommands.
 
 ## Core commands
 
@@ -39,23 +36,29 @@ Compatibility aliases are also exposed:
 askr create [template] <name>   # Scaffold a new project
 askr create --prompt "..."     # Infer a template and emit a builder blueprint
 askr add page <name>            # Generate a route page into an existing SPA app
+askr add action <name> --route /path # Generate a declared full-stack action
 askr skills install             # Install bundled Askr agent skills
 askr skills sync                # Update bundled Askr agent skills
 askr ssg --config <path>        # Run static site generation
+askr outdated                   # Report available dependency updates
+askr update                     # Apply safe dependency manifest updates
+askr upgrade                    # Apply latest peer-compatible upgrades
 ```
 
 ### Project templates
 
-| Template   | Description                                                        |
-| ---------- | ------------------------------------------------------------------ |
-| `spa`      | Client-rendered app with router support                            |
-| `ssr`      | Server-rendered app scaffold                                       |
-| `ssg`      | Static generation scaffold with `ssg.config.ts`                    |
-| `startkit` | Full application starter: dashboards, auth screens, full structure |
+| Template     | Description                                                        |
+| ------------ | ------------------------------------------------------------------ |
+| `spa`        | Client-rendered app with router support                            |
+| `ssr`        | Server-rendered app scaffold                                       |
+| `ssg`        | Static generation scaffold with `ssg.config.ts`                    |
+| `full-stack` | Pages, APIs, schemas, actions, auth, i18n, telemetry, Node/Vite    |
+| `startkit`   | Full application starter: dashboards, auth screens, full structure |
 
 ```bash
 askr create startkit my-app
 askr create spa my-dashboard
+askr create full-stack my-platform
 askr create --prompt "Agent workflow console with approvals and analytics"
 ```
 
@@ -70,10 +73,15 @@ Shipped today:
 ```bash
 askr add page <name>
 askr add page ops/audit-log --branch public
+askr add action approve-request --route /requests/{id}
 ```
 
 `askr add page` currently targets route-first SPA projects created by
 `askr create spa` and updates the owning `_routes.tsx` file directly.
+
+`askr add action` targets projects created by `askr create full-stack`. It emits
+a browser-safe descriptor, server-only handler, composition registration,
+matched-route authorization, and a focused contract test.
 
 Still planned:
 

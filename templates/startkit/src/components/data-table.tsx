@@ -1,5 +1,5 @@
-import { For } from '@askrjs/askr/for';
-import { Skeleton } from '@askrjs/ui/skeleton';
+import { For } from '@askrjs/askr/control';
+import { Skeleton } from '@askrjs/themes/components';
 import EmptyState from './empty-state';
 import { joinClasses } from '../utils/join-classes';
 
@@ -64,13 +64,15 @@ export default function DataTable<Row>(props: {
           </tr>
         </thead>
         <tbody>
-          {For(props.rows, props.rowKey, (row: Row) => (
-            <tr class={props.rowClass?.(row)}>
-              {props.columns.map((column) => (
-                <td class={column.class}>{column.render(row)}</td>
-              ))}
-            </tr>
-          ))}
+          <For each={props.rows} by={props.rowKey}>
+            {(row: Row) => (
+              <tr class={props.rowClass?.(row)}>
+                {props.columns.map((column) => (
+                  <td class={column.class}>{column.render(row)}</td>
+                ))}
+              </tr>
+            )}
+          </For>
         </tbody>
       </table>
     </div>

@@ -53,12 +53,14 @@ describe("OpenAPI CLI", () => {
 
   it("serializes exact ordered YAML without aliases and with one newline", () => {
     const shared = { type: "string" };
-    expect(serializeOpenApi({
-      openapi: "3.1.2",
-      info: { title: "Fixture API", version: "1.0.0" },
-      paths: {},
-      components: { schemas: { A: shared, B: shared } },
-    })).toBe(`openapi: 3.1.2
+    expect(
+      serializeOpenApi({
+        openapi: "3.1.2",
+        info: { title: "Fixture API", version: "1.0.0" },
+        paths: {},
+        components: { schemas: { A: shared, B: shared } },
+      }),
+    ).toBe(`openapi: 3.1.2
 info:
   title: Fixture API
   version: 1.0.0
@@ -76,7 +78,9 @@ components:
     const item = await fixture(validModule);
     try {
       const result = io();
-      expect(await runOpenApiCli(["--entry", item.entry, "--output", item.output], result.value)).toBe(0);
+      expect(
+        await runOpenApiCli(["--entry", item.entry, "--output", item.output], result.value),
+      ).toBe(0);
       expect(result.errors).toEqual([]);
       expect(await fs.readFile(item.output, "utf8")).toBe(`openapi: 3.1.2
 info:
@@ -95,22 +99,43 @@ paths: {}
     try {
       const writes = vi.fn(async () => undefined);
       const fresh = io();
-      await fs.writeFile(item.output, serializeOpenApi({
-        openapi: "3.1.2",
-        info: { title: "Fixture API", version: "1.0.0" },
-        paths: {},
-      }));
-      expect(await runOpenApiCli(["--entry", item.entry, "--output", item.output, "--check"], fresh.value, { writeFile: writes })).toBe(0);
+      await fs.writeFile(
+        item.output,
+        serializeOpenApi({
+          openapi: "3.1.2",
+          info: { title: "Fixture API", version: "1.0.0" },
+          paths: {},
+        }),
+      );
+      expect(
+        await runOpenApiCli(
+          ["--entry", item.entry, "--output", item.output, "--check"],
+          fresh.value,
+          { writeFile: writes },
+        ),
+      ).toBe(0);
       expect(fresh.logs.join("\n")).toMatch(/is current/);
 
       await fs.writeFile(item.output, "stale\n");
       const stale = io();
-      expect(await runOpenApiCli(["--entry", item.entry, "--output", item.output, "--check"], stale.value, { writeFile: writes })).toBe(1);
+      expect(
+        await runOpenApiCli(
+          ["--entry", item.entry, "--output", item.output, "--check"],
+          stale.value,
+          { writeFile: writes },
+        ),
+      ).toBe(1);
       expect(stale.errors.join("\n")).toMatch(/is stale/);
 
       await fs.rm(item.output);
       const missing = io();
-      expect(await runOpenApiCli(["--entry", item.entry, "--output", item.output, "--check"], missing.value, { writeFile: writes })).toBe(1);
+      expect(
+        await runOpenApiCli(
+          ["--entry", item.entry, "--output", item.output, "--check"],
+          missing.value,
+          { writeFile: writes },
+        ),
+      ).toBe(1);
       expect(missing.errors.join("\n")).toMatch(/is missing/);
       expect(writes).not.toHaveBeenCalled();
     } finally {
@@ -120,13 +145,23 @@ paths: {}
 
   it.each([
     ["invalid default export", "export default {};", /default export with toOpenApiDocument/],
-    ["invalid document", "export default { toOpenApiDocument: () => null };", /must return an OpenAPI document object/],
-    ["definition error", "export default { toOpenApiDocument: () => { throw new Error('invalid definition') } };", /invalid definition/],
+    [
+      "invalid document",
+      "export default { toOpenApiDocument: () => null };",
+      /must return an OpenAPI document object/,
+    ],
+    [
+      "definition error",
+      "export default { toOpenApiDocument: () => { throw new Error('invalid definition') } };",
+      /invalid definition/,
+    ],
   ])("reports %s", async (_name, source, expected) => {
     const item = await fixture(source);
     try {
       const result = io();
-      expect(await runOpenApiCli(["--entry", item.entry, "--output", item.output], result.value)).toBe(1);
+      expect(
+        await runOpenApiCli(["--entry", item.entry, "--output", item.output], result.value),
+      ).toBe(1);
       expect(result.errors.join("\n")).toMatch(expected);
       await expect(fs.stat(item.output)).rejects.toMatchObject({ code: "ENOENT" });
     } finally {
@@ -138,7 +173,9 @@ paths: {}
     const item = await fixture(validModule);
     try {
       const result = io();
-      expect(await runCli(["openapi", "--entry", item.entry, "--output", item.output], result.value)).toBe(0);
+      expect(
+        await runCli(["openapi", "--entry", item.entry, "--output", item.output], result.value),
+      ).toBe(0);
       expect(await fs.readFile(item.output, "utf8")).toMatch(/^openapi: 3\.1\.2/m);
     } finally {
       await fs.rm(item.root, { recursive: true, force: true });
@@ -148,14 +185,24 @@ paths: {}
   it("uses a temporary sibling before rename", async () => {
     const events: string[] = [];
     const result = io();
-    expect(await runOpenApiCli([], result.value, {
-      cwd: () => "/work",
-      importModule: async () => ({ default: { toOpenApiDocument: () => ({ openapi: "3.1.2" }) } }),
-      mkdir: async () => { events.push("mkdir"); },
-      writeFile: async (file) => { events.push(`write:${file}`); },
-      rename: async (from, to) => { events.push(`rename:${from}:${to}`); },
-      temporarySuffix: () => "fixed",
-    })).toBe(0);
+    expect(
+      await runOpenApiCli([], result.value, {
+        cwd: () => "/work",
+        importModule: async () => ({
+          default: { toOpenApiDocument: () => ({ openapi: "3.1.2" }) },
+        }),
+        mkdir: async () => {
+          events.push("mkdir");
+        },
+        writeFile: async (file) => {
+          events.push(`write:${file}`);
+        },
+        rename: async (from, to) => {
+          events.push(`rename:${from}:${to}`);
+        },
+        temporarySuffix: () => "fixed",
+      }),
+    ).toBe(0);
     expect(events).toEqual([
       "mkdir",
       "write:/work/openapi.yml.fixed.tmp",

@@ -10,9 +10,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@askrjs/ui/dialog';
-import { Field, FieldLabel } from '@askrjs/ui/field';
 import { Input } from '@askrjs/ui/input';
-import { Inline } from '@askrjs/ui/inline';
+import { Field, Inline } from '@askrjs/themes/components';
 import {
   Select,
   SelectContent,
@@ -82,8 +81,9 @@ export default function SettingsPage() {
           <h2>Profile</h2>
 
           <Field id="profile-name">
-            <FieldLabel fieldId="profile-name">Full name</FieldLabel>
+            <label htmlFor="profile-name">Full name</label>
             <Input
+              id="profile-name"
               value={fullNameState()}
               onInput={(event: Event) =>
                 setFullNameState((event.target as HTMLInputElement).value)
@@ -92,8 +92,9 @@ export default function SettingsPage() {
           </Field>
 
           <Field id="profile-email">
-            <FieldLabel fieldId="profile-email">Email</FieldLabel>
+            <label htmlFor="profile-email">Email</label>
             <Input
+              id="profile-email"
               type="email"
               value={emailState()}
               onInput={(event: Event) =>
@@ -103,9 +104,9 @@ export default function SettingsPage() {
           </Field>
 
           <Field id="profile-timezone">
-            <FieldLabel fieldId="profile-timezone">Timezone</FieldLabel>
+            <label id="profile-timezone-label">Timezone</label>
             <Select value={timezoneState()} onValueChange={setTimezoneState}>
-              <SelectTrigger aria-label="Timezone">
+              <SelectTrigger aria-labelledby="profile-timezone-label">
                 <SelectValue placeholder="Select timezone" />
               </SelectTrigger>
               <SelectPortal>
@@ -153,12 +154,12 @@ export default function SettingsPage() {
           </label>
 
           <Field id="appearance-mode">
-            <FieldLabel fieldId="appearance-mode">Appearance mode</FieldLabel>
+            <label id="appearance-mode-label">Appearance mode</label>
             <Select
               value={appearanceMode()}
               onValueChange={(value) => setAppearance(value as AppearanceMode)}
             >
-              <SelectTrigger aria-label="Appearance mode">
+              <SelectTrigger aria-labelledby="appearance-mode-label">
                 <SelectValue placeholder="Appearance" />
               </SelectTrigger>
               <SelectPortal>

@@ -1,20 +1,34 @@
-import type { RouteConfig } from '@askrjs/askr/ssg';
-import { getManifest, registerRoutes } from '@askrjs/askr/router';
-import { registerAppRoutes } from './src/routes';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import type { DocumentRenderArgs } from '@askrjs/askr/ssg';
+import { pageRegistry } from './src/routes';
 
-registerRoutes(registerAppRoutes);
+export const outputDir = './dist';
 
-const manifest = getManifest();
+let clientTemplate: string | undefined;
 
-export const routes: RouteConfig[] = manifest.records.map((record) => ({
-  path: record.path,
-  handler: record.handler,
-  namespace: record.options.namespace,
-  auth: record.options.auth,
-  role: record.options.role,
-  permission: record.options.permission,
-  policies: record.options.policies,
-  entries: record.options.entries,
-}));
+function renderDocument({ appHtml }: DocumentRenderArgs) {
+  clientTemplate ??= readFileSync(
+    resolve(process.cwd(), '.askr/client/index.html'),
+    'utf8'
+  );
 
-export const outputDir = './dist/static';
+  const appRoot = /<div([^>]*\bid=["']app["'][^>]*)>\s*<\/div>/i;
+  if (!appRoot.test(clientTemplate)) {
+    throw new Error('Built client template must contain an empty #app root.');
+  }
+
+  return clientTemplate.replace(appRoot, `<div$1>${appHtml}</div>`);
+}
+
+export const staticConfig = {
+  registry: pageRegistry,
+  outputDir,
+  document: renderDocument,
+  assets: [
+    {
+      from: resolve(process.cwd(), '.askr/client/assets'),
+      to: 'assets',
+    },
+  ],
+};

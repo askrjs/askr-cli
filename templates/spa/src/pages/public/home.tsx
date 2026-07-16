@@ -49,9 +49,9 @@ const capabilities = [
 export default function HomePage() {
   return (
     <>
-      <Section size="4">
-        <Container size="4">
-          <Block size="lg" gap="5" align="center" class="hero-grid">
+      <Section paddingY="2xl">
+        <Container size="xl">
+          <Block gap="lg" align="center" class="hero-grid">
             <Stack gap="lg" class="hero-copy">
               <Badge>Route-first Askr SPA</Badge>
               <Stack gap="md">
@@ -108,9 +108,9 @@ export default function HomePage() {
         </Container>
       </Section>
 
-      <Section size="3">
-        <Container size="4">
-          <Block size="md" gap="4" class="feature-grid">
+      <Section paddingY="xl">
+        <Container size="xl">
+          <Block gap="md" class="feature-grid">
             {capabilities.map((item) => (
               <Card>
                 <CardHeader>
@@ -124,8 +124,8 @@ export default function HomePage() {
         </Container>
       </Section>
 
-      <Section size="3">
-        <Container size="3">
+      <Section paddingY="xl">
+        <Container size="lg">
           <EmptyState
             icon={<CheckCircle2Icon size={26} aria-hidden="true" />}
             title="Built from solved primitives"

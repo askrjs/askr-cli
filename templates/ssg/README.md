@@ -9,7 +9,7 @@ The starter keeps the authoring loop small and explicit:
 1. Run `npm run dev` for the SPA-style editing experience.
 2. Edit the page components in `src/pages/`.
 3. Register routes in `src/routes.tsx`.
-4. Run `npm run generate` to write static HTML into `dist/static/`.
+4. Run `npm run build` to build client assets and atomically generate `dist/`.
 5. Run `npm run preview` to check the production build locally.
 
 ## Sample pages
@@ -23,17 +23,17 @@ The starter keeps the authoring loop small and explicit:
 
 ```bash
 npm run dev        # Start dev server (runs as SPA)
-npm run build      # Build for production
-npm run generate   # Generate static HTML pages
+npm run build      # Build assets and generate the complete static site
+npm run generate   # Regenerate static HTML with the Askr CLI
 npm run preview    # Preview production build
 npm test           # Run tests
 npm run lint       # Lint code
 npm run fmt        # Format code
-npm run type-check # Type check
+npm run typecheck  # Type check
 ```
 
 ## Static generation
 
-Run `npm run generate` to pre-render all routes as static HTML files in `dist/static/`.
+Run `npm run build` to compile browser assets and pre-render every route into `dist/`. The `askr ssg` command owns both full and incremental generation, and publishes routes, metadata, the incremental manifest, and browser assets together.
 
-`ssg.config.ts` derives its static route list from the same route registration used in dev mode, so the shell and leaf pages stay in sync.
+`ssg.config.ts` passes the same immutable route registry used in dev mode, so the shell and leaf pages stay in sync.

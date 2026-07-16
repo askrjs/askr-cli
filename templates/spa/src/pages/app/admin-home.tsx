@@ -56,7 +56,7 @@ export default function AdminHomePage() {
       </section>
 
       {operations.pending && !snapshot ? (
-        <Block size="sm" gap="4">
+        <Block gap="md">
           <Skeleton style="height: 8rem" />
           <Skeleton style="height: 8rem" />
           <Skeleton style="height: 8rem" />
@@ -65,7 +65,7 @@ export default function AdminHomePage() {
 
       {snapshot ? (
         <>
-          <Block size="sm" gap="4" class="metric-grid">
+          <Block gap="md" class="metric-grid">
             {snapshot.metrics.map((metric) => (
               <MetricCard
                 label={metric.label}
@@ -75,7 +75,7 @@ export default function AdminHomePage() {
             ))}
           </Block>
 
-          <Block size="lg" gap="4" align="stretch" class="chart-grid">
+          <Block gap="md" align="stretch" class="chart-grid">
             <Card>
               <CardHeader>
                 <CardTitle>Run throughput</CardTitle>
