@@ -212,7 +212,7 @@ function renderAuthorizationRegistry(actions: readonly DeclaredAction[]): string
 
 function renderServerActionRegistry(actions: readonly DeclaredAction[]): string {
   return [
-    "import { createActionRegistry } from '@askrjs/server/askr';",
+    "import { defineServerActions, handleAction } from '@askrjs/server/askr';",
     ...actions.map(
       (action) => `import { ${action.descriptorName} } from '../actions/${action.slug}.js';`,
     ),
@@ -222,13 +222,13 @@ function renderServerActionRegistry(actions: readonly DeclaredAction[]): string 
     "import type { AppDependencies } from './dependencies.js';",
     "",
     "export function createActions(deps: AppDependencies) {",
-    "  const registry = createActionRegistry(deps, {",
+    "  return defineServerActions({ dependencies: deps,",
     "    csrf: { secret: process.env.CSRF_SECRET ?? 'development-only-secret' },",
-    "  });",
+    "  },",
     ...actions.map(
-      (action) => `  registry.register(${action.descriptorName}, ${action.handlerName});`,
+      (action) => `    handleAction(${action.descriptorName}, ${action.handlerName}),`,
     ),
-    "  return registry;",
+    "  );",
     "}",
     "",
   ].join("\n");

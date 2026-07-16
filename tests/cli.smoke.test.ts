@@ -525,7 +525,8 @@ test("runCreateCli scaffolds a function-first full-stack project", async () => {
     expect(indexHtml.match(/<!--askr-app-->/g)).toHaveLength(1);
     expect(indexHtml.match(/<!--askr-head-->/g)).toHaveLength(1);
     expect(gitignore).toContain("node_modules");
-    expect(actionsFile).toMatch(/createActionRegistry/);
+    expect(actionsFile).toMatch(/defineServerActions/);
+    expect(actionsFile).toMatch(/handleAction\(createMessageAction, createMessage\)/);
     expect(actionsFile).toMatch(/export function createActions/);
     expect(routesFile).toMatch(/actionsFor\('\/'\)/);
     expect(homeFile).toMatch(/ActionForm\(\{/);
@@ -730,7 +731,7 @@ test("runAddCli generates a browser-safe action and server registration", async 
     expect(descriptorFile).toMatch(/defineAction/);
     expect(descriptorFile).not.toMatch(/@askrjs\/server/);
     expect(handlerFile).toMatch(/export async function archiveProject/);
-    expect(registryFile).toMatch(/registry\.register\(archiveProjectAction, archiveProject\)/);
+    expect(registryFile).toMatch(/handleAction\(archiveProjectAction, archiveProject\)/);
     expect(authorizationFile).toMatch(/"\/": \[[^\]]*archiveProjectAction[^\]]*\]/);
     expect(testFile).toMatch(/archiveProjectAction/);
 
