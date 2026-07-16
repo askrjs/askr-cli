@@ -28,7 +28,7 @@ const document = {
 
 describe("askr generate", () => {
   it("should generate deterministic files given recursive OpenAPI 3.1 when rendering", () => {
-    const first = generateFiles(document); const second = generateFiles(structuredClone(document)); expect(second).toEqual(first); expect(first["schemas.ts"]).toContain("\"parent\"?: User"); expect(first["api.ts"]).toContain("getUser: get(\"/users/{id}\")"); expect(first["api.ts"]).toContain("securitySchemes");
+    const first = generateFiles(document); const second = generateFiles(structuredClone(document)); expect(second).toEqual(first); expect(first["schemas.ts"]).toContain("\"parent\"?: User"); expect(first["api.ts"]).toContain("getUser: get(\"/users/{id}\")"); expect(first["api.ts"]).toContain('params<GetUserPath>({ "id": { style: "simple", explode: false } })'); expect(first["api.ts"]).toContain('query<GetUserQuery>({ "include": { style: "form", explode: true } })'); expect(first["api.ts"]).toContain("securitySchemes");
   });
   it("should include an exact pointer given an unsupported operation when rendering", () => {
     const invalid: any = structuredClone(document); invalid.paths["/users/{id}"].get.callbacks = {}; expect(() => generateFiles(invalid)).toThrow(/getUser: Callbacks are unsupported at #\/paths\/.*\/get\/callbacks/);
