@@ -1,9 +1,11 @@
-import { createServerApp } from '@askrjs/server';
-import { createAskrPageHandler } from '@askrjs/server/askr';
+import { createAskrApp } from '@askrjs/server/askr';
 import { pageRegistry } from './routes';
 
-const app = createServerApp({
-  fallback: createAskrPageHandler({ registry: pageRegistry }),
+const app = createAskrApp({
+  name: '{{appName}}',
+  version: '0.1.0',
+  dependencies: undefined,
+  pages: pageRegistry,
 });
 
 export { app };
