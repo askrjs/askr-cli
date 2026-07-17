@@ -75,6 +75,85 @@ describe("update project discovery", () => {
     expect(project.workspaces.map((workspace) => workspace.name)).toEqual(["root", "web"]);
   });
 
+  test("should honor exclusions given ordered workspace globs when discovering", async () => {
+    const root = await tempRoot();
+    await writeManifest(root, {
+      name: "root",
+      workspaces: ["packages/*", "!packages/excluded"],
+    });
+    await writeManifest(path.join(root, "packages", "app"), { name: "app" });
+    await writeManifest(path.join(root, "packages", "excluded"), { name: "excluded" });
+
+    const project = await discoverProject({
+      cwd: root,
+      packagePatterns: [],
+      workspacePatterns: [],
+    });
+
+    expect(project.workspaces.map((workspace) => workspace.name)).toEqual(["root", "app"]);
+  });
+
+  test("should normalize leading slashes and even negations given workspace globs when discovering", async () => {
+    const root = await tempRoot();
+    await writeManifest(root, {
+      name: "root",
+      workspaces: ["/packages/*", "!packages/reincluded", "!!packages/reincluded"],
+    });
+    await writeManifest(path.join(root, "packages", "app"), { name: "app" });
+    await writeManifest(path.join(root, "packages", "reincluded"), { name: "reincluded" });
+
+    const project = await discoverProject({
+      cwd: root,
+      packagePatterns: [],
+      workspacePatterns: [],
+    });
+
+    expect(project.workspaces.map((workspace) => workspace.name)).toEqual([
+      "root",
+      "app",
+      "reincluded",
+    ]);
+  });
+
+  test("should include a symlinked directory given a matching workspace glob when discovering", async () => {
+    const root = await tempRoot();
+    await writeManifest(root, { name: "root", workspaces: ["packages/*"] });
+    const target = path.join(root, "targets", "linked");
+    await writeManifest(target, { name: "linked" });
+    await fs.mkdir(path.join(root, "packages"));
+    await fs.symlink(
+      target,
+      path.join(root, "packages", "linked"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
+
+    const project = await discoverProject({
+      cwd: root,
+      packagePatterns: [],
+      workspacePatterns: [],
+    });
+
+    expect(project.workspaces.map((workspace) => workspace.name)).toEqual(["root", "linked"]);
+  });
+
+  test("should reject an outside-root declaration given a parent workspace pattern when discovering", async () => {
+    const root = await tempRoot();
+    await writeManifest(root, { name: "root", workspaces: ["../outside"] });
+
+    await expect(
+      discoverProject({ cwd: root, packagePatterns: [], workspacePatterns: [] }),
+    ).rejects.toThrow(/outside the project root/i);
+  });
+
+  test("should reject the workspace root given a root-matching declaration when discovering", async () => {
+    const root = await tempRoot();
+    await writeManifest(root, { name: "root", workspaces: ["."] });
+
+    await expect(
+      discoverProject({ cwd: root, packagePatterns: [], workspacePatterns: [] }),
+    ).rejects.toThrow(/includes the workspace root/i);
+  });
+
   test("should reject duplicate workspace names given two declared manifests when discovering", async () => {
     const root = await tempRoot();
     await writeManifest(root, { name: "root", workspaces: ["packages/*"] });
@@ -111,6 +190,50 @@ describe("update project discovery", () => {
       ["link-protocol", "local"],
       ["local-package", "local"],
       ["workspace-protocol", "local"],
+    ]);
+  });
+
+  test("should keep npm-compatible non-registry specifications local given shorthand forms when discovering", async () => {
+    const root = await tempRoot();
+    await writeManifest(root, {
+      name: "root",
+      dependencies: {
+        drive: "C:fixture",
+        http: "http:fixture.invalid/archive.tgz",
+        scoped: "@scope/fixture",
+        tarball: "fixture.tgz",
+      },
+    });
+
+    const project = await discoverProject({
+      cwd: root,
+      packagePatterns: [],
+      workspacePatterns: [],
+    });
+
+    expect(project.occurrences.map((entry) => [entry.package, entry.kind])).toEqual([
+      ["drive", "local"],
+      ["http", "local"],
+      ["scoped", "local"],
+      ["tarball", "local"],
+    ]);
+  });
+
+  test("should keep an option-like package name out of registry access when discovering", async () => {
+    const root = await tempRoot();
+    await writeManifest(root, {
+      name: "root",
+      dependencies: { "--registry=https://example.invalid": "^1.0.0" },
+    });
+
+    const project = await discoverProject({
+      cwd: root,
+      packagePatterns: [],
+      workspacePatterns: [],
+    });
+
+    expect(project.occurrences).toMatchObject([
+      { kind: "manual", reason: "invalid registry package name", registryManaged: false },
     ]);
   });
 

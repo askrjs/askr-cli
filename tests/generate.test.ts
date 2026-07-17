@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import { runGenerateCli } from "../src/bin/generate";
-import { generateFiles, writeGenerated } from "../src/generate/generator";
+import { generateFiles, loadOpenApi, writeGenerated } from "../src/generate/generator";
 
 const document = {
   openapi: "3.1.0", info: { title: "Users", version: "1" },
@@ -44,6 +44,38 @@ describe("askr generate", () => {
   });
   it("should load JSON and route output given valid CLI arguments when generating", async () => {
     const root = await mkdtemp(join(tmpdir(), "askr-cli-generate-")); const input = join(root, "openapi.json"); const output = join(root, "generated"); await writeFile(input, JSON.stringify(document)); const messages: string[] = []; expect(await runGenerateCli([input, "--output", output], { log: (m) => messages.push(m), error: (m) => messages.push(m) })).toBe(0); expect(await readdir(output)).toEqual(expect.arrayContaining(["api.ts", "schemas.ts"])); expect(await runGenerateCli([input, "-o", output, "--check"], { log() {}, error() {} })).toBe(0);
+  });
+  it("should bundle repeated and recursive external schemas given a file reference", async () => {
+    const root = await mkdtemp(join(tmpdir(), "askr-external-openapi-"));
+    await writeFile(join(root, "models.yaml"), [
+      "components:",
+      "  schemas:",
+      "    User:",
+      "      type: object",
+      "      required: [id]",
+      "      properties:",
+      "        id: { type: string }",
+      "        parent: { $ref: '#/components/schemas/User' }",
+    ].join("\n"));
+    await writeFile(join(root, "openapi.yaml"), [
+      "openapi: 3.1.0",
+      "info: { title: External, version: '1' }",
+      "paths:",
+      "  /first:",
+      "    get:",
+      "      operationId: first",
+      "      responses:",
+      "        '200': { description: ok, content: { application/json: { schema: { $ref: './models.yaml#/components/schemas/User' } } } }",
+      "  /second:",
+      "    get:",
+      "      operationId: second",
+      "      responses:",
+      "        '200': { description: ok, content: { application/json: { schema: { $ref: './models.yaml#/components/schemas/User' } } } }",
+    ].join("\n"));
+    const bundled = await loadOpenApi(join(root, "openapi.yaml"));
+    expect(bundled.paths["/first"].get.responses["200"].content["application/json"].schema).toEqual({ $ref: "#/components/schemas/User" });
+    expect(bundled.paths["/second"].get.responses["200"].content["application/json"].schema).toEqual({ $ref: "#/components/schemas/User" });
+    expect(bundled.components.schemas.User.properties.parent).toEqual({ $ref: "#/components/schemas/User" });
   });
   it("should reject unknown and missing options given invalid CLI arguments when parsing", async () => {
     const io = { log() {}, error() {} }; expect(await runGenerateCli(["x", "--wat", "-o", "y"], io)).toBe(1); expect(await runGenerateCli(["x"], io)).toBe(1); expect(await runGenerateCli(["x", "y", "-o", "z"], io)).toBe(1);

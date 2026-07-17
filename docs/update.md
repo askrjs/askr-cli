@@ -92,8 +92,10 @@ compatibility.
 
 The command loads npm's project, user, global, environment, proxy, TLS, cache,
 scoped-registry, and authentication configuration with npm's own configuration
-stack. Registry metadata is revalidated online, fetched at most once per
-package, and limited to eight concurrent requests.
+stack. It invokes the installed `npm` executable in read-only `npm view` mode;
+an `npm_execpath` supplied by pnpm or Yarn is not reused. Registry metadata is
+revalidated online, fetched at most once per package, and limited to eight
+concurrent requests.
 
 Any required registry, tag, configuration, or write failure makes the complete
 plan fail with exit code `1`; no manifest edits are retained. Diagnostics never

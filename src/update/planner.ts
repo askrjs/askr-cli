@@ -1,6 +1,6 @@
 import semver from "semver";
-import { npmPackageArg } from "./npm-adapters";
 import { analyzeRange, isBreakingChange, rewriteRange } from "./range";
+import { parseDependencySpecification } from "./specification";
 import type {
   DependencyOccurrence,
   PackageDecision,
@@ -188,12 +188,7 @@ function occurrenceKey(
 
 function resolveSpecificationVersion(specification: string, packument: Packument): string | null {
   const versions = publishedVersions(packument);
-  let parsed: ReturnType<typeof npmPackageArg.resolve>;
-  try {
-    parsed = npmPackageArg.resolve("placeholder", specification);
-  } catch {
-    return null;
-  }
+  const parsed = parseDependencySpecification(specification);
   if (parsed.type === "tag") {
     const tagged = packument["dist-tags"]?.[parsed.rawSpec];
     return typeof tagged === "string" && semver.valid(tagged) ? tagged : null;

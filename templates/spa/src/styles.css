@@ -1,5 +1,5 @@
 @import '@askrjs/themes/default';
-@import '@askrjs/charts/default';
+@import '@askrjs/charts/styles';
 @import './styles/reset.css';
 @import './styles/tokens.css';
 @import './styles/theme.css';

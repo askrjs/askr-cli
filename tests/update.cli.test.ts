@@ -260,6 +260,34 @@ describe("update CLI", () => {
     expect(await fs.readFile(nestedPath, "utf8")).toBe(beforeNested);
   });
 
+  test("should preserve manifest formatting given escaped keys and multiple edits when writing", async () => {
+    const source =
+      '{\r\n\t"dependencies": {\r\n\t\t"\\u0040scope/foo": "1.0.0",\r\n\t\t"bar": "~2.0.0"\r\n\t}\r\n}\r\n';
+    const root = await tempRoot(source);
+    const manifestPath = path.join(root, "package.json");
+
+    await writeManifestEdits([
+      {
+        manifestPath,
+        section: "dependencies",
+        package: "@scope/foo",
+        currentSpecification: "1.0.0",
+        proposedSpecification: "1.1.0",
+      },
+      {
+        manifestPath,
+        section: "dependencies",
+        package: "bar",
+        currentSpecification: "~2.0.0",
+        proposedSpecification: "~2.1.0",
+      },
+    ]);
+
+    expect(await fs.readFile(manifestPath, "utf8")).toBe(
+      source.replace('"1.0.0"', '"1.1.0"').replace('"~2.0.0"', '"~2.1.0"'),
+    );
+  });
+
   test("should expose update help given top-level CLI help when dispatching", async () => {
     const capture = ioCapture();
 
@@ -269,7 +297,7 @@ describe("update CLI", () => {
     expect(capture.logs.join("\n")).toMatch(/upgrade\s+Apply latest peer-compatible/);
   });
 
-  test("should ship only Askr-owned updater dependencies given the package surface when inspecting", async () => {
+  test("should keep the shipped runtime dependency surface narrow when inspecting", async () => {
     const manifest = JSON.parse(
       await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),
     ) as {
@@ -285,15 +313,12 @@ describe("update CLI", () => {
     const forbiddenAlias = ["n", "c", "u"].join("");
 
     expect(manifest.engines.node).toBe("^20.19.0 || >=22.12.0");
-    expect(manifest.dependencies).toMatchObject({
-      "@npmcli/config": expect.any(String),
-      "@npmcli/map-workspaces": expect.any(String),
-      "jsonc-parser": expect.any(String),
-      minimatch: expect.any(String),
-      "npm-package-arg": expect.any(String),
-      "npm-registry-fetch": expect.any(String),
-      semver: expect.any(String),
-    });
+    expect(Object.keys(manifest.dependencies).sort()).toEqual([
+      "js-yaml",
+      "minimatch",
+      "semver",
+      "tsx",
+    ]);
     expect(JSON.stringify(manifest)).not.toContain(forbiddenPackage);
     expect(JSON.stringify(manifest)).not.toContain(forbiddenAlias);
     expect(sources.join("\n")).not.toContain(forbiddenPackage);
@@ -305,6 +330,8 @@ describe("update CLI", () => {
     const source = await fs.readFile(new URL("../src/bin/cli.ts", import.meta.url), "utf8");
 
     expect(source).toContain('await import("./update")');
-    expect(source).not.toMatch(/^import .* from "\.\/(?:add|create|generate|openapi|skills|ssg|update)";/m);
+    expect(source).not.toMatch(
+      /^import .* from "\.\/(?:add|create|generate|openapi|skills|ssg|update)";/m,
+    );
   });
 });

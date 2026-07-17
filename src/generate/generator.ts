@@ -1,6 +1,7 @@
-import { createConfig, bundle } from "@redocly/openapi-core";
 import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { load } from "js-yaml";
 
 type Json = Record<string, any>;
 const OWNED = [".askr-generated.json", "schemas.ts", "operations.ts", "api.ts", "index.ts"] as const;
@@ -28,10 +29,130 @@ function responseSchema(operation: Json, at: string, success: boolean) { const e
 function pickContent(content: Json | undefined, at: string, direction: "request" | "response") { const entries = Object.entries<Json>(content ?? {}).sort(([a], [b]) => a.localeCompare(b)); if (!entries.length) return { type: "undefined", codec: "empty()", media: [] as string[] }; const types = entries.map(([mediaType, value]) => ({ mediaType, type: schemaType(value.schema ?? {}, `${at}/content/${mediaType.replace(/~/g, "~0").replace(/\//g, "~1")}/schema`, direction) })); const union = [...new Set(types.map((v) => v.type))].join(" | "); const codec = types.length === 1 ? codecFor(types[0]!.mediaType, union) : `content({ ${types.map((v) => `${JSON.stringify(v.mediaType)}: ${codecFor(v.mediaType, v.type)}`).join(", ")} })`; return { type: union, codec, media: types.map((v) => v.mediaType) }; }
 function codecFor(mediaType: string, type: string) { if (mediaType === "application/json" || mediaType.endsWith("+json")) return `json<${type}>()`; if (mediaType.startsWith("text/")) return "text()"; if (mediaType === "application/x-www-form-urlencoded") return "urlEncoded()"; if (mediaType === "multipart/form-data") return "multipart()"; if (mediaType === "application/octet-stream") return "arrayBuffer()"; fail(`Unsupported media type ${mediaType}`, "#/content"); }
 
+type SourceDocument = { uri: string; document: Json };
+
+const pointerPart = (value: string): string => decodeURIComponent(value).replace(/~1/g, "/").replace(/~0/g, "~");
+const pointerValue = (document: Json, fragment: string): unknown => {
+  let value: unknown = document;
+  for (const part of fragment.replace(/^#?\/?/, "").split("/").filter(Boolean)) {
+    if (!value || typeof value !== "object") throw new GenerationError(`Reference target is missing at #/${part}`);
+    value = (value as Record<string, unknown>)[pointerPart(part)];
+  }
+  if (value === undefined) throw new GenerationError(`Reference target is missing at ${fragment || "#"}`);
+  return value;
+};
+
+function parseOpenApiDocument(contents: string, source: string): Json {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(contents);
+  } catch {
+    try {
+      parsed = load(contents);
+    } catch (error) {
+      throw new GenerationError(`Unable to parse OpenAPI document ${source}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new GenerationError(`OpenAPI document must be an object: ${source}`);
+  return parsed as Json;
+}
+
+async function readSource(uri: string): Promise<SourceDocument> {
+  if (uri.startsWith("http://") || uri.startsWith("https://")) {
+    const response = await fetch(uri);
+    if (!response.ok) throw new GenerationError(`Unable to fetch OpenAPI reference ${uri}: ${response.status} ${response.statusText}`);
+    return { uri, document: parseOpenApiDocument(await response.text(), uri) };
+  }
+  const path = decodeURIComponent(new URL(uri).pathname);
+  return { uri, document: parseOpenApiDocument(await readFile(path, "utf8"), path) };
+}
+
+class OpenApiBundler {
+  private readonly sources = new Map<string, Promise<SourceDocument>>();
+  private readonly aliases = new Map<string, string>();
+  private readonly names = new Map<string, string>();
+
+  constructor(private readonly root: Json, private readonly rootUri: string) {}
+
+  async bundle(): Promise<Json> {
+    if (!this.root.components) this.root.components = {};
+    if (!this.root.components.schemas) this.root.components.schemas = {};
+    await this.expandObject(this.root, this.rootUri, this.root, new Set());
+    return this.root;
+  }
+
+  private async source(uri: string): Promise<SourceDocument> {
+    let pending = this.sources.get(uri);
+    if (!pending) {
+      pending = readSource(uri);
+      this.sources.set(uri, pending);
+    }
+    return pending;
+  }
+
+  private componentName(uri: string, fragment: string): string {
+    const canonical = `${uri}#${fragment}`;
+    const existing = this.aliases.get(canonical);
+    if (existing) return existing;
+    const raw = fragment.split("/").filter(Boolean).at(-1) ?? basename(new URL(uri).pathname).replace(/\.[^.]+$/, "");
+    const base = pascal(pointerPart(raw)) || "ExternalSchema";
+    let name = base;
+    let suffix = 2;
+    while (this.names.has(name) && this.names.get(name) !== canonical) name = `${base}${suffix++}`;
+    this.aliases.set(canonical, name);
+    this.names.set(name, canonical);
+    return name;
+  }
+
+  private async expandObject(value: Json, uri: string, document: Json, stack: Set<string>): Promise<void> {
+    for (const [key, child] of Object.entries(value)) value[key] = await this.expand(child, uri, document, stack);
+  }
+
+  private async expand(value: unknown, uri: string, document: Json, stack: Set<string>): Promise<unknown> {
+    if (Array.isArray(value)) return Promise.all(value.map((item) => this.expand(item, uri, document, stack)));
+    if (!value || typeof value !== "object") return value;
+    const object = value as Json;
+    if (typeof object.$ref === "string") {
+      const resolved = await this.resolveRef(object.$ref, uri, document, stack);
+      const siblingEntries = Object.entries(object).filter(([key]) => key !== "$ref");
+      if (!siblingEntries.length) return resolved;
+      const result = resolved && typeof resolved === "object" && !Array.isArray(resolved) ? { ...(resolved as Json) } : {};
+      for (const [key, child] of siblingEntries) result[key] = await this.expand(child, uri, document, stack);
+      return result;
+    }
+    const result: Json = {};
+    for (const [key, child] of Object.entries(object)) result[key] = await this.expand(child, uri, document, stack);
+    return result;
+  }
+
+  private async resolveRef(ref: string, baseUri: string, document: Json, stack: Set<string>): Promise<unknown> {
+    const hash = ref.indexOf("#");
+    const targetUri = hash === -1 ? new URL(ref, baseUri).href : new URL(ref.slice(0, hash) || baseUri, baseUri).href;
+    const fragment = hash === -1 ? "" : ref.slice(hash + 1);
+    const canonical = `${targetUri}#${fragment}`;
+    const targetSource = targetUri === this.rootUri ? { uri: targetUri, document } : await this.source(targetUri);
+    const target = pointerValue(targetSource.document, fragment);
+    const isRootSchema = targetUri === this.rootUri && fragment.startsWith("/components/schemas/");
+    if (isRootSchema) return { $ref: `#${fragment}` };
+    if (fragment.startsWith("/components/schemas/")) {
+      const name = this.componentName(targetUri, fragment);
+      if (stack.has(canonical)) return { $ref: `#/components/schemas/${name}` };
+      if (!(name in this.root.components.schemas)) {
+        this.root.components.schemas[name] = {};
+        const next = new Set(stack).add(canonical);
+        this.root.components.schemas[name] = await this.expand(target, targetSource.uri, targetSource.document, next) as Json;
+      }
+      return { $ref: `#/components/schemas/${name}` };
+    }
+    if (stack.has(canonical)) throw new GenerationError(`Circular non-schema reference at ${ref}`);
+    return this.expand(target, targetSource.uri, targetSource.document, new Set(stack).add(canonical));
+  }
+}
+
 export async function loadOpenApi(input: string): Promise<Json> {
-  const config = await createConfig({}); const ref = /^https?:\/\//.test(input) ? input : resolve(input); const result = await bundle({ ref, config, dereference: false, removeUnusedComponents: false });
-  const errors = result.problems.filter((problem) => problem.severity === "error"); if (errors.length) throw new GenerationError(errors.map((e) => `${e.message} at ${e.location?.[0]?.pointer ?? "#"}`).join("\n"));
-  return result.bundle.parsed as Json;
+  const uri = /^https?:\/\//.test(input) ? input : pathToFileURL(resolve(input)).href;
+  const source = await readSource(uri);
+  return new OpenApiBundler(source.document, source.uri).bundle();
 }
 export function generateFiles(document: Json): Record<(typeof OWNED)[number], string> {
   const version = String(document.openapi ?? ""); if (!/^3\.(0|1)\.\d+$/.test(version)) fail(`Unsupported OpenAPI version ${version || "missing"}`, "#/openapi"); if (document.webhooks) fail("Webhooks are unsupported", "#/webhooks");

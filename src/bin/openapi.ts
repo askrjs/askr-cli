@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 import fs from "node:fs/promises";
+import { dump } from "js-yaml";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { tsImport } from "tsx/esm/api";
-import { stringify } from "yaml";
 import { isDirectExecution } from "./is-direct-execution";
 
 type CliIo = Pick<Console, "error" | "log">;
@@ -103,7 +103,7 @@ function exporterFrom(moduleValue: unknown): DocumentExporter {
 }
 
 export function serializeOpenApi(document: unknown): string {
-  const yaml = stringify(document, { aliasDuplicateObjects: false, lineWidth: 0 });
+  const yaml = dump(document, { lineWidth: -1, noCompatMode: true, noRefs: true });
   return `${yaml.replace(/\n+$/, "")}\n`;
 }
 

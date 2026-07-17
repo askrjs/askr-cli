@@ -8,13 +8,18 @@ export type OperationRun = {
   updatedAt: string;
 };
 
+export type OperationsChartRow = {
+  label: string;
+  value: number;
+};
+
 export type OperationsSnapshot = {
   version: number;
   consistency: 'fresh' | 'pending-write' | 'stale';
   lastEventId: string;
   metrics: Array<{ label: string; value: string; trend: string }>;
-  throughput: Array<{ label: string; value: number }>;
-  lag: Array<{ label: string; value: number }>;
+  throughput: OperationsChartRow[];
+  lag: OperationsChartRow[];
   runs: OperationRun[];
 };
 
