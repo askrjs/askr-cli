@@ -325,7 +325,7 @@ test("runCreateCli scaffolds SPA with the route-first themed app shell", async (
     expect(appLayoutFile).toMatch(/Sidebar/);
     expect(appLayoutFile).toMatch(/ThemeToggle/);
     expect(appLayoutFile).toMatch(/appNavItems/);
-    expect(packageJson).toMatch(/"@askrjs\/charts"/);
+    expect(packageJson).toMatch(/"@askrjs\/charts": ">=0\.1\.0 <0\.2\.0"/);
     expect(routesFile).toMatch(/registerPublicRoutes/);
     expect(routesFile).toMatch(/registerAuthRoutes/);
     expect(routesFile).toMatch(/registerAppRoutes/);
@@ -343,6 +343,7 @@ test("runCreateCli scaffolds SPA with the route-first themed app shell", async (
     expect(stylesFile).toMatch(/@import ["']\.\/styles\/theme\.css["']/);
     expect(stylesFile).toMatch(/@import ["']\.\/styles\/layout\.css["']/);
     expect(stylesFile).toMatch(/@import ["']\.\/styles\/components\.css["']/);
+    expect(stylesFile).toMatch(/@import ["']@askrjs\/charts\/styles["']/);
     expect(resetStylesFile).toMatch(/@layer reset/);
     expect(tokensStylesFile).toMatch(/@layer tokens/);
     expect(themeStylesFile).toMatch(/@layer theme/);
@@ -352,8 +353,11 @@ test("runCreateCli scaffolds SPA with the route-first themed app shell", async (
     expect(homeFile).toMatch(/auth branch/);
     expect(homeFile).toMatch(/@askrjs\/themes\/components/);
     expect(dashboardFile).toMatch(/resource/);
-    expect(dashboardFile).toMatch(/@askrjs\/charts\/components/);
+    expect(dashboardFile).toMatch(/createPlot<OperationsChartRow>/);
+    expect(dashboardFile).toMatch(/from ["']@askrjs\/charts["']/);
+    expect(dashboardFile).not.toMatch(/@askrjs\/charts\/components/);
     expect(operationsFile).toMatch(/loadOperations/);
+    expect(adapterFile).toMatch(/export type OperationsChartRow/);
     expect(adapterFile).toMatch(/AbortSignal/);
   } finally {
     process.chdir(previousCwd);

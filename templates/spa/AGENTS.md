@@ -23,7 +23,7 @@ npm run fmt        # Prettier
 - **Data:** Route/container components own resources; `src/features` owns product workflows; `src/adapters` owns API clients, transports, abort handling, and generated clients.
 - **Consistency:** Event-sourced screens should expose pending writes, projection lag, stale data, retries, and manual refresh instead of hiding everything behind one loading state.
 - **Styling:** Keep `src/styles.css` thin. Customize theme values in `src/styles/tokens.css`, global defaults in `src/styles/theme.css`, shell structure in `src/styles/layout.css`, and component classes in `src/styles/components.css`.
-- **Charts:** Import chart components from `@askrjs/charts/components`; chart CSS is loaded from `@askrjs/charts/default`.
+- **Charts:** Create typed plot namespaces from `@askrjs/charts` at module scope and compose marks inside `Plot.Root`; chart CSS is loaded from `@askrjs/charts/styles`.
 - **Vite plugin:** `askr()` from `@askrjs/vite` handles JSX transform. Do not add manual esbuild JSX config.
 
 ## File Structure

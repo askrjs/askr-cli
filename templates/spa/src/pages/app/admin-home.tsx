@@ -1,5 +1,5 @@
 import { resource } from '@askrjs/askr/resources';
-import { BarChart, Sparkline } from '@askrjs/charts/components';
+import { createPlot } from '@askrjs/charts';
 import { AlertCircleIcon, RefreshCwIcon } from '@askrjs/lucide';
 import { Button } from '@askrjs/themes/components';
 import {
@@ -16,8 +16,11 @@ import { Block, Inline, Section, Stack } from '@askrjs/themes/components';
 import { EmptyState } from '@askrjs/themes/components';
 import MetricCard from '../../components/shared/metric-card';
 import StatusBadge from '../../components/shared/status-badge';
+import type { OperationsChartRow } from '../../adapters/operations-client';
 import { loadOperations } from '../../features/operations/operations.query';
 import { formatRelativeTime } from '../../shared/format';
+
+const OperationsPlot = createPlot<OperationsChartRow>();
 
 export default function AdminHomePage() {
   const operations = resource(({ signal }) => loadOperations({ signal }), []);
@@ -84,7 +87,14 @@ export default function AdminHomePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <BarChart label="Run throughput" data={snapshot.throughput} />
+                <OperationsPlot.Root
+                  data={snapshot.throughput}
+                  rowKey="label"
+                  label="Run throughput"
+                  description="Accepted commands by work type."
+                >
+                  <OperationsPlot.Bar x="label" y="value" />
+                </OperationsPlot.Root>
               </CardContent>
             </Card>
             <Card>
@@ -95,7 +105,15 @@ export default function AdminHomePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Sparkline label="Projection lag" data={snapshot.lag} />
+                <OperationsPlot.Root
+                  data={snapshot.lag}
+                  rowKey="label"
+                  label="Projection lag"
+                  description="Projection lag over the last hour."
+                >
+                  <OperationsPlot.Line x="label" y="value" />
+                  <OperationsPlot.Point x="label" y="value" />
+                </OperationsPlot.Root>
               </CardContent>
             </Card>
           </Block>

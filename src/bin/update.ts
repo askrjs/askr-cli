@@ -2,7 +2,7 @@
 
 import path from "node:path";
 import { isDirectExecution } from "./is-direct-execution";
-import type { PackumentResults } from "../update/registry";
+import type { PackumentResults, RegistryRequirements } from "../update/registry";
 import type {
   ManifestValueEdit,
   PackageDecision,
@@ -24,14 +24,23 @@ interface ParsedArgs {
 }
 
 interface UpdateRuntime {
-  registry?: (root: string, packageNames: string[]) => Promise<PackumentResults>;
+  registry?: (
+    root: string,
+    packageNames: string[],
+    requirements?: RegistryRequirements,
+  ) => Promise<PackumentResults>;
   writer?: typeof import("../update/writer").writeManifestEdits;
 }
 
 type DependencyCommand = "outdated" | "update" | "upgrade";
 
 function helpText(command: DependencyCommand): string {
-  const description = command === "outdated" ? "List available dependency updates" : command === "update" ? "Apply safe dependency updates" : "Apply latest peer-compatible dependency upgrades";
+  const description =
+    command === "outdated"
+      ? "List available dependency updates"
+      : command === "update"
+        ? "Apply safe dependency updates"
+        : "Apply latest peer-compatible dependency upgrades";
   return [
     `askr ${command} - ${description}`,
     "",
@@ -293,10 +302,14 @@ function collectEdits(decisions: PackageDecision[]): ManifestValueEdit[] {
   );
 }
 
-async function defaultRegistry(root: string, packageNames: string[]): Promise<PackumentResults> {
+async function defaultRegistry(
+  root: string,
+  packageNames: string[],
+  requirements?: RegistryRequirements,
+): Promise<PackumentResults> {
   const { fetchPackuments, loadNpmConfiguration } = await import("../update/registry");
   const configuration = await loadNpmConfiguration(root);
-  return fetchPackuments(packageNames, configuration);
+  return fetchPackuments(packageNames, configuration, { requirements });
 }
 
 async function runDependencyCli(
@@ -349,9 +362,17 @@ async function runDependencyCli(
           .map((occurrence) => occurrence.package)
       : [];
     const registry = runtime.registry ?? defaultRegistry;
+    const specifications = new Map<string, string[]>();
+    for (const occurrence of project.contextOccurrences) {
+      const entries = specifications.get(occurrence.package) ?? [];
+      if (!entries.includes(occurrence.currentSpecification)) {
+        entries.push(occurrence.currentSpecification);
+      }
+      specifications.set(occurrence.package, entries);
+    }
     const results =
       lookupNames.length > 0
-        ? await registry(project.root, lookupNames)
+        ? await registry(project.root, lookupNames, { specifications })
         : { packuments: new Map(), failures: new Map() };
     const plan = planUpdates({
       occurrences: project.occurrences,

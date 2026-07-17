@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@askrjs/askr": ">=0.0.53 <0.1.0",
-    "@askrjs/charts": ">=0.0.3 <0.1.0",
+    "@askrjs/charts": ">=0.1.0 <0.2.0",
     "@askrjs/logos": ">=0.0.3 <0.1.0",
     "@askrjs/lucide": ">=0.0.3 <0.1.0",
     "@askrjs/themes": ">=0.0.12 <0.1.0",

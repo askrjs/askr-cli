@@ -1,9 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { load } from "js-yaml";
 import { minimatch } from "minimatch";
-import { parseDocument } from "yaml";
 import { analyzeRange } from "./range";
-import { mapDeclaredWorkspaces, npmPackageArg } from "./npm-adapters";
+import { parseDependencySpecification } from "./specification";
 import {
   DEPENDENCY_SECTIONS,
   type DependencyOccurrence,
@@ -59,12 +59,12 @@ async function pnpmWorkspacePatterns(root: string): Promise<string[] | null> {
   if (!(await isFile(workspacePath))) return null;
 
   const source = await fs.readFile(workspacePath, "utf8");
-  const document = parseDocument(source, { prettyErrors: false });
-  if (document.errors.length > 0) {
+  let value: unknown;
+  try {
+    value = load(source);
+  } catch {
     throw new Error(`Malformed pnpm workspace declaration: ${workspacePath}`);
   }
-
-  const value = document.toJS() as unknown;
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Invalid pnpm workspace declaration; expected a mapping with packages.");
   }
@@ -145,6 +145,90 @@ function workspaceName(manifest: Record<string, unknown>, fallback: string): str
   return typeof manifest.name === "string" && manifest.name.trim() ? manifest.name : fallback;
 }
 
+const WORKSPACE_GLOB_OPTIONS = {
+  dot: true,
+  nocase: process.platform === "win32",
+  windowsPathsNoEscape: true,
+} as const;
+
+function normalizeWorkspacePattern(pattern: string): { negative: boolean; value: string } {
+  const leadingBangs = pattern.match(/^!+/)?.[0].length ?? 0;
+  const negative = leadingBangs % 2 === 1;
+  let value = pattern.slice(leadingBangs);
+  value = value.replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "").replace(/\/+$/, "");
+  if (value.endsWith("/package.json")) value = value.slice(0, -"/package.json".length);
+  if (value === ".." || value.startsWith("../")) {
+    throw new Error(`Workspace patterns outside the project root are unsupported: ${pattern}`);
+  }
+  return { negative, value: value || "." };
+}
+
+function matchesWorkspace(relativeDirectory: string, patterns: string[]): boolean {
+  let included = false;
+  for (const pattern of patterns) {
+    const normalized = normalizeWorkspacePattern(pattern);
+    if (minimatch(relativeDirectory, normalized.value, WORKSPACE_GLOB_OPTIONS)) {
+      included = !normalized.negative;
+    }
+  }
+  return included;
+}
+
+function mayContainWorkspace(relativeDirectory: string, patterns: string[]): boolean {
+  return patterns.some((pattern) => {
+    const normalized = normalizeWorkspacePattern(pattern);
+    return (
+      !normalized.negative &&
+      minimatch(relativeDirectory, normalized.value, {
+        ...WORKSPACE_GLOB_OPTIONS,
+        partial: true,
+      })
+    );
+  });
+}
+
+async function mapDeclaredWorkspaces(
+  root: string,
+  patterns: string[],
+): Promise<Map<string, string>> {
+  const directories: string[] = [];
+  if (matchesWorkspace(".", patterns)) directories.push(root);
+
+  const visit = async (directory: string, relativeDirectory: string): Promise<void> => {
+    const entries = await fs.readdir(directory, { withFileTypes: true });
+    entries.sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of entries) {
+      if (entry.name === "node_modules" || entry.name === ".git") continue;
+      const childRelative = relativeDirectory ? `${relativeDirectory}/${entry.name}` : entry.name;
+      if (!mayContainWorkspace(childRelative, patterns)) continue;
+      const child = path.join(directory, entry.name);
+      const isSymbolicDirectory =
+        entry.isSymbolicLink() && (await fs.stat(child).catch(() => null))?.isDirectory();
+      if (!entry.isDirectory() && !isSymbolicDirectory) continue;
+      if (
+        matchesWorkspace(childRelative, patterns) &&
+        (await isFile(path.join(child, "package.json")))
+      ) {
+        directories.push(child);
+      }
+      if (!entry.isSymbolicLink()) await visit(child, childRelative);
+    }
+  };
+
+  await visit(root, "");
+  const mapped = new Map<string, string>();
+  for (const directory of directories.sort((left, right) => left.localeCompare(right))) {
+    const manifest = await readManifest(path.join(directory, "package.json"));
+    const fallback = path.basename(directory);
+    const name = workspaceName(manifest, fallback);
+    if (mapped.has(name)) {
+      throw new Error(`Multiple workspaces with the same name '${name}'.`);
+    }
+    mapped.set(name, directory);
+  }
+  return mapped;
+}
+
 async function discoverWorkspaces(root: string): Promise<{
   policy: UpdatePolicy;
   rootManifest: Record<string, unknown>;
@@ -156,10 +240,7 @@ async function discoverWorkspaces(root: string): Promise<{
   const packagePatterns = packageWorkspacePatterns(rootManifest) ?? [];
   const pnpmPatterns = (await pnpmWorkspacePatterns(root)) ?? [];
   const patterns = [...packagePatterns, ...pnpmPatterns];
-  const mapped =
-    patterns.length > 0
-      ? await mapDeclaredWorkspaces({ cwd: root, pkg: { workspaces: patterns } })
-      : new Map<string, string>();
+  const mapped = patterns.length > 0 ? await mapDeclaredWorkspaces(root, patterns) : new Map();
 
   const rootName = workspaceName(rootManifest, "(root)");
   if (mapped.has(rootName)) {
@@ -203,6 +284,20 @@ function matchesAny(value: string, patterns: string[]): boolean {
   return patterns.some((pattern) => minimatch(value, pattern, { dot: true }));
 }
 
+function isRegistryPackageName(packageName: string): boolean {
+  if (
+    !packageName ||
+    packageName.length > 214 ||
+    /^[._-]/.test(packageName) ||
+    /[\s%\\:]/.test(packageName)
+  ) {
+    return false;
+  }
+  if (!packageName.startsWith("@")) return !packageName.includes("/");
+  const parts = packageName.slice(1).split("/");
+  return parts.length === 2 && parts.every((part) => part.length > 0 && !/^[._-]/.test(part));
+}
+
 function classifySpecification(
   packageName: string,
   specification: string,
@@ -230,19 +325,17 @@ function classifySpecification(
       reason: "link protocol is not registry-managed",
     };
   }
-
-  let parsed: ReturnType<typeof npmPackageArg.resolve>;
-  try {
-    parsed = npmPackageArg.resolve(packageName, specification, directory);
-  } catch {
+  if (!isRegistryPackageName(packageName)) {
     return {
       kind: "manual",
       registryManaged: false,
-      reason: "unsupported dependency specification",
+      reason: "invalid registry package name",
     };
   }
 
-  if (["directory", "file", "git", "remote"].includes(parsed.type)) {
+  const parsed = parseDependencySpecification(specification);
+
+  if (["file", "git", "remote"].includes(parsed.type)) {
     return {
       kind: "local",
       registryManaged: false,
