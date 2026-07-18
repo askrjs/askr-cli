@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 import fs from "node:fs/promises";
-import type { Dirent } from "node:fs";
+import { constants, type Dirent } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatSkillReviewReport, listSkillReviewPrompts, runSkillReview } from "./skill-review";
 import { isDirectExecution } from "./is-direct-execution";
+import { createSiblingStage, publishStagedDirectory } from "../directory-swap";
 
 type CliIo = Pick<Console, "error" | "log">;
 
@@ -17,6 +18,7 @@ interface ParsedArgs {
   command: string;
   positionals: string[];
   reviewPrompt: string;
+  errors: string[];
 }
 
 const MANAGED_PREFIX = "askr-";
@@ -78,6 +80,7 @@ function parseArgs(args: string[]): ParsedArgs {
     force: false,
     help: false,
     json: false,
+    errors: [] as string[],
   };
 
   for (let i = 0; i < args.length; i += 1) {
@@ -88,9 +91,15 @@ function parseArgs(args: string[]): ParsedArgs {
       parsed.json = true;
     } else if (arg === "--force") {
       parsed.force = true;
-    } else if (arg === "--cwd" && i + 1 < args.length) {
-      parsed.cwd = args[i + 1];
-      i += 1;
+    } else if (arg === "--cwd") {
+      const value = args[i + 1];
+      if (!value || value.startsWith("-")) parsed.errors.push("Missing value for --cwd");
+      else {
+        parsed.cwd = value;
+        i += 1;
+      }
+    } else if (arg.startsWith("-")) {
+      parsed.errors.push(`Unknown option: ${arg}`);
     } else {
       positional.push(arg);
     }
@@ -188,24 +197,49 @@ async function copyBundledSkills(targetSkillsDir: string, bundledNames: string[]
   }
 }
 
+async function stageSkillsDirectory(targetSkillsDir: string): Promise<string> {
+  const stage = await createSiblingStage(targetSkillsDir, "askr-skills");
+  if (await pathExists(targetSkillsDir)) {
+    await fs.cp(targetSkillsDir, stage, {
+      recursive: true,
+      mode: constants.COPYFILE_FICLONE,
+    });
+  }
+  return stage;
+}
+
+async function replaceBundledSkills(
+  targetSkillsDir: string,
+  bundledNames: string[],
+): Promise<void> {
+  const stage = await stageSkillsDirectory(targetSkillsDir);
+  try {
+    await removeManagedSkillArtifacts(stage, bundledNames);
+    await copyBundledSkills(stage, bundledNames);
+    await publishStagedDirectory(stage, targetSkillsDir);
+  } catch (error) {
+    await fs.rm(stage, { recursive: true, force: true });
+    throw error;
+  }
+}
+
 export async function installBundledSkills(
   options: { cwd?: string; force?: boolean } = {},
 ): Promise<{ bundledNames: string[]; targetSkillsDir: string }> {
   const targetRoot = path.resolve(options.cwd ?? process.cwd());
   const targetSkillsDir = path.join(targetRoot, PROJECT_SKILLS_DIR);
   const bundledNames = await listBundledSkills();
+  const targetStat = await fs.stat(targetSkillsDir).catch(() => null);
+  if (targetStat && !targetStat.isDirectory()) {
+    throw new Error(`Skills target exists and is not a directory: ${targetSkillsDir}`);
+  }
   const existingEntries = await fs.readdir(targetSkillsDir).catch(() => [] as string[]);
 
   if (existingEntries.length > 0 && !options.force) {
     throw new Error(`Refusing to install into non-empty ${targetSkillsDir}.`);
   }
 
-  if (options.force) {
-    await fs.mkdir(targetSkillsDir, { recursive: true });
-    await removeManagedSkillArtifacts(targetSkillsDir, bundledNames);
-  }
-
-  await copyBundledSkills(targetSkillsDir, bundledNames);
+  await replaceBundledSkills(targetSkillsDir, bundledNames);
 
   return {
     bundledNames,
@@ -219,10 +253,12 @@ export async function syncBundledSkills(
   const targetRoot = path.resolve(options.cwd ?? process.cwd());
   const targetSkillsDir = path.join(targetRoot, PROJECT_SKILLS_DIR);
   const bundledNames = await listBundledSkills();
+  const targetStat = await fs.stat(targetSkillsDir).catch(() => null);
+  if (targetStat && !targetStat.isDirectory()) {
+    throw new Error(`Skills target exists and is not a directory: ${targetSkillsDir}`);
+  }
 
-  await fs.mkdir(targetSkillsDir, { recursive: true });
-  await removeManagedSkillArtifacts(targetSkillsDir, bundledNames);
-  await copyBundledSkills(targetSkillsDir, bundledNames);
+  await replaceBundledSkills(targetSkillsDir, bundledNames);
 
   return {
     bundledNames,
@@ -247,9 +283,14 @@ async function installSkills(parsed: ParsedArgs, io: CliIo): Promise<number> {
 }
 
 async function syncSkills(parsed: ParsedArgs, io: CliIo): Promise<number> {
-  const { bundledNames, targetSkillsDir } = await syncBundledSkills({ cwd: parsed.cwd });
-  io.log(`Synced ${bundledNames.length} Askr skills to ${targetSkillsDir}`);
-  return 0;
+  try {
+    const { bundledNames, targetSkillsDir } = await syncBundledSkills({ cwd: parsed.cwd });
+    io.log(`Synced ${bundledNames.length} Askr skills to ${targetSkillsDir}`);
+    return 0;
+  } catch (error) {
+    io.error(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
 }
 
 async function reviewSkills(parsed: ParsedArgs, io: CliIo): Promise<number> {
@@ -295,6 +336,11 @@ export async function runSkillsCli(
 ): Promise<number> {
   const parsed = parseArgs(args);
 
+  if (parsed.errors.length > 0) {
+    for (const error of parsed.errors) io.error(error);
+    return 1;
+  }
+
   if (parsed.command === "review" && parsed.help) {
     io.log(reviewHelpText());
     return 0;
@@ -312,6 +358,10 @@ export async function runSkillsCli(
   }
 
   if (parsed.command === "list") {
+    if (parsed.positionals.length !== 1) {
+      io.error("Usage: askr skills list");
+      return 1;
+    }
     const names = await listBundledSkills();
     for (const name of names) {
       io.log(name);
@@ -320,10 +370,18 @@ export async function runSkillsCli(
   }
 
   if (parsed.command === "install") {
+    if (parsed.positionals.length !== 1) {
+      io.error("Usage: askr skills install [--cwd <dir>] [--force]");
+      return 1;
+    }
     return installSkills(parsed, io);
   }
 
   if (parsed.command === "sync") {
+    if (parsed.positionals.length !== 1) {
+      io.error("Usage: askr skills sync [--cwd <dir>]");
+      return 1;
+    }
     return syncSkills(parsed, io);
   }
 

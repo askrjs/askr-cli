@@ -1,6 +1,6 @@
 {
   "name": "@askrjs/cli",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Unified CLI for the Askr platform",
   "homepage": "https://github.com/askrjs/askr-cli#readme",
   "bugs": {
@@ -19,13 +19,15 @@
     "askr": "./dist/cli.js"
   },
   "files": [
-    "dist",
-    "skills",
-    "templates"
+    "dist"
   ],
   "type": "module",
   "exports": {
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./ssg": {
+      "types": "./dist/ssg-config.d.ts",
+      "import": "./dist/ssg-config.js"
+    }
   },
   "publishConfig": {
     "access": "public"
@@ -35,14 +37,16 @@
     "build": "vp pack",
     "dev": "vp pack --watch",
     "test": "vp test run -c vitest.config.ts",
+    "test:coverage": "vp test run -c vitest.config.ts --coverage",
     "fmt": "vp fmt .",
     "lint": "vp lint src tests vite.config.ts vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:publint": "publint",
     "pack:check": "npm pack --ignore-scripts --dry-run --json",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run test:publint && npm run pack:check",
+    "test:templates": "node scripts/verify-packed-templates.mjs",
+    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run test:publint && npm run pack:check",
     "prepack": "npm run build",
-    "prepublishOnly": "npm run check"
+    "prepublishOnly": "npm run check && npm run test:templates"
   },
   "dependencies": {
     "js-yaml": "^4.3.0",
@@ -59,8 +63,9 @@
     "@askrjs/ui": ">=0.0.13 <0.1.0",
     "@askrjs/vite": ">=0.0.6 <0.1.0",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^25.9.2",
+    "@types/node": "^20.19.43",
     "@types/semver": "^7.7.1",
+    "@vitest/coverage-v8": "^4.1.10",
     "publint": "^0.3.21",
     "typescript": "^6.0.3",
     "vite-plus": "^0.2.4",

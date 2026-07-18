@@ -50,6 +50,43 @@ unless you opt out with `--no-skills`.
 The installed command is `askr`. Subcommands are intentionally not published
 as compatibility binaries.
 
+## Static sitemap generation
+
+`askr ssg` writes `sitemap.xml` from the concrete routes generated during the
+build. Set the canonical deploy URL in the TypeScript config:
+
+```ts
+export const staticConfig = {
+  registry,
+  outputDir: "./dist",
+  siteUrl: "https://example.com",
+  sitemap: {
+    defaults: { changeFrequency: "weekly" },
+    routes: {
+      "/404": false,
+      "/docs": { priority: 0.8, lastModified: "2026-07-18" },
+    },
+  },
+};
+```
+
+The sitemap config types are available from `@askrjs/cli/ssg` for projects that
+want an explicit annotation.
+
+Successful and incrementally skipped concrete routes are included by default.
+Failed routes and wildcard templates are excluded. Route settings support a
+canonical URL override, `lastModified`, `changeFrequency`, `priority`, and
+`hreflang` alternates. Use `resolve(route)` for data-driven metadata or return
+`false` to exclude a route. Set `sitemap: false` for an intentional opt-out.
+
+The CLI validates real calendar dates, bounds asynchronous metadata resolution,
+and enforces the sitemap protocol limits of 50,000 URLs and 50 MB per file.
+Larger sites receive deterministic sitemap chunks plus a sitemap index. It also
+creates or updates `robots.txt` while preserving unrelated directives and tracks
+owned files so stale chunks and previous output paths are removed. Full and
+incremental builds publish through a sibling staging directory, so route output,
+metadata, assets, and sitemap artifacts change together or not at all.
+
 ## OpenAPI artifacts
 
 `askr openapi` loads a TypeScript module whose default export exposes

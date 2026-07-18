@@ -11,6 +11,7 @@ import { runCreateCli } from "../src/bin/create";
 import { listSkillReviewPrompts } from "../src/bin/skill-review";
 import { runSkillsCli } from "../src/bin/skills";
 import { runSsgCli } from "../src/bin/ssg";
+import { writeFileChanges } from "../src/file-changes";
 
 const execFileAsync = promisify(execFile);
 
@@ -130,7 +131,7 @@ test("package surface ships project templates for installed create commands", as
     await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),
   ) as { files: string[] };
 
-  expect(manifest.files).toContain("templates");
+  expect(manifest.files).toEqual(["dist"]);
 
   for (const template of ["full-stack", "spa", "ssr", "ssg", "startkit"]) {
     const templateRoot = new URL(`../templates/${template}/`, import.meta.url);
@@ -232,6 +233,64 @@ test("runCreateCli defaults to startkit when template is omitted", async () => {
     expect(sidebarFile).toMatch(/Navbar\s+orientation="vertical"/);
     expect(sidebarFile).toMatch(/NavGroup id="workspace-nav-group" label="Workspace"/);
     expect(sidebarFile).toMatch(/placement="bottom"/);
+  } finally {
+    process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runCreateCli rejects unsafe names, unknown options, and extra positional arguments", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-create-input-"));
+  const previousCwd = process.cwd();
+  try {
+    process.chdir(tempRoot);
+    for (const args of [
+      ["../escape", "--no-install"],
+      ["Bad Name", "--no-install"],
+      ["safe-name", "--wat", "--no-install"],
+      ["spa", "safe-name", "extra", "--no-install"],
+    ]) {
+      expect(await runCreateCli(args, createIo().io)).toBe(1);
+    }
+    expect(await fs.readdir(tempRoot)).toEqual([]);
+  } finally {
+    process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runCreateCli supports an explicit output directory without deriving it from the package name", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-create-dir-"));
+  const target = path.join(tempRoot, "nested", "project");
+  try {
+    expect(
+      await runCreateCli(
+        ["ssr", "valid-app", "--dir", target, "--no-install", "--no-skills"],
+        createIo().io,
+      ),
+    ).toBe(0);
+    expect(JSON.parse(await fs.readFile(path.join(target, "package.json"), "utf8")).name).toBe(
+      "valid-app",
+    );
+    const brief = await fs.readFile(path.join(target, ".askr/builder-brief.md"), "utf8");
+    expect(brief).toContain("src/entry-server.tsx");
+    expect(brief).toContain("src/routes.tsx");
+    expect(brief).not.toContain("server-entry");
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runCreateCli preserves a file that occupies the requested target", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-create-file-"));
+  const previousCwd = process.cwd();
+  try {
+    process.chdir(tempRoot);
+    await fs.writeFile(path.join(tempRoot, "existing-app"), "keep");
+    expect(await runCreateCli(["existing-app", "--no-install", "--no-skills"], createIo().io)).toBe(
+      1,
+    );
+    expect(await fs.readFile(path.join(tempRoot, "existing-app"), "utf8")).toBe("keep");
   } finally {
     process.chdir(previousCwd);
     await fs.rm(tempRoot, { recursive: true, force: true });
@@ -641,6 +700,41 @@ test("runAddCli scaffolds a page and registers the app route", async () => {
   }
 });
 
+test("runAddCli rolls back page registration given a replacement failure", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-add-rollback-"));
+  const previousCwd = process.cwd();
+  try {
+    process.chdir(tempRoot);
+    expect(
+      await runCreateCli(["spa", "sample-spa", "--no-install", "--no-skills"], createIo().io),
+    ).toBe(0);
+    const appRoot = path.join(tempRoot, "sample-spa");
+    const routes = path.join(appRoot, "src/pages/app/_routes.tsx");
+    const original = await fs.readFile(routes, "utf8");
+    let replacements = 0;
+    const code = await runAddCli(
+      ["page", "atomic-page", "--cwd", appRoot],
+      createIo().io,
+      (changes) =>
+        writeFileChanges(changes, {
+          async replace(temporary, target) {
+            replacements += 1;
+            if (replacements === 2) throw new Error("injected replacement failure");
+            await fs.rename(temporary, target);
+          },
+        }),
+    );
+    expect(code).toBe(1);
+    expect(await fs.readFile(routes, "utf8")).toBe(original);
+    await expect(
+      fs.access(path.join(appRoot, "src/pages/app/atomic-page.tsx")),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+  } finally {
+    process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("runCli routes add page through the top-level command", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-add-"));
   const previousCwd = process.cwd();
@@ -765,12 +859,103 @@ test("runSsgCli prints help without requiring config", async () => {
   expect(logs.join("\n")).toMatch(/askr ssg - Static Site Generation for Askr/);
 });
 
+test("runSsgCli rejects unknown, missing, and invalid option values", async () => {
+  for (const args of [["--config"], ["--unknown"], ["--workers", "garbage"], ["--workers", "0"]]) {
+    const { io, errors } = createIo();
+    expect(await runSsgCli(args, undefined, io)).toBe(1);
+    expect(errors.length).toBeGreaterThan(0);
+  }
+});
+
+test("runSsgCli preserves live output when sitemap metadata fails", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-ssg-atomic-"));
+  const output = path.join(root, "dist");
+  await fs.mkdir(output);
+  await fs.writeFile(path.join(output, "original.txt"), "original");
+  try {
+    const code = await runSsgCli(
+      ["--config", "ssg.config.ts", "--output", "dist", "--incremental"],
+      {
+        cwd: () => root,
+        existsSync: () => true,
+        importConfig: async () => ({
+          routes: [{ path: "/" }],
+          siteUrl: "https://example.com",
+          sitemap: { resolve: () => Promise.reject(new Error("metadata failed")) },
+        }),
+        createStaticGen: ({ outputDir }) => ({
+          async generate() {
+            await fs.writeFile(path.join(outputDir, "new.txt"), "new");
+            return {
+              mode: "incremental",
+              successful: 1,
+              totalRoutes: 1,
+              failed: 0,
+              rebuilt: 1,
+              skipped: 0,
+              removed: 0,
+              cacheHits: 0,
+              routes: [{ path: "/", filePath: "index.html", status: "success" }],
+            };
+          },
+        }),
+      },
+      createIo().io,
+    );
+    expect(code).toBe(1);
+    expect(await fs.readFile(path.join(output, "original.txt"), "utf8")).toBe("original");
+    await expect(fs.access(path.join(output, "new.txt"))).rejects.toMatchObject({ code: "ENOENT" });
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("runSsgCli preserves a file that occupies the output path", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-ssg-file-"));
+  await fs.writeFile(path.join(root, "dist"), "keep");
+  try {
+    expect(
+      await runSsgCli(
+        ["--config", "ssg.config.ts", "--output", "dist"],
+        { cwd: () => root, existsSync: () => true },
+        createIo().io,
+      ),
+    ).toBe(1);
+    expect(await fs.readFile(path.join(root, "dist"), "utf8")).toBe("keep");
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("runSsgCli requires a canonical site URL unless sitemap generation is disabled", async () => {
+  const generate = async () => {
+    throw new Error("generation should not start");
+  };
+  const { io, errors } = createIo();
+
+  const code = await runSsgCli(
+    ["--config", "ssg.config.ts", "--output", "dist"],
+    {
+      cwd: () => "/workspace",
+      existsSync: () => true,
+      importConfig: async () => ({ routes: [{ path: "/" }] }),
+      createStaticGen: () => ({ generate }),
+    },
+    io,
+  );
+
+  expect(code).toBe(1);
+  expect(errors).toContain(
+    "Error: Config must provide siteUrl to generate sitemap.xml, or set sitemap: false",
+  );
+});
+
 test("runSsgCli loads TypeScript configs without an external loader", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-ssg-"));
   const configPath = path.join(tempRoot, "ssg.config.ts");
   await fs.writeFile(
     configPath,
-    'const routes: Array<{ path: string }> = [{ path: "/" }]; export { routes };\n',
+    'const routes: Array<{ path: string }> = [{ path: "/" }]; export const siteUrl = "https://example.com"; export { routes };\n',
     "utf8",
   );
   const generate = async () => ({
@@ -782,7 +967,7 @@ test("runSsgCli loads TypeScript configs without an external loader", async () =
     skipped: 0,
     removed: 0,
     cacheHits: 0,
-    routes: [{ path: "/", status: "success" }],
+    routes: [{ path: "/", filePath: "index.html", status: "success" }],
   });
   const createStaticGen = () => ({ generate });
   const { io, errors } = createIo();
@@ -825,7 +1010,7 @@ test("askr ssg executes TSX route modules with the project JSX runtime", async (
     );
     await fs.writeFile(
       configPath,
-      'import { Page } from "./page.tsx"; export const routes = [{ path: "/", component: Page }];\n',
+      'import { Page } from "./page.tsx"; export const siteUrl = "https://example.com"; export const routes = [{ path: "/", component: Page }];\n',
       "utf8",
     );
 
@@ -846,12 +1031,16 @@ test("askr ssg executes TSX route modules with the project JSX runtime", async (
     await expect(fs.readFile(path.join(outputDir, "index.html"), "utf8")).resolves.toContain(
       "<main>Ready</main>",
     );
+    await expect(fs.readFile(path.join(outputDir, "sitemap.xml"), "utf8")).resolves.toContain(
+      "<loc>https://example.com/</loc>",
+    );
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
 });
 
 test("runSsgCli forwards complete registry-based static config", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-ssg-options-"));
   const registry = { records: [] };
   const document = () => "<!doctype html>";
   const assets = [{ from: ".askr/client/assets", to: "assets" }];
@@ -864,39 +1053,96 @@ test("runSsgCli forwards complete registry-based static config", async () => {
     skipped: 0,
     removed: 0,
     cacheHits: 0,
-    routes: [{ path: "/", status: "success" }],
+    routes: [{ path: "/", filePath: "index.html", status: "success" }],
   });
   let received: Record<string, unknown> | undefined;
   const { io, errors } = createIo();
 
-  const code = await runSsgCli(
-    ["--config", "ssg.config.ts", "--output", "dist"],
-    {
-      cwd: () => "/workspace",
-      existsSync: () => true,
-      importConfig: async () => ({
-        staticConfig: { registry, document, assets, seed: 42, concurrency: 2 },
-      }),
-      createStaticGen: (options) => {
-        received = options;
-        return { generate };
+  try {
+    const code = await runSsgCli(
+      ["--config", "ssg.config.ts", "--output", "dist"],
+      {
+        cwd: () => tempRoot,
+        existsSync: () => true,
+        importConfig: async () => ({
+          staticConfig: { registry, document, assets, seed: 42, concurrency: 2, sitemap: false },
+        }),
+        createStaticGen: (options) => {
+          received = options;
+          return { generate };
+        },
       },
-    },
-    io,
-  );
+      io,
+    );
 
-  expect(code).toBe(0);
-  expect(errors).toHaveLength(0);
-  expect(received).toMatchObject({
-    registry,
-    document,
-    assets,
-    seed: 42,
-    concurrency: 2,
-    parallelism: 1,
-    outputDir: path.resolve("/workspace/dist"),
-  });
-  expect(received).not.toHaveProperty("routes");
+    expect(code).toBe(0);
+    expect(errors).toHaveLength(0);
+    expect(received).toMatchObject({
+      registry,
+      document,
+      assets,
+      seed: 42,
+      concurrency: 2,
+      parallelism: 1,
+    });
+    expect(path.dirname(String(received?.outputDir))).toBe(tempRoot);
+    expect(path.basename(String(received?.outputDir))).toMatch(/^\.dist\.askr-ssg-/);
+    expect(received).not.toHaveProperty("routes");
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runSsgCli preserves the previous full output when sitemap generation fails", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-sitemap-atomic-"));
+  const outputDir = path.join(tempRoot, "dist");
+  await fs.mkdir(outputDir);
+  await fs.writeFile(path.join(outputDir, "index.html"), "previous", "utf8");
+  const { io, errors } = createIo();
+
+  try {
+    const code = await runSsgCli(
+      ["--config", "ssg.config.ts", "--output", outputDir],
+      {
+        cwd: () => tempRoot,
+        existsSync: () => true,
+        importConfig: async () => ({
+          routes: [{ path: "/" }],
+          siteUrl: "https://example.com",
+          sitemap: {
+            resolve: () => {
+              throw new Error("metadata unavailable");
+            },
+          },
+        }),
+        createStaticGen: (options) => ({
+          generate: async () => {
+            await fs.mkdir(options.outputDir, { recursive: true });
+            await fs.writeFile(path.join(options.outputDir, "index.html"), "next", "utf8");
+            return {
+              mode: "full",
+              successful: 1,
+              totalRoutes: 1,
+              failed: 0,
+              rebuilt: 1,
+              skipped: 0,
+              removed: 0,
+              cacheHits: 0,
+              routes: [{ path: "/", filePath: "index.html", status: "success" }],
+            };
+          },
+        }),
+      },
+      io,
+    );
+
+    expect(code).toBe(1);
+    expect(errors.join("\n")).toContain("metadata unavailable");
+    await expect(fs.readFile(path.join(outputDir, "index.html"), "utf8")).resolves.toBe("previous");
+    await expect(fs.access(path.join(outputDir, "sitemap.xml"))).rejects.toThrow();
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test("runSkillsCli lists bundled skills", async () => {
@@ -914,6 +1160,44 @@ test("runSkillsCli lists bundled skills", async () => {
   expect(logs).toContain("askr-realtime-streaming");
   expect(logs).toContain("askr-routing-layouts");
   expect(logs).toContain("askr-testing-determinism");
+});
+
+test("runSkillsCli rejects missing cwd and unknown options before synchronization", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-input-"));
+  const previousCwd = process.cwd();
+  try {
+    process.chdir(tempRoot);
+    await fs.mkdir(path.join(tempRoot, "skills", "askr-obsolete"), { recursive: true });
+    expect(await runSkillsCli(["sync", "--cwd"], createIo().io)).toBe(1);
+    expect(await runSkillsCli(["list", "--definitely-invalid"], createIo().io)).toBe(1);
+    await fs.access(path.join(tempRoot, "skills", "askr-obsolete"));
+  } finally {
+    process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runSkillsCli bounds review input size", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-size-"));
+  try {
+    await fs.writeFile(path.join(tempRoot, "oversized.ts"), "x".repeat(2 * 1024 * 1024 + 1));
+    const { io, errors } = createIo();
+    expect(await runSkillsCli(["review", "foundation", "--cwd", tempRoot], io)).toBe(1);
+    expect(errors.join("\n")).toMatch(/exceeds .* bytes/);
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runSkillsCli preserves a file that occupies the skills target", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-file-"));
+  try {
+    await fs.writeFile(path.join(tempRoot, "skills"), "keep");
+    expect(await runSkillsCli(["sync", "--cwd", tempRoot], createIo().io)).toBe(1);
+    expect(await fs.readFile(path.join(tempRoot, "skills"), "utf8")).toBe("keep");
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test("runSkillsCli lists skill review prompts", async () => {

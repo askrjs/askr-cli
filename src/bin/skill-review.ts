@@ -438,11 +438,18 @@ async function pathExists(filePath: string): Promise<boolean> {
   return Boolean(await fs.stat(filePath).catch(() => null));
 }
 
+const MAX_REVIEW_FILES = 10_000;
+const MAX_REVIEW_FILE_BYTES = 2 * 1024 * 1024;
+const MAX_REVIEW_TOTAL_BYTES = 20 * 1024 * 1024;
+
 function shouldReadFile(filePath: string): boolean {
   return TEXT_FILE_EXTENSIONS.has(path.extname(filePath).toLowerCase());
 }
 
-async function collectReviewFiles(targetPath: string, files: string[]): Promise<void> {
+async function collectReviewFiles(
+  targetPath: string,
+  state: { files: string[]; totalBytes: number },
+): Promise<void> {
   const stat = await fs.lstat(targetPath);
 
   if (stat.isSymbolicLink()) {
@@ -457,14 +464,24 @@ async function collectReviewFiles(targetPath: string, files: string[]): Promise<
         continue;
       }
 
-      await collectReviewFiles(path.join(targetPath, entry.name), files);
+      await collectReviewFiles(path.join(targetPath, entry.name), state);
     }
 
     return;
   }
 
   if (stat.isFile() && shouldReadFile(targetPath)) {
-    files.push(targetPath);
+    if (stat.size > MAX_REVIEW_FILE_BYTES) {
+      throw new Error(`Review file exceeds ${MAX_REVIEW_FILE_BYTES} bytes: ${targetPath}`);
+    }
+    if (state.files.length >= MAX_REVIEW_FILES) {
+      throw new Error(`Review target exceeds ${MAX_REVIEW_FILES} text files`);
+    }
+    state.totalBytes += stat.size;
+    if (state.totalBytes > MAX_REVIEW_TOTAL_BYTES) {
+      throw new Error(`Review target exceeds ${MAX_REVIEW_TOTAL_BYTES} text bytes`);
+    }
+    state.files.push(targetPath);
   }
 }
 
@@ -478,12 +495,12 @@ async function loadReviewFiles(
 
   const stat = await fs.stat(resolvedTarget);
   const baseDirectory = stat.isDirectory() ? resolvedTarget : path.dirname(resolvedTarget);
-  const absoluteFiles: string[] = [];
+  const collection = { files: [] as string[], totalBytes: 0 };
 
-  await collectReviewFiles(resolvedTarget, absoluteFiles);
+  await collectReviewFiles(resolvedTarget, collection);
 
   const files = await Promise.all(
-    absoluteFiles.map(async (filePath) => ({
+    collection.files.map(async (filePath) => ({
       path: path.relative(baseDirectory, filePath) || path.basename(filePath),
       content: await fs.readFile(filePath, "utf8"),
     })),

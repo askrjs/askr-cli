@@ -37,9 +37,11 @@ askr create [template] <name>   # Scaffold a new project
 askr create --prompt "..."     # Infer a template and emit a builder blueprint
 askr add page <name>            # Generate a route page into an existing SPA app
 askr add action <name> --route /path # Generate a declared full-stack action
+askr generate <openapi> -o <dir> # Generate a typed API client
+askr openapi --entry <path>      # Export deterministic OpenAPI YAML
 askr skills install             # Install bundled Askr agent skills
 askr skills sync                # Update bundled Askr agent skills
-askr ssg --config <path>        # Run static site generation
+askr ssg --config <path> --output <dir> # Run static site generation
 askr outdated                   # Report available dependency updates
 askr update                     # Apply safe dependency manifest updates
 askr upgrade                    # Apply latest peer-compatible upgrades

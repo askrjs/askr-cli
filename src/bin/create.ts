@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
+import { isUtf8 } from "node:buffer";
 import fs from "node:fs/promises";
 import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import { isDirectExecution } from "./is-direct-execution";
 import { installBundledSkills } from "./skills";
+import { createSiblingStage, publishStagedDirectory } from "../directory-swap";
 
 type CliIo = Pick<Console, "error" | "log">;
-type PackageManager = "npm" | "yarn";
+type PackageManager = "bun" | "npm" | "pnpm" | "yarn";
 
 const TEMPLATE_LABELS = {
   "full-stack": "Full-stack",
@@ -43,6 +45,7 @@ interface ParsedArgs {
   promptText: string;
   skills: boolean;
   errors: string[];
+  targetDir: string;
 }
 
 interface TemplateSelection {
@@ -343,7 +346,7 @@ const TEMPLATE_INSPECT_PATHS: Record<TemplateType, string[]> = {
     "src/styles/layout.css",
     "src/styles/components.css",
   ],
-  ssr: ["AGENTS.md", "src/main.tsx", "src/server-entry.tsx", "src/pages/_routes.tsx", "server.ts"],
+  ssr: ["AGENTS.md", "src/main.tsx", "src/entry-server.tsx", "src/routes.tsx", "server.ts"],
   ssg: [
     "AGENTS.md",
     "src/main.tsx",
@@ -374,7 +377,7 @@ const TEMPLATE_GOLDEN_EXAMPLES: Record<TemplateType, string[]> = {
     "src/pages/app/admin-home.tsx",
     "src/features/operations/operations.query.ts",
   ],
-  ssr: ["src/main.tsx", "src/pages/_routes.tsx", "server.ts"],
+  ssr: ["src/main.tsx", "src/routes.tsx", "server.ts"],
   ssg: ["src/main.tsx", "src/routes.tsx", "src/components/site-shell.tsx", "ssg.config.ts"],
   startkit: [
     "src/routes/index.ts",
@@ -399,7 +402,7 @@ function helpText(): string {
     "askr create - Project scaffolding for Askr",
     "",
     "Usage:",
-    "  askr create [template] <name> [--prompt <text>] [--no-install] [--no-skills]",
+    "  askr create [template] <name> [--dir <path>] [--prompt <text>] [--no-install] [--no-skills]",
     "  askr create --prompt <text> [name] [--no-install] [--no-skills]",
     "",
     "Templates:",
@@ -407,6 +410,7 @@ function helpText(): string {
     "",
     "Options:",
     "  --prompt <text>  Infer the best template from a product prompt and emit a builder blueprint",
+    "  --dir <path>     Explicit output directory (defaults to ./<name>)",
     "  --no-install     Skip dependency installation",
     "  --no-skills      Skip bundled Askr skill installation into skills/",
     "  --help, -h       Show help",
@@ -435,6 +439,8 @@ async function prompt(question: string): Promise<string> {
 
 function detectPm(): PackageManager {
   const ua = process.env.npm_config_user_agent || "";
+  if (ua.startsWith("pnpm")) return "pnpm";
+  if (ua.startsWith("bun")) return "bun";
   if (ua.startsWith("yarn")) return "yarn";
   if (ua.startsWith("npm")) return "npm";
 
@@ -477,6 +483,10 @@ async function copyDir(
     }
 
     const buffer = await fs.readFile(srcPath);
+    if (!isUtf8(buffer)) {
+      await fs.writeFile(destPath, buffer);
+      continue;
+    }
     const content = buffer.toString("utf8");
     const replaced = content
       .replace(/\{\{\s*appName\s*\}\}/g, replacements.appName)
@@ -517,6 +527,7 @@ function parseArgs(args: string[]): ParsedArgs {
   let help = false;
   let promptText = "";
   let skills = true;
+  let targetDir = "";
   const errors: string[] = [];
 
   for (let i = 0; i < args.length; i += 1) {
@@ -526,20 +537,40 @@ function parseArgs(args: string[]): ParsedArgs {
     } else if (arg === "--no-skills") {
       skills = false;
     } else if (arg === "--prompt") {
-      if (i + 1 >= args.length) {
+      if (i + 1 >= args.length || args[i + 1].startsWith("-")) {
         errors.push("Missing value for --prompt");
       } else {
         promptText = normalizePromptText(args[i + 1]);
         i += 1;
       }
+    } else if (arg === "--dir") {
+      if (i + 1 >= args.length || args[i + 1].startsWith("-")) {
+        errors.push("Missing value for --dir");
+      } else {
+        targetDir = args[i + 1];
+        i += 1;
+      }
     } else if (arg === "--help" || arg === "-h") {
       help = true;
+    } else if (arg.startsWith("-")) {
+      errors.push(`Unknown option: ${arg}`);
     } else {
       positional.push(arg);
     }
   }
 
-  return { positional, install, help, promptText, skills, errors };
+  return { positional, install, help, promptText, skills, errors, targetDir };
+}
+
+function validateAppName(name: string): string | undefined {
+  if (name.length > 214) return "App name must be 214 characters or fewer";
+  if (!/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/.test(name)) {
+    return "App name must be a lowercase npm package name without path separators";
+  }
+  if (/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/.test(name)) {
+    return `App name is reserved on Windows: ${name}`;
+  }
+  return undefined;
 }
 
 function normalizePromptText(promptText: string): string {
@@ -936,7 +967,19 @@ export async function runCreateCli(
     return 1;
   }
 
-  const target = path.resolve(process.cwd(), name);
+  const nameError = validateAppName(name);
+  if (nameError) {
+    io.error(nameError);
+    return 1;
+  }
+
+  const expectedPositionals = explicitTemplate ? 2 : 1;
+  if (parsed.positional.length > expectedPositionals) {
+    io.error("Too many positional arguments");
+    return 1;
+  }
+
+  const target = path.resolve(process.cwd(), parsed.targetDir || name);
   const templateDir = await findTemplateDir(templateType);
 
   try {
@@ -949,6 +992,10 @@ export async function runCreateCli(
   try {
     const stat = await fs.stat(target).catch(() => null);
     if (stat) {
+      if (!stat.isDirectory()) {
+        io.error(`Target exists and is not a directory: ${target}`);
+        return 1;
+      }
       const files = await fs.readdir(target).catch(() => [] as string[]);
       if (files.length > 0) {
         io.error(`Directory ${target} already exists and is not empty.`);
@@ -983,17 +1030,28 @@ export async function runCreateCli(
   io.log(`Creating ${TEMPLATE_LABELS[templateType]} project: ${name}...`);
   io.log("");
 
+  let stagingTarget: string;
   try {
-    await copyDir(templateDir, target, { appName: name });
+    stagingTarget = await createSiblingStage(target, "askr-create");
   } catch (error) {
+    io.error("Failed to prepare project output");
+    io.error(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
+
+  try {
+    await copyDir(templateDir, stagingTarget, { appName: name });
+  } catch (error) {
+    await fs.rm(stagingTarget, { recursive: true, force: true });
     io.error("Failed to copy template");
     io.error(error instanceof Error ? error.message : String(error));
     return 1;
   }
 
   try {
-    await writeBlueprintFiles(target, blueprint);
+    await writeBlueprintFiles(stagingTarget, blueprint);
   } catch (error) {
+    await fs.rm(stagingTarget, { recursive: true, force: true });
     io.error("Failed to write project blueprint");
     io.error(error instanceof Error ? error.message : String(error));
     return 1;
@@ -1002,7 +1060,7 @@ export async function runCreateCli(
   if (parsed.skills) {
     try {
       const { bundledNames, targetSkillsDir } = await installBundledSkills({
-        cwd: target,
+        cwd: stagingTarget,
         force: true,
       });
       io.log(
@@ -1010,6 +1068,7 @@ export async function runCreateCli(
       );
       io.log("");
     } catch (error) {
+      await fs.rm(stagingTarget, { recursive: true, force: true });
       io.error("Failed to install bundled Askr skills");
       io.error(error instanceof Error ? error.message : String(error));
       return 1;
@@ -1019,7 +1078,16 @@ export async function runCreateCli(
     io.log("");
   }
 
+  const pm = detectPm();
   if (!parsed.install) {
+    try {
+      await publishStagedDirectory(stagingTarget, target);
+    } catch (error) {
+      await fs.rm(stagingTarget, { recursive: true, force: true });
+      io.error("Failed to publish generated project");
+      io.error(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
     io.log("Skipping dependency installation (--no-install)");
     io.log("");
     io.log("Next steps:");
@@ -1028,34 +1096,37 @@ export async function runCreateCli(
     if (!parsed.skills) {
       io.log("  askr skills install");
     }
-    io.log("  npm install");
-    io.log("  npm run dev");
+    io.log(`  ${pm} install`);
+    io.log(`  ${pm} run dev`);
     return 0;
   }
 
-  const pm = detectPm();
   io.log(`Installing dependencies with ${pm}...`);
   io.log("");
 
   const result = spawnSync(pm, ["install"], {
-    cwd: target,
+    cwd: stagingTarget,
     stdio: "inherit",
     shell: process.platform === "win32",
   });
+
+  if (result.status !== 0) {
+    await fs.rm(stagingTarget, { recursive: true, force: true });
+    io.error(`Dependency installation with ${pm} failed; no project files were published.`);
+    if (result.error) io.error(result.error.message);
+    return 1;
+  }
 
   io.log("");
   io.log(`Success! Created ${name}`);
   io.log("");
 
-  if (result.status !== 0) {
-    io.log("Dependency installation failed. Please run manually:");
-    io.log(`  cd ${name}`);
-    io.log("  review .askr/builder-brief.md");
-    if (!parsed.skills) {
-      io.log("  askr skills install");
-    }
-    io.log(`  ${pm} install`);
-    io.log(`  ${pm} run dev`);
+  try {
+    await publishStagedDirectory(stagingTarget, target);
+  } catch (error) {
+    await fs.rm(stagingTarget, { recursive: true, force: true });
+    io.error("Failed to publish generated project");
+    io.error(error instanceof Error ? error.message : String(error));
     return 1;
   }
 

@@ -42,12 +42,14 @@ describe("OpenAPI CLI", () => {
       output: "./openapi.yml",
       check: false,
       help: false,
+      json: false,
     });
     expect(parseOpenApiArgs(["--entry", "api.ts", "--output", "contract.yml", "--check"])).toEqual({
       entry: "api.ts",
       output: "contract.yml",
       check: true,
       help: false,
+      json: false,
     });
   });
 
@@ -89,6 +91,44 @@ info:
 paths: {}
 `);
       expect((await fs.readdir(item.root)).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+    } finally {
+      await fs.rm(item.root, { recursive: true, force: true });
+    }
+  });
+
+  it("awaits asynchronous document exporters", async () => {
+    const item = await fixture(`
+      export default {
+        async toOpenApiDocument() {
+          return { openapi: "3.1.2", info: { title: "Async", version: "1" }, paths: {} };
+        },
+      };
+    `);
+    try {
+      expect(
+        await runOpenApiCli(["--entry", item.entry, "--output", item.output], io().value),
+      ).toBe(0);
+      expect(await fs.readFile(item.output, "utf8")).toContain("title: Async");
+    } finally {
+      await fs.rm(item.root, { recursive: true, force: true });
+    }
+  });
+
+  it("prints machine-readable generation results", async () => {
+    const item = await fixture(validModule);
+    try {
+      const result = io();
+      expect(
+        await runOpenApiCli(
+          ["--entry", item.entry, "--output", item.output, "--json"],
+          result.value,
+        ),
+      ).toBe(0);
+      expect(JSON.parse(result.logs[0])).toMatchObject({
+        status: "ok",
+        action: "generated",
+        output: item.output,
+      });
     } finally {
       await fs.rm(item.root, { recursive: true, force: true });
     }
@@ -151,6 +191,16 @@ paths: {}
       /must return an OpenAPI document object/,
     ],
     [
+      "unsupported OpenAPI version",
+      'export default { toOpenApiDocument: () => ({ openapi: "2.0", info: { title: "x", version: "1" }, paths: {} }) };',
+      /supported openapi/,
+    ],
+    [
+      "missing info",
+      'export default { toOpenApiDocument: () => ({ openapi: "3.1.0", paths: {} }) };',
+      /info object/,
+    ],
+    [
       "definition error",
       "export default { toOpenApiDocument: () => { throw new Error('invalid definition') } };",
       /invalid definition/,
@@ -191,7 +241,13 @@ paths: {}
       await runOpenApiCli([], result.value, {
         cwd: () => cwd,
         importModule: async () => ({
-          default: { toOpenApiDocument: () => ({ openapi: "3.1.2" }) },
+          default: {
+            toOpenApiDocument: () => ({
+              openapi: "3.1.2",
+              info: { title: "Fixture", version: "1" },
+              paths: {},
+            }),
+          },
         }),
         mkdir: async () => {
           events.push("mkdir");
@@ -210,5 +266,19 @@ paths: {}
       `write:${output}.fixed.tmp`,
       `rename:${output}.fixed.tmp:${output}`,
     ]);
+  });
+
+  it("refuses to overwrite the source entry", async () => {
+    const item = await fixture(validModule);
+    try {
+      const result = io();
+      expect(
+        await runOpenApiCli(["--entry", item.entry, "--output", item.entry], result.value),
+      ).toBe(1);
+      expect(result.errors.join("\n")).toMatch(/must not overwrite/);
+      expect(await fs.readFile(item.entry, "utf8")).toBe(validModule);
+    } finally {
+      await fs.rm(item.root, { recursive: true, force: true });
+    }
   });
 });

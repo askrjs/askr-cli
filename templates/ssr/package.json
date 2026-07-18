@@ -6,7 +6,7 @@
     "dev": "vp dev",
     "build": "vp build && vp build --ssr server.ts --outDir dist/server",
     "preview": "node dist/server/server.js",
-    "test": "vp test run",
+    "test": "vp test run -c ./vitest.config.ts",
     "typecheck": "tsc --noEmit",
     "lint": "vp lint src server.ts tests vite.config.ts",
     "lint:fix": "npm run lint -- --fix",
@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@askrjs/vite": ">=0.0.6 <0.1.0",
-    "@types/node": "^26.0.0",
+    "@types/node": "^20.19.0",
     "jsdom": "^29.1.1",
     "tsx": "^4.23.1",
     "typescript": "^6.0.3",

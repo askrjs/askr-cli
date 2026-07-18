@@ -10,6 +10,11 @@ for full-stack apps.
 Generators will scaffold files according to Askr conventions. Generated code
 should remain ordinary Askr code: no runtime magic and no generator dependency.
 
+Multi-file generators are transactional. If any replacement fails, completed
+replacements are restored and newly created files are removed. SPA route files
+use the explicit `// askr:imports` and `// askr:routes` ownership markers; the
+CLI refuses ambiguous route files instead of guessing at braces or imports.
+
 ## Shipped command
 
 ```bash

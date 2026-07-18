@@ -173,43 +173,32 @@ function wait(signal?: AbortSignal, delay = 220): Promise<void> {
   });
 }
 
+function browserStorage(): Storage | undefined {
+  const globalDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'localStorage'
+  );
+  if (globalDescriptor?.get && globalDescriptor.enumerable === false) {
+    return undefined;
+  }
+  if (typeof document === 'undefined') return undefined;
+  try {
+    return document.defaultView?.localStorage;
+  } catch {
+    return undefined;
+  }
+}
+
 function readStorage(key: string): string | null {
   const fallback = storageFallback.get(key) ?? null;
-
-  if (typeof window === 'undefined') {
-    return fallback;
-  }
-
-  try {
-    const storage = window.localStorage as {
-      getItem?: (storageKey: string) => string | null;
-    };
-    if (typeof storage.getItem !== 'function') {
-      return fallback;
-    }
-
-    return storage.getItem(key) ?? fallback;
-  } catch {
-    return fallback;
-  }
+  return browserStorage()?.getItem(key) ?? fallback;
 }
 
 function writeStorage(key: string, value: string) {
   storageFallback.set(key, value);
 
-  if (typeof window === 'undefined') {
-    return;
-  }
-
   try {
-    const storage = window.localStorage as {
-      setItem?: (storageKey: string, storageValue: string) => void;
-    };
-    if (typeof storage.setItem !== 'function') {
-      return;
-    }
-
-    storage.setItem(key, value);
+    browserStorage()?.setItem(key, value);
   } catch {
     // Ignore storage write failures in non-browser or restricted test envs.
   }
@@ -218,19 +207,8 @@ function writeStorage(key: string, value: string) {
 function removeStorage(key: string) {
   storageFallback.delete(key);
 
-  if (typeof window === 'undefined') {
-    return;
-  }
-
   try {
-    const storage = window.localStorage as {
-      removeItem?: (storageKey: string) => void;
-    };
-    if (typeof storage.removeItem !== 'function') {
-      return;
-    }
-
-    storage.removeItem(key);
+    browserStorage()?.removeItem(key);
   } catch {
     // Ignore storage delete failures in non-browser or restricted test envs.
   }

@@ -4,6 +4,7 @@ import type { DocumentRenderArgs } from '@askrjs/askr/ssg';
 import { pageRegistry } from './src/routes';
 
 export const outputDir = './dist';
+export const siteUrl = 'https://example.com';
 
 let clientTemplate: string | undefined;
 
@@ -24,6 +25,12 @@ function renderDocument({ appHtml }: DocumentRenderArgs) {
 export const staticConfig = {
   registry: pageRegistry,
   outputDir,
+  siteUrl,
+  sitemap: {
+    routes: {
+      '/preview': false,
+    },
+  },
   document: renderDocument,
   assets: [
     {

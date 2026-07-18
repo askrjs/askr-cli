@@ -7,5 +7,7 @@ describe('SSG config', () => {
       staticConfig.registry.manifest.records.map((route) => route.path).sort()
     ).toEqual(['/', '/content', '/preview', '/workflow'].sort());
     expect(staticConfig.registry.routes).toHaveLength(4);
+    expect(staticConfig.siteUrl).toBe('https://example.com');
+    expect(staticConfig.sitemap.routes['/preview']).toBe(false);
   });
 });

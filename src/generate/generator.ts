@@ -1,5 +1,5 @@
-import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
-import { basename, dirname, join, resolve } from "node:path";
+import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { load } from "js-yaml";
 
@@ -34,6 +34,16 @@ function schemaType(
   if (schema.$ref) {
     const name = decodeURIComponent(String(schema.$ref).split("/").at(-1)!);
     return pascal(name);
+  }
+  if (Array.isArray(schema.type)) {
+    const includesNull = schema.type.includes("null");
+    const variants = [...new Set(schema.type.filter((value: unknown) => value !== "null"))];
+    const rendered = variants.map((variant) =>
+      schemaType({ ...schema, type: variant, nullable: false }, at, direction),
+    );
+    if (includesNull) rendered.push("null");
+    if (rendered.length === 0) fail("Schema type array must not be empty", at);
+    return [...new Set(rendered)].join(" | ");
   }
   if (schema.const !== undefined) return JSON.stringify(schema.const);
   if (schema.enum)
@@ -320,18 +330,44 @@ export function generateFiles(document: Json): Record<(typeof OWNED)[number], st
       if (seen.has(id)) fail("Duplicate operationId", `${at}/operationId`, id);
       seen.add(id);
       if (operation.callbacks) fail("Callbacks are unsupported", `${at}/callbacks`, id);
-      const parameters = [
+      const parametersByIdentity = new Map<string, Json>();
+      for (const parameter of [
         ...(document.paths[path].parameters ?? []),
         ...(operation.parameters ?? []),
-      ];
+      ]) {
+        if (parameter.$ref) fail("Parameter references must be bundled", `${at}/parameters`, id);
+        if (typeof parameter.name !== "string" || typeof parameter.in !== "string") {
+          fail("Parameters require string name and in fields", `${at}/parameters`, id);
+        }
+        parametersByIdentity.set(`${parameter.in}\0${parameter.name}`, parameter);
+      }
+      const parameters = [...parametersByIdentity.values()];
       const byLocation: Record<string, Json[]> = { path: [], query: [], header: [] };
       for (const parameter of parameters) {
-        if (parameter.$ref) fail("Parameter references must be bundled", `${at}/parameters`, id);
         if (parameter.in === "cookie")
           fail("Cookie parameters are unsupported", `${at}/parameters`, id);
         if (!byLocation[parameter.in])
           fail(`Unsupported parameter location ${parameter.in}`, `${at}/parameters`, id);
         byLocation[parameter.in]!.push(parameter);
+      }
+      const templateParameters = new Set(
+        [...path.matchAll(/\{([^{}]+)\}/g)].map((match) => match[1]),
+      );
+      const declaredPathParameters = new Set(byLocation.path.map((parameter) => parameter.name));
+      for (const name of templateParameters) {
+        const parameter = byLocation.path.find((candidate) => candidate.name === name);
+        if (!parameter)
+          fail(`Path template parameter ${name} is not declared`, `${at}/parameters`, id);
+        if (!parameter || parameter.required !== true)
+          fail(`Path parameter ${name} must be required`, `${at}/parameters`, id);
+      }
+      for (const name of declaredPathParameters) {
+        if (!templateParameters.has(name))
+          fail(
+            `Path parameter ${name} is not present in the path template`,
+            `${at}/parameters`,
+            id,
+          );
       }
       const prefix = pascal(id);
       const renderParameters = (location: string) => {
@@ -426,6 +462,10 @@ export async function writeGenerated(
   check: boolean,
 ): Promise<void> {
   const output = resolve(directory);
+  const outputStat = await stat(output).catch(() => null);
+  if (outputStat && !outputStat.isDirectory()) {
+    throw new GenerationError(`Generated output must be a directory: ${output}`);
+  }
   const entries = await existingFiles(output);
   if (check) {
     if (!entries.length) throw new GenerationError(`Generated directory is missing: ${output}`);
@@ -459,6 +499,14 @@ export async function writeGenerated(
   }
 }
 export async function generate(input: string, output: string, check = false) {
+  if (!/^https?:\/\//.test(input)) {
+    const resolvedInput = resolve(input);
+    const resolvedOutput = resolve(output);
+    const inputWithinOutput = relative(resolvedOutput, resolvedInput);
+    if (!inputWithinOutput.startsWith("..") && !isAbsolute(inputWithinOutput)) {
+      throw new GenerationError("Generated output must not contain its OpenAPI input document");
+    }
+  }
   const document = await loadOpenApi(input);
   const files = generateFiles(document);
   await mkdir(dirname(resolve(output)), { recursive: true });

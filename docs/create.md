@@ -5,7 +5,7 @@ Scaffold a new Askr project from a template.
 ## Usage
 
 ```bash
-askr create [template] <name> [--prompt <text>] [--no-install] [--no-skills]
+askr create [template] <name> [--dir <path>] [--prompt <text>] [--no-install] [--no-skills]
 askr create --prompt <text> [name] [--no-install] [--no-skills]
 ```
 
@@ -23,10 +23,17 @@ slug from the prompt.
 
 | Option         | Description                                        |
 | -------------- | -------------------------------------------------- |
+| `--dir <path>` | Use an explicit output directory                   |
 | `--no-install` | Scaffold files without installing npm dependencies |
 | `--no-skills`  | Skip installing bundled Askr skills into `skills/` |
 | `--prompt`     | Infer the best template from a product prompt      |
 | `--help`, `-h` | Show help                                          |
+
+Names must be valid lowercase npm package names and cannot contain path
+separators. Use `--dir` when the filesystem destination differs from the
+package name. npm, pnpm, Yarn, and Bun are detected from the invoking package
+manager. Scaffolding and optional installation happen in a sibling staging
+directory; the destination is replaced only after every requested step passes.
 
 If you omit the template or name, the CLI falls back to an interactive prompt.
 The default template is `startkit`.
