@@ -10,6 +10,8 @@
 *.yml text eol=lf
 *.yaml text eol=lf
 *.md text eol=lf
+*.html text eol=lf
+*.css text eol=lf
 
 # Shell scripts
 *.sh text eol=lf
