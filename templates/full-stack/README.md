@@ -15,4 +15,3 @@ npm run preview
 Use `askr add action <name> --route <path>` to generate a browser-safe descriptor, server handler, composition-root registration, route authorization, and focused test.
 
 `index.html` owns the static document. `@askrjs/vite/server` injects only Askr-owned head nodes and composes the streamed app response at `<!--askr-app-->`.
-

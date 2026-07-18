@@ -1,4 +1,3 @@
-import { createTelemetry } from '@askrjs/otel';
+import { createTelemetry } from "@askrjs/otel";
 
 export const telemetry = createTelemetry();
-

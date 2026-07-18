@@ -1,5 +1,5 @@
-import type { ActionDescriptor } from '@askrjs/askr/actions';
-import { createMessageAction } from './actions/create-message';
+import type { ActionDescriptor } from "@askrjs/askr/actions";
+import { createMessageAction } from "./actions/create-message";
 
 const actionsByRoute: Readonly<Record<string, readonly ActionDescriptor[]>> = Object.freeze({
   "/": [createMessageAction],

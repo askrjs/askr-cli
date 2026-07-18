@@ -9,4 +9,3 @@ This project is the progressive full-stack stage of an Askr application.
 - Keep `index.html` as the only document source. Preserve exactly one `<!--askr-head-->` and one `<!--askr-app-->` marker.
 - Use native forms first; enhanced submission must preserve the same validation and authorization behavior.
 - Never log cookies, authorization values, tokens, form fields, request bodies, or personal data.
-

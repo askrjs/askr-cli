@@ -1,7 +1,15 @@
-import { Link } from '@askrjs/askr/router';
-import { Block, Container, Header, Navbar, NavBrand, NavGroup, NavLink } from '@askrjs/themes/components';
-import { ThemeScope, ThemeToggle } from '@askrjs/themes/theme';
-import { messages } from '../i18n';
+import { Link } from "@askrjs/askr/router";
+import {
+  Block,
+  Container,
+  Header,
+  Navbar,
+  NavBrand,
+  NavGroup,
+  NavLink,
+} from "@askrjs/themes/components";
+import { ThemeScope, ThemeToggle } from "@askrjs/themes/theme";
+import { messages } from "../i18n";
 
 function ScopedLayout({ children }: { children?: unknown }) {
   return (
@@ -10,7 +18,9 @@ function ScopedLayout({ children }: { children?: unknown }) {
         <Header sticky>
           <Container paddingY="sm">
             <Navbar aria-label="Primary navigation" width="full">
-              <NavBrand><Link href="/">{messages.text('title')}</Link></NavBrand>
+              <NavBrand>
+                <Link href="/">{messages.text("title")}</Link>
+              </NavBrand>
               <NavGroup align="end">
                 <NavLink href="/">Home</NavLink>
                 <ThemeToggle aria-label="Toggle theme" />

@@ -531,7 +531,7 @@ test("runCreateCli scaffolds a function-first full-stack project", async () => {
     expect(gitignore).toContain("node_modules");
     expect(actionsFile).toMatch(/handleAction\(createMessageAction, createMessage\)/);
     expect(actionsFile).toMatch(/export function createActionHandlers/);
-    expect(routesFile).toMatch(/actionsFor\('\/'\)/);
+    expect(routesFile).toMatch(/actionsFor\(["']\/["']\)/);
     expect(homeFile).toMatch(/ActionForm\(\{/);
     expect(homeFile).toMatch(/htmlFor="message"/);
     expect(homeFile).toMatch(/<input id="message" name="value" required \/>/);
