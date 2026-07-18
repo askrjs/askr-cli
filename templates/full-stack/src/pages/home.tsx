@@ -1,12 +1,12 @@
-import { ActionForm } from '@askrjs/askr/actions';
-import { createMessageAction } from '../actions/create-message';
-import { messages } from '../i18n';
+import { ActionForm } from "@askrjs/askr/actions";
+import { createMessageAction } from "../actions/create-message";
+import { messages } from "../i18n";
 
 export function HomePage() {
   return (
     <main>
-      <h1>{messages.text('title')}</h1>
-      <p>{messages.text('intro')}</p>
+      <h1>{messages.text("title")}</h1>
+      <p>{messages.text("intro")}</p>
       <form method="post" action="/api/session">
         <button type="submit">Start demo session</button>
       </form>

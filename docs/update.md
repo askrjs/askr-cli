@@ -17,12 +17,12 @@ askr update --json
 
 ## Options
 
-| Option               | Behavior                                                     |
-| -------------------- | ------------------------------------------------------------ |
-| `--cwd <dir>`        | Start project discovery from another directory.              |
-| `--workspace <glob>` | Select workspace package names. Repeat for more filters.     |
-| `--tag <tag>`        | Resolve every selected package through this dist-tag.        |
-| `--json`             | Write one deterministic result object to stdout.             |
+| Option               | Behavior                                                 |
+| -------------------- | -------------------------------------------------------- |
+| `--cwd <dir>`        | Start project discovery from another directory.          |
+| `--workspace <glob>` | Select workspace package names. Repeat for more filters. |
+| `--tag <tag>`        | Resolve every selected package through this dist-tag.    |
+| `--json`             | Write one deterministic result object to stdout.         |
 
 Positional package names are minimatch patterns. When any are supplied, they
 select the package set directly and override matching persistent ignores.
