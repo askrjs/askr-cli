@@ -10,6 +10,7 @@ export default defineConfig({
       openapi: "src/bin/openapi.ts",
       skills: "src/bin/skills.ts",
       ssg: "src/bin/ssg.ts",
+      "ssg-config": "src/ssg.ts",
       update: "src/bin/update.ts",
     },
     format: ["esm"],
@@ -18,7 +19,7 @@ export default defineConfig({
     outExtensions: () => ({
       js: ".js",
     }),
-    sourcemap: true,
+    sourcemap: false,
     copy: ["templates", "skills"],
     deps: {
       neverBundle: [/^@askrjs\/askr(?:\/.*)?$/, "tsx/esm/api"],

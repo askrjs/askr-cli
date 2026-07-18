@@ -6,7 +6,7 @@
     "dev": "vp dev",
     "build": "vp build",
     "preview": "vp preview",
-    "test": "vp test run",
+    "test": "vp test run -c ./vitest.config.ts",
     "test:watch": "vp test --watch",
     "typecheck": "tsc --noEmit",
     "lint": "vp lint .",
@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@askrjs/vite": ">=0.0.6 <0.1.0",
-    "@types/node": "^26.0.0",
+    "@types/node": "^20.19.0",
     "jsdom": "^29.1.1",
     "typescript": "^6.0.3",
     "vite-plus": "^0.2.4"

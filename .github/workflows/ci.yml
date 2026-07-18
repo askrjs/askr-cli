@@ -22,6 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+        node: [20.19.0, "lts/*"]
 
     steps:
       - name: Checkout repository
@@ -30,7 +31,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: "lts/*"
+          node-version: ${{ matrix.node }}
           cache: npm
 
       - name: Install dependencies
@@ -50,9 +51,31 @@ jobs:
         run: npm run build
 
       - name: Test
-        run: npm test
+        run: npm run test:coverage
 
       - name: Type checks
         run: |
           npm run typecheck --if-present
           npm run test:types --if-present
+
+      - name: Package contract
+        run: |
+          npm run test:publint
+          npm run pack:check
+
+  packed-templates:
+    name: Packed template integration (Node 20.19.0)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20.19.0
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify packed CLI against every template
+        run: npm run test:templates

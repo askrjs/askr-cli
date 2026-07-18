@@ -14,10 +14,11 @@ interface ParsedArgs {
   output: string;
   check: boolean;
   help: boolean;
+  json: boolean;
 }
 
 interface DocumentExporter {
-  toOpenApiDocument(): unknown;
+  toOpenApiDocument(): unknown | Promise<unknown>;
 }
 
 interface OpenApiDeps {
@@ -40,6 +41,7 @@ Options:
   --entry <path>   TypeScript API module (default: ./src/api.ts)
   --output <path>  YAML artifact (default: ./openapi.yml)
   --check          Fail when the artifact is missing or byte-stale; never write
+  --json           Print machine-readable command results
   --help, -h       Show help
 `;
 
@@ -60,16 +62,18 @@ export function parseOpenApiArgs(args: readonly string[]): ParsedArgs {
     output: "./openapi.yml",
     check: false,
     help: false,
+    json: false,
   };
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--entry" || value === "--output") {
       const next = args[index + 1];
-      if (!next) throw new Error(`${value} requires a path`);
+      if (!next || next.startsWith("-")) throw new Error(`${value} requires a path`);
       if (value === "--entry") parsed.entry = next;
       else parsed.output = next;
       index += 1;
     } else if (value === "--check") parsed.check = true;
+    else if (value === "--json") parsed.json = true;
     else if (value === "--help" || value === "-h") parsed.help = true;
     else throw new Error(`Unknown option: ${value}`);
   }
@@ -107,12 +111,40 @@ export function serializeOpenApi(document: unknown): string {
   return `${yaml.replace(/\n+$/, "")}\n`;
 }
 
-async function generate(entry: string, deps: OpenApiDeps): Promise<string> {
-  const moduleValue = await deps.importModule(entry);
-  const document = exporterFrom(moduleValue).toOpenApiDocument();
+export function validateOpenApiDocument(
+  document: unknown,
+): asserts document is Record<string, unknown> {
   if (!document || typeof document !== "object" || Array.isArray(document)) {
     throw new Error("toOpenApiDocument() must return an OpenAPI document object");
   }
+  const candidate = document as Record<string, unknown>;
+  if (
+    typeof candidate.openapi !== "string" ||
+    !/^3\.(?:0|1)\.\d+(?:[-+].+)?$/.test(candidate.openapi)
+  ) {
+    throw new Error("OpenAPI document must declare a supported openapi 3.0.x or 3.1.x version");
+  }
+  if (!candidate.info || typeof candidate.info !== "object" || Array.isArray(candidate.info)) {
+    throw new Error("OpenAPI document must contain an info object");
+  }
+  const info = candidate.info as Record<string, unknown>;
+  if (
+    typeof info.title !== "string" ||
+    !info.title.trim() ||
+    typeof info.version !== "string" ||
+    !info.version.trim()
+  ) {
+    throw new Error("OpenAPI info must contain non-empty title and version strings");
+  }
+  if (!candidate.paths || typeof candidate.paths !== "object" || Array.isArray(candidate.paths)) {
+    throw new Error("OpenAPI document must contain a paths object");
+  }
+}
+
+async function generate(entry: string, deps: OpenApiDeps): Promise<string> {
+  const moduleValue = await deps.importModule(entry);
+  const document = await exporterFrom(moduleValue).toOpenApiDocument();
+  validateOpenApiDocument(document);
   return serializeOpenApi(document);
 }
 
@@ -134,6 +166,7 @@ export async function runOpenApiCli(
   overrides: Partial<OpenApiDeps> = {},
 ): Promise<number> {
   const deps = { ...defaultDeps, ...overrides };
+  const wantsJson = args.includes("--json");
   try {
     const parsed = parseOpenApiArgs(args);
     if (parsed.help) {
@@ -142,6 +175,7 @@ export async function runOpenApiCli(
     }
     const entry = path.resolve(deps.cwd(), parsed.entry);
     const output = path.resolve(deps.cwd(), parsed.output);
+    if (entry === output) throw new Error("OpenAPI output must not overwrite its source entry");
     const expected = await generate(entry, deps);
     if (parsed.check) {
       let actual: string;
@@ -149,23 +183,40 @@ export async function runOpenApiCli(
         actual = await deps.readFile(output);
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-          io.error(`OpenAPI artifact is missing: ${output}`);
+          io.error(
+            parsed.json
+              ? JSON.stringify({ status: "error", reason: "missing", output })
+              : `OpenAPI artifact is missing: ${output}`,
+          );
           return 1;
         }
         throw error;
       }
       if (actual !== expected) {
-        io.error(`OpenAPI artifact is stale: ${output}`);
+        io.error(
+          parsed.json
+            ? JSON.stringify({ status: "error", reason: "stale", output })
+            : `OpenAPI artifact is stale: ${output}`,
+        );
         return 1;
       }
-      io.log(`OpenAPI artifact is current: ${output}`);
+      io.log(
+        parsed.json
+          ? JSON.stringify({ status: "ok", action: "checked", output })
+          : `OpenAPI artifact is current: ${output}`,
+      );
       return 0;
     }
     await atomicWrite(output, expected, deps);
-    io.log(`Generated OpenAPI artifact: ${output}`);
+    io.log(
+      parsed.json
+        ? JSON.stringify({ status: "ok", action: "generated", output })
+        : `Generated OpenAPI artifact: ${output}`,
+    );
     return 0;
   } catch (error) {
-    io.error(error instanceof Error ? error.message : String(error));
+    const message = error instanceof Error ? error.message : String(error);
+    io.error(wantsJson ? JSON.stringify({ status: "error", error: message }) : message);
     return 1;
   }
 }

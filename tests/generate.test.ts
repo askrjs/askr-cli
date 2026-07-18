@@ -75,6 +75,50 @@ describe("askr generate", () => {
       /getUser: Callbacks are unsupported at #\/paths\/.*\/get\/callbacks/,
     );
   });
+  it("should render OpenAPI 3.1 type arrays given nullable schemas", () => {
+    const nullable: any = structuredClone(document);
+    nullable.components.schemas.Maybe = { type: ["string", "null"] };
+    nullable.components.schemas.Numeric = { type: ["integer", "number", "null"] };
+    const files = generateFiles(nullable);
+    expect(files["schemas.ts"]).toContain("export type Maybe = string | null;");
+    expect(files["schemas.ts"]).toContain("export type Numeric = number | null;");
+  });
+  it("should let operation parameters override path parameters by name and location", () => {
+    const overridden: any = structuredClone(document);
+    overridden.paths["/users/{id}"].parameters = [
+      { in: "path", name: "id", required: true, schema: { type: "number" } },
+      { in: "query", name: "include", schema: { type: "number" } },
+    ];
+    overridden.paths["/users/{id}"].get.parameters = [
+      { in: "path", name: "id", required: true, schema: { type: "string" } },
+      { in: "query", name: "include", schema: { type: "boolean" } },
+    ];
+    const operations = generateFiles(overridden)["operations.ts"];
+    expect(operations).toContain('"id": string;');
+    expect(operations).not.toContain('"id": number;');
+    expect(operations).toContain('"include"?: boolean;');
+    expect(operations.match(/"include"\?/g)).toHaveLength(1);
+  });
+  it.each([
+    ["missing declaration", [], /is not declared/],
+    [
+      "optional declaration",
+      [{ in: "path", name: "id", required: false, schema: { type: "string" } }],
+      /must be required/,
+    ],
+    [
+      "extraneous declaration",
+      [
+        { in: "path", name: "id", required: true, schema: { type: "string" } },
+        { in: "path", name: "other", required: true, schema: { type: "string" } },
+      ],
+      /not present in the path template/,
+    ],
+  ])("should reject %s given invalid path parameters", (_label, parameters, expected) => {
+    const invalid: any = structuredClone(document);
+    invalid.paths["/users/{id}"].get.parameters = parameters;
+    expect(() => generateFiles(invalid)).toThrow(expected);
+  });
   it("should require operation ids given an operation when rendering", () => {
     const invalid: any = structuredClone(document);
     delete invalid.paths["/users/{id}"].get.operationId;
@@ -87,6 +131,15 @@ describe("askr generate", () => {
       /Refusing to overwrite/,
     );
     expect(await readFile(join(output, "mine.txt"), "utf8")).toBe("keep");
+  });
+  it("should preserve a file mistakenly supplied as the output directory", async () => {
+    const root = await mkdtemp(join(tmpdir(), "askr-output-file-"));
+    const output = join(root, "contract.json");
+    await writeFile(output, "keep");
+    await expect(writeGenerated(output, generateFiles(document), false)).rejects.toThrow(
+      /must be a directory/,
+    );
+    expect(await readFile(output, "utf8")).toBe("keep");
   });
   it("should detect stale and extra files without writes given check mode when checking", async () => {
     const root = await mkdtemp(join(tmpdir(), "askr-check-"));
@@ -113,6 +166,27 @@ describe("askr generate", () => {
     expect(await runGenerateCli([input, "-o", output, "--check"], { log() {}, error() {} })).toBe(
       0,
     );
+  });
+  it("should reject output that contains the input document without mutating it", async () => {
+    const root = await mkdtemp(join(tmpdir(), "askr-contained-input-"));
+    const input = join(root, "openapi.json");
+    await writeFile(input, JSON.stringify(document));
+    expect(await runGenerateCli([input, "--output", root], { log() {}, error() {} })).toBe(1);
+    expect(JSON.parse(await readFile(input, "utf8"))).toMatchObject({ openapi: "3.1.0" });
+  });
+  it("should print machine-readable output given json mode", async () => {
+    const root = await mkdtemp(join(tmpdir(), "askr-cli-generate-json-"));
+    const input = join(root, "openapi.json");
+    const output = join(root, "generated");
+    await writeFile(input, JSON.stringify(document));
+    const logs: string[] = [];
+    expect(
+      await runGenerateCli([input, "--output", output, "--json"], {
+        log: (message) => logs.push(message),
+        error: (message) => logs.push(message),
+      }),
+    ).toBe(0);
+    expect(JSON.parse(logs[0])).toEqual({ status: "ok", action: "generated", output });
   });
   it("should bundle repeated and recursive external schemas given a file reference", async () => {
     const root = await mkdtemp(join(tmpdir(), "askr-external-openapi-"));

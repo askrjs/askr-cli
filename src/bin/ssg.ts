@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 
-import { existsSync } from "node:fs";
+import { constants, existsSync } from "node:fs";
+import * as fs from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import * as path from "node:path";
 import { pathToFileURL } from "node:url";
 import { register } from "tsx/esm/api";
 import { isDirectExecution } from "./is-direct-execution";
+import { generateSitemap, removeGeneratedSitemap, type SitemapConfig } from "../ssg/sitemap";
+import { createSiblingStage, publishStagedDirectory } from "../directory-swap";
 
 type CliIo = Pick<Console, "error" | "log">;
 
@@ -17,6 +21,7 @@ interface ParsedSsgArgs {
   changedRoutes: string[];
   forceFull: boolean;
   help: boolean;
+  errors: string[];
 }
 
 interface LoadedConfig {
@@ -27,10 +32,13 @@ interface LoadedConfig {
   concurrency?: number;
   document?: unknown;
   assets?: unknown[];
+  siteUrl?: string;
+  sitemap?: SitemapConfig | false;
 }
 
 interface RouteResult {
   path: string;
+  filePath: string;
   status: string;
   error?: string;
 }
@@ -96,6 +104,15 @@ const defaultDeps: Required<Pick<SsgDeps, "cwd" | "existsSync" | "now">> = {
   existsSync,
 };
 
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function importProjectConfig(filePath: string): Promise<{
   module: unknown;
   unregister: () => Promise<void>;
@@ -134,31 +151,62 @@ export function parseCliArgs(args: string[]): ParsedSsgArgs {
     changedRoutes: [],
     forceFull: false,
     help: false,
+    errors: [],
+  };
+
+  const valueFor = (index: number, option: string): string | undefined => {
+    const value = args[index + 1];
+    if (!value || value.startsWith("-")) {
+      parsed.errors.push(`Missing value for ${option}`);
+      return undefined;
+    }
+    return value;
   };
 
   for (let i = 0; i < args.length; i += 1) {
-    if (args[i] === "--config" && i + 1 < args.length) {
-      parsed.configPath = args[i + 1];
-      i += 1;
-    } else if (args[i] === "--output" && i + 1 < args.length) {
-      parsed.outputDir = args[i + 1];
-      i += 1;
-    } else if (args[i] === "--workers" && i + 1 < args.length) {
-      parsed.workers = args[i + 1] === "auto" ? "auto" : Number(args[i + 1]);
-      i += 1;
-    } else if (args[i] === "--changed-key" && i + 1 < args.length) {
-      parsed.changedKeys.push(args[i + 1]);
-      i += 1;
-    } else if (args[i] === "--changed-route" && i + 1 < args.length) {
-      parsed.changedRoutes.push(args[i + 1]);
-      i += 1;
+    if (args[i] === "--config") {
+      const value = valueFor(i, "--config");
+      if (value) {
+        parsed.configPath = value;
+        i += 1;
+      }
+    } else if (args[i] === "--output") {
+      const value = valueFor(i, "--output");
+      if (value) {
+        parsed.outputDir = value;
+        i += 1;
+      }
+    } else if (args[i] === "--workers") {
+      const value = valueFor(i, "--workers");
+      if (value) {
+        if (value === "auto") parsed.workers = "auto";
+        else {
+          const workers = Number(value);
+          if (!Number.isSafeInteger(workers) || workers < 1) {
+            parsed.errors.push("--workers must be 'auto' or a positive integer");
+          } else parsed.workers = workers;
+        }
+        i += 1;
+      }
+    } else if (args[i] === "--changed-key") {
+      const value = valueFor(i, "--changed-key");
+      if (value) {
+        parsed.changedKeys.push(value);
+        i += 1;
+      }
+    } else if (args[i] === "--changed-route") {
+      const value = valueFor(i, "--changed-route");
+      if (value) {
+        parsed.changedRoutes.push(value);
+        i += 1;
+      }
     } else if (args[i] === "--incremental") {
       parsed.incremental = true;
     } else if (args[i] === "--force-full") {
       parsed.forceFull = true;
     } else if (args[i] === "--help" || args[i] === "-h") {
       parsed.help = true;
-    }
+    } else parsed.errors.push(`Unknown option: ${args[i]}`);
   }
 
   return parsed;
@@ -178,6 +226,7 @@ function printSummary(
   outputDir: string,
   durationSeconds: string,
   result: GenerateResult,
+  sitemapPath?: string,
 ): void {
   io.log("");
   io.log(`Generation complete in ${durationSeconds}s`);
@@ -190,6 +239,7 @@ function printSummary(
   io.log(`   CacheHit:  ${result.cacheHits} routes`);
   io.log(`   Output:    ${outputDir}`);
   io.log(`   Metadata:  ${outputDir}/metadata.json`);
+  if (sitemapPath) io.log(`   Sitemap:   ${sitemapPath}`);
   io.log("");
 }
 
@@ -202,6 +252,11 @@ export async function runSsgCli(
   if (parsed.help) {
     io.log(helpText);
     return 0;
+  }
+
+  if (parsed.errors.length > 0) {
+    for (const error of parsed.errors) io.error(`Error: ${error}`);
+    return 1;
   }
 
   if (!parsed.configPath) {
@@ -222,6 +277,19 @@ export async function runSsgCli(
   const resolvedDeps = { ...defaultDeps, ...deps };
   const resolvedConfigPath = resolve(resolvedDeps.cwd(), parsed.configPath);
   const resolvedOutputDir = resolve(resolvedDeps.cwd(), parsed.outputDir);
+  const outputStat = await fs.stat(resolvedOutputDir).catch(() => null);
+  if (outputStat && !outputStat.isDirectory()) {
+    io.error(`Error: SSG output exists and is not a directory: ${resolvedOutputDir}`);
+    return 1;
+  }
+  const configWithinOutput = path.relative(resolvedOutputDir, resolvedConfigPath);
+  if (
+    resolvedOutputDir === path.resolve(resolvedDeps.cwd()) ||
+    (!configWithinOutput.startsWith("..") && !path.isAbsolute(configWithinOutput))
+  ) {
+    io.error("Error: --output must not contain the project or SSG config file");
+    return 1;
+  }
 
   if (!resolvedDeps.existsSync(resolvedConfigPath)) {
     io.error(`Error: Config file not found: ${resolvedConfigPath}`);
@@ -229,6 +297,7 @@ export async function runSsgCli(
   }
 
   let unregisterProjectLoader: (() => Promise<void>) | undefined;
+  let cliStagingDir: string | undefined;
   try {
     io.log(`Loading config: ${resolvedConfigPath}`);
 
@@ -250,6 +319,8 @@ export async function runSsgCli(
       concurrency?: number;
       document?: unknown;
       assets?: unknown[];
+      siteUrl?: string;
+      sitemap?: SitemapConfig | false;
     };
     const candidate = configModule.default ?? configModule.staticConfig ?? configModule;
     const hasRoutes = Array.isArray(candidate.routes);
@@ -260,6 +331,11 @@ export async function runSsgCli(
       return 1;
     }
     const config = candidate as LoadedConfig;
+
+    if (config.sitemap !== false && !config.siteUrl) {
+      io.error("Error: Config must provide siteUrl to generate sitemap.xml, or set sitemap: false");
+      return 1;
+    }
 
     io.log(
       hasRoutes
@@ -272,9 +348,18 @@ export async function runSsgCli(
         ? resolvedDeps.createStaticGen
         : await loadCreateStaticGen();
 
+    cliStagingDir = await createSiblingStage(resolvedOutputDir, "askr-ssg");
+    if (parsed.incremental && !parsed.forceFull && (await pathExists(resolvedOutputDir))) {
+      await fs.cp(resolvedOutputDir, cliStagingDir, {
+        recursive: true,
+        mode: constants.COPYFILE_FICLONE,
+      });
+    }
+    const generationOutputDir = cliStagingDir;
+
     const ssg = createStaticGen({
       ...(hasRoutes ? { routes: config.routes } : { registry: config.registry }),
-      outputDir: resolvedOutputDir,
+      outputDir: generationOutputDir,
       seed: config.seed,
       dataOverrides: config.dataOverrides,
       concurrency: config.concurrency,
@@ -285,9 +370,28 @@ export async function runSsgCli(
 
     const startTime = resolvedDeps.now();
     const result = await ssg.generate(toGenerateOptions(parsed));
+    const sitemapPath =
+      result.failed === 0 && config.sitemap !== false && config.siteUrl
+        ? await generateSitemap(generationOutputDir, config.siteUrl, result.routes, config.sitemap)
+        : undefined;
+    if (result.failed === 0 && config.sitemap === false) {
+      await removeGeneratedSitemap(generationOutputDir);
+    }
+    if (result.failed === 0 && cliStagingDir) {
+      await publishStagedDirectory(cliStagingDir, resolvedOutputDir);
+      cliStagingDir = undefined;
+    }
     const duration = ((resolvedDeps.now() - startTime) / 1000).toFixed(2);
 
-    printSummary(io, resolvedOutputDir, duration, result);
+    printSummary(
+      io,
+      resolvedOutputDir,
+      duration,
+      result,
+      sitemapPath
+        ? path.join(resolvedOutputDir, path.relative(generationOutputDir, sitemapPath))
+        : undefined,
+    );
 
     if (result.failed > 0) {
       io.log("Errors encountered:");
@@ -309,6 +413,9 @@ export async function runSsgCli(
     }
     return 1;
   } finally {
+    if (cliStagingDir) {
+      await fs.rm(cliStagingDir, { recursive: true, force: true });
+    }
     await unregisterProjectLoader?.();
   }
 }

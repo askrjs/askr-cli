@@ -28,7 +28,8 @@ Use this when the app renders outside the browser or produces static output. The
 2. Register routes at module load before boot or render.
 3. Keep render paths deterministic and environment-safe.
 4. Use route `entries` or the template's static config for parameterized SSG paths.
-5. Build and preview after changes that cross the render boundary.
+5. Set the canonical `siteUrl` and explicitly exclude non-indexable routes in `sitemap.routes`.
+6. Build and preview after changes that cross the render boundary.
 
 ## Copy This Shape
 
@@ -61,6 +62,7 @@ npx @askrjs/cli ssg --config ./ssg.config.ts --output ./dist/static
 - SSR or SSG build output is deterministic for the same inputs.
 - Hydration has no structural mismatch warnings.
 - Generated static routes cover expected params.
+- `sitemap.xml` contains every intended canonical route and excludes runtime-only or non-indexable routes.
 - Browser preview still navigates correctly after hydration.
 
 ## Done When

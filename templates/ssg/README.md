@@ -34,6 +34,6 @@ npm run typecheck  # Type check
 
 ## Static generation
 
-Run `npm run build` to compile browser assets and pre-render every route into `dist/`. The `askr ssg` command owns both full and incremental generation, and publishes routes, metadata, the incremental manifest, and browser assets together.
+Run `npm run build` to compile browser assets and pre-render every route into `dist/`. The `askr ssg` command owns both full and incremental generation, and publishes routes, metadata, the incremental manifest, browser assets, `sitemap.xml`, and the managed `robots.txt` sitemap directive together.
 
 `ssg.config.ts` passes the same immutable route registry used in dev mode, so the shell and leaf pages stay in sync.

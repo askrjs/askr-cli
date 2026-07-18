@@ -6,6 +6,7 @@ import { isDirectExecution } from "./is-direct-execution";
 import { writeFileChanges } from "../file-changes";
 
 type CliIo = Pick<Console, "error" | "log">;
+type WriteChanges = typeof writeFileChanges;
 
 const BRANCH_CONFIG = {
   app: {
@@ -32,6 +33,7 @@ interface ParsedArgs {
   errors: string[];
   command: string;
   name: string;
+  positionals: string[];
 }
 
 function helpText(): string {
@@ -86,33 +88,35 @@ function parseArgs(args: string[]): ParsedArgs {
     } else if (arg === "--force") {
       parsed.force = true;
     } else if (arg === "--branch") {
-      if (index + 1 >= args.length) {
+      if (index + 1 >= args.length || args[index + 1].startsWith("-")) {
         parsed.errors.push("Missing value for --branch");
       } else {
         parsed.branch = args[index + 1];
         index += 1;
       }
     } else if (arg === "--cwd") {
-      if (index + 1 >= args.length) {
+      if (index + 1 >= args.length || args[index + 1].startsWith("-")) {
         parsed.errors.push("Missing value for --cwd");
       } else {
         parsed.cwd = args[index + 1];
         index += 1;
       }
     } else if (arg === "--title") {
-      if (index + 1 >= args.length) {
+      if (index + 1 >= args.length || args[index + 1].startsWith("-")) {
         parsed.errors.push("Missing value for --title");
       } else {
         parsed.title = args[index + 1].trim();
         index += 1;
       }
     } else if (arg === "--route") {
-      if (index + 1 >= args.length) {
+      if (index + 1 >= args.length || args[index + 1].startsWith("-")) {
         parsed.errors.push("Missing value for --route");
       } else {
         parsed.routePath = args[index + 1].trim();
         index += 1;
       }
+    } else if (arg.startsWith("-")) {
+      parsed.errors.push(`Unknown option: ${arg}`);
     } else {
       positional.push(arg);
     }
@@ -122,6 +126,7 @@ function parseArgs(args: string[]): ParsedArgs {
     ...parsed,
     command: positional[0] || "",
     name: positional[1] || "",
+    positionals: positional,
   };
 }
 
@@ -358,16 +363,6 @@ function createUpdatedRouteFile(
   options: { componentName: string; importSpecifier: string; routePath: string },
 ): string {
   const normalized = routeFileContent.replace(/\r\n/g, "\n");
-  const lines = normalized.split("\n");
-  const lastImportIndex = lines.reduce(
-    (currentIndex, line, index) => (line.startsWith("import ") ? index : currentIndex),
-    -1,
-  );
-
-  if (lastImportIndex === -1) {
-    throw new Error("Unsupported route file: could not find import block.");
-  }
-
   const importLine = `import ${options.componentName} from '${options.importSpecifier}';`;
   if (
     normalized.includes(importLine) ||
@@ -377,15 +372,20 @@ function createUpdatedRouteFile(
     throw new Error(`Route '${options.routePath}' is already registered.`);
   }
 
-  lines.splice(lastImportIndex + 1, 0, importLine);
-
-  const closingIndex = lines.map((line) => line.trim()).lastIndexOf("}");
-  if (closingIndex === -1) {
-    throw new Error("Unsupported route file: could not find registration function body.");
+  const importMarker = "// askr:imports";
+  const routeMarker = "  // askr:routes";
+  if (normalized.split(importMarker).length !== 2 || normalized.split(routeMarker).length !== 2) {
+    throw new Error(
+      "Unsupported route file: expected exactly one // askr:imports and // askr:routes marker.",
+    );
   }
-
-  lines.splice(closingIndex, 0, `  route('${options.routePath}', ${options.componentName});`);
-  return `${lines.join("\n")}\n`;
+  return `${normalized
+    .replace(importMarker, `${importMarker}\n${importLine}`)
+    .replace(
+      routeMarker,
+      `${routeMarker}\n  route('${options.routePath}', ${options.componentName});`,
+    )
+    .replace(/\n+$/, "")}\n`;
 }
 
 function renderPageFile(options: {
@@ -439,7 +439,7 @@ function renderPageFile(options: {
   ].join("\n");
 }
 
-async function addPage(parsed: ParsedArgs, io: CliIo): Promise<number> {
+async function addPage(parsed: ParsedArgs, io: CliIo, writeChanges: WriteChanges): Promise<number> {
   if (!parsed.name) {
     io.error("Page name is required.");
     return 1;
@@ -500,18 +500,18 @@ async function addPage(parsed: ParsedArgs, io: CliIo): Promise<number> {
   }
 
   try {
-    await fs.mkdir(path.dirname(pageFile), { recursive: true });
-    await fs.writeFile(
-      pageFile,
-      renderPageFile({
-        badge: branchConfig.badge,
-        componentName,
-        routePath,
-        title,
-      }),
-      "utf8",
-    );
-    await fs.writeFile(routesFile, updatedRoutes, "utf8");
+    await writeChanges([
+      {
+        filePath: pageFile,
+        content: renderPageFile({
+          badge: branchConfig.badge,
+          componentName,
+          routePath,
+          title,
+        }),
+      },
+      { filePath: routesFile, content: updatedRoutes },
+    ]);
   } catch (error) {
     io.error("Failed to write generated page artifacts.");
     io.error(error instanceof Error ? error.message : String(error));
@@ -525,7 +525,11 @@ async function addPage(parsed: ParsedArgs, io: CliIo): Promise<number> {
   return 0;
 }
 
-async function addAction(parsed: ParsedArgs, io: CliIo): Promise<number> {
+async function addAction(
+  parsed: ParsedArgs,
+  io: CliIo,
+  writeChanges: WriteChanges,
+): Promise<number> {
   if (!parsed.name) {
     io.error("Action name is required.");
     return 1;
@@ -570,7 +574,7 @@ async function addAction(parsed: ParsedArgs, io: CliIo): Promise<number> {
       filePath: descriptorFile,
       content: descriptor,
     });
-    await writeFileChanges([
+    await writeChanges([
       { filePath: descriptorFile, content: descriptor },
       {
         filePath: handlerFile,
@@ -596,6 +600,7 @@ async function addAction(parsed: ParsedArgs, io: CliIo): Promise<number> {
 export async function runAddCli(
   args: string[] = process.argv.slice(2),
   io: CliIo = console,
+  writeChanges: WriteChanges = writeFileChanges,
 ): Promise<number> {
   const parsed = parseArgs(args);
 
@@ -611,12 +616,17 @@ export async function runAddCli(
     return 0;
   }
 
+  if (parsed.positionals.length !== 2 || !parsed.name) {
+    io.error("A command and exactly one generator name are required.");
+    return 1;
+  }
+
   if (parsed.command === "page") {
-    return addPage(parsed, io);
+    return addPage(parsed, io, writeChanges);
   }
 
   if (parsed.command === "action") {
-    return addAction(parsed, io);
+    return addAction(parsed, io, writeChanges);
   }
 
   io.error(`Unknown add command: ${parsed.command}`);
