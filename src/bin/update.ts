@@ -248,13 +248,16 @@ function emitHuman(
     for (const occurrence of decision.occurrences) {
       if (occurrence.status === "current") continue;
       const rows = byWorkspace.get(occurrence.workspace) ?? [];
-      rows.push([
+      const row = [
         decision.package,
         occurrence.allowedVersion ?? "-",
         decision.targetVersion ?? "-",
         occurrence.status,
         rangeText(occurrence, command),
-      ]);
+      ];
+      if (!rows.some((existing) => existing.every((value, index) => value === row[index]))) {
+        rows.push(row);
+      }
       byWorkspace.set(occurrence.workspace, rows);
     }
   }
