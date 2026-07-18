@@ -68,6 +68,26 @@ describe("update CLI", () => {
     expect(capture.logs.join("\n")).toContain("safe");
   });
 
+  test("should report one row given identical dependency occurrences across sections when outdated", async () => {
+    const root = await tempRoot(
+      '{"name":"fixture","dependencies":{"foo":"^1.0.0"},"devDependencies":{"foo":"^1.0.0"}}\n',
+    );
+    const capture = ioCapture();
+
+    const code = await runOutdatedCli(["--cwd", root], capture.io, {
+      registry: registry({
+        foo: {
+          "dist-tags": { latest: "2.0.0" },
+          versions: { "1.0.0": {}, "2.0.0": {} },
+        },
+      }),
+    });
+
+    expect(code).toBe(0);
+    expect(capture.logs.filter((line) => line.startsWith("foo "))).toHaveLength(1);
+    expect(capture.logs.join("\n")).toContain("Scanned 1 package");
+  });
+
   test("should apply a compatible edit given upgrade when an update exists", async () => {
     const root = await tempRoot(
       '{\n  "name": "fixture",\n  "dependencies": { "foo": "~1.0.0" }\n}\n',
