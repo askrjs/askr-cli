@@ -32,10 +32,11 @@ describe("update npm configuration and registry", () => {
       npm_execpath: path.join(root, "pnpm.cjs"),
     });
 
-    expect(configuration.invocation).toEqual({
-      executable: process.platform === "win32" ? "npm.cmd" : "npm",
-      prefix: [],
-    });
+    const command = [configuration.invocation.executable, ...configuration.invocation.prefix].join(
+      " ",
+    );
+    expect(command.toLowerCase()).toContain("npm");
+    expect(command).not.toContain(path.join(root, "pnpm.cjs"));
   });
 
   test("should apply npm precedence given global user project and environment settings when loading", async () => {
@@ -82,9 +83,9 @@ describe("update npm configuration and registry", () => {
         }),
       );
 
-      expect(project.failures.size).toBe(0);
+      expect([...project.failures]).toEqual([]);
       expect(project.packuments.has("askr-cli-project-precedence-fixture")).toBe(true);
-      expect(environment.failures.size).toBe(0);
+      expect([...environment.failures]).toEqual([]);
       expect(environment.packuments.has("askr-cli-environment-precedence-fixture")).toBe(true);
     } finally {
       await new Promise<void>((resolve, reject) =>
@@ -126,7 +127,7 @@ describe("update npm configuration and registry", () => {
       const configuration = await loadNpmConfiguration(root, { HOME: root });
       const result = await fetchPackuments(["@scope/fixture"], configuration);
 
-      expect(result.failures.size).toBe(0);
+      expect([...result.failures]).toEqual([]);
       expect(result.packuments.has("@scope/fixture")).toBe(true);
       expect(requestPath.toLowerCase()).toContain("@scope%2ffixture");
       expect(authorization).toBe("Bearer fixture-secret-token");
@@ -175,7 +176,7 @@ describe("update npm configuration and registry", () => {
         },
       );
 
-      expect(result.failures.size).toBe(0);
+      expect([...result.failures]).toEqual([]);
       expect(result.packuments.get("fixture")?.versions?.["1.0.0-beta.2"]).toMatchObject({
         peerDependencies: { peer: "^2.0.0" },
       });

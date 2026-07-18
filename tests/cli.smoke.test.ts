@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import { execFile } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { expect, test } from "vitest";
 import { runAddCli } from "../src/bin/add";
@@ -170,7 +171,7 @@ test("package exports only the canonical askr command", async () => {
 });
 
 test("public docs and templates use the clean-break scope vocabulary", async () => {
-  const root = path.resolve(new URL("..", import.meta.url).pathname);
+  const root = fileURLToPath(new URL("..", import.meta.url));
   const files = [
     ...(await sourceFiles(path.join(root, "docs"))),
     ...(await sourceFiles(path.join(root, "templates"))),
