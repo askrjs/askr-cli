@@ -9,7 +9,7 @@
     "noEmit": true,
     "jsx": "preserve",
     "jsxImportSource": "@askrjs/askr",
-    "types": ["vite/client", "node"]
+    "types": ["vite/client", "node", "@askrjs/themes"]
   },
   "include": ["src", "tests", "server.ts", "vite.config.ts"]
 }

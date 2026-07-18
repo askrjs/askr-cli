@@ -13,7 +13,8 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "@askrjs/askr"
+    "jsxImportSource": "@askrjs/askr",
+    "types": ["@askrjs/themes"]
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
