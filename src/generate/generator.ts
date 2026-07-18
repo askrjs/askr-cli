@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { load } from "js-yaml";
 
 type Json = Record<string, any>;
@@ -157,7 +157,7 @@ async function readSource(uri: string): Promise<SourceDocument> {
       );
     return { uri, document: parseOpenApiDocument(await response.text(), uri) };
   }
-  const path = decodeURIComponent(new URL(uri).pathname);
+  const path = fileURLToPath(uri);
   return { uri, document: parseOpenApiDocument(await readFile(path, "utf8"), path) };
 }
 

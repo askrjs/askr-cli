@@ -185,9 +185,11 @@ paths: {}
   it("uses a temporary sibling before rename", async () => {
     const events: string[] = [];
     const result = io();
+    const cwd = path.resolve(path.sep, "work");
+    const output = path.join(cwd, "openapi.yml");
     expect(
       await runOpenApiCli([], result.value, {
-        cwd: () => "/work",
+        cwd: () => cwd,
         importModule: async () => ({
           default: { toOpenApiDocument: () => ({ openapi: "3.1.2" }) },
         }),
@@ -205,8 +207,8 @@ paths: {}
     ).toBe(0);
     expect(events).toEqual([
       "mkdir",
-      "write:/work/openapi.yml.fixed.tmp",
-      "rename:/work/openapi.yml.fixed.tmp:/work/openapi.yml",
+      `write:${output}.fixed.tmp`,
+      `rename:${output}.fixed.tmp:${output}`,
     ]);
   });
 });

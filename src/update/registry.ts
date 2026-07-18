@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import semver from "semver";
 import { parseDependencySpecification } from "./specification";
@@ -30,6 +31,20 @@ type ViewPackage = (
   specifications: readonly string[],
 ) => Promise<unknown>;
 
+function installedNpmCli(executable?: string): string | null {
+  const directories = new Set([path.dirname(process.execPath)]);
+  if (executable && path.isAbsolute(executable)) directories.add(path.dirname(executable));
+  for (const directory of directories) {
+    for (const candidate of [
+      path.join(directory, "node_modules", "npm", "bin", "npm-cli.js"),
+      path.resolve(directory, "..", "lib", "node_modules", "npm", "bin", "npm-cli.js"),
+    ]) {
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
 function npmInvocation(env: NodeJS.ProcessEnv): NpmInvocation {
   const executable = env.npm_execpath;
   const executableName = executable ? path.basename(executable).toLowerCase() : "";
@@ -39,10 +54,14 @@ function npmInvocation(env: NodeJS.ProcessEnv): NpmInvocation {
     /^npm(?:-cli)?\.(?:cjs|js|mjs)$/.test(executableName);
   if (executable && isNpmExecutable) {
     const extension = path.extname(executable).toLowerCase();
-    return [".cjs", ".js", ".mjs"].includes(extension)
-      ? { executable: process.execPath, prefix: [executable] }
-      : { executable, prefix: [] };
+    if ([".cjs", ".js", ".mjs"].includes(extension)) {
+      return { executable: process.execPath, prefix: [executable] };
+    }
+    const npmCli = installedNpmCli(executable);
+    return npmCli ? { executable: process.execPath, prefix: [npmCli] } : { executable, prefix: [] };
   }
+  const npmCli = installedNpmCli();
+  if (npmCli) return { executable: process.execPath, prefix: [npmCli] };
   return { executable: process.platform === "win32" ? "npm.cmd" : "npm", prefix: [] };
 }
 
