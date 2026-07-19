@@ -2,6 +2,7 @@ import { mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
+import ts from "typescript";
 import { runGenerateCli } from "../src/bin/generate";
 import { generateFiles, loadOpenApi, writeGenerated } from "../src/generate/generator";
 
@@ -17,6 +18,7 @@ const document = {
         required: ["id"],
         properties: { id: { type: "string" }, parent: { $ref: "#/components/schemas/User" } },
       },
+      Unused: { type: "string" },
     },
   },
   paths: {
@@ -67,6 +69,52 @@ describe("askr generate", () => {
       'query<GetUserQuery>({ "include": { style: "form", explode: true } })',
     );
     expect(first["api.ts"]).toContain("securitySchemes");
+  });
+  it("should type-check schema references given a generated client", async () => {
+    const root = await mkdtemp(join(tmpdir(), "askr-generated-types-"));
+    const output = join(root, "generated");
+    await writeGenerated(output, generateFiles(document), false);
+    const fetchTypes = join(root, "fetch.d.ts");
+    await writeFile(
+      fetchTypes,
+      [
+        'declare module "@askrjs/fetch" {',
+        "  export interface ClientOptions {}",
+        "  export interface Descriptor {",
+        "    params<T>(value: unknown): Descriptor;",
+        "    query<T>(value: unknown): Descriptor;",
+        "    returns(value: unknown): Descriptor;",
+        "    errors(value: unknown): Descriptor;",
+        "    security(value: unknown): Descriptor;",
+        "  }",
+        "  export function defineApi(value: unknown, options: unknown): unknown;",
+        "  export function createClient(value: unknown, options?: ClientOptions): unknown;",
+        "  export function get(path: string): Descriptor;",
+        "  export function json<T>(): unknown;",
+        "}",
+      ].join("\n"),
+    );
+    const program = ts.createProgram({
+      rootNames: [
+        fetchTypes,
+        ...["schemas.ts", "operations.ts", "api.ts", "index.ts"].map((file) => join(output, file)),
+      ],
+      options: {
+        module: ts.ModuleKind.ESNext,
+        moduleResolution: ts.ModuleResolutionKind.Bundler,
+        target: ts.ScriptTarget.ES2022,
+        strict: true,
+        skipLibCheck: true,
+        noUnusedLocals: true,
+        noEmit: true,
+      },
+    });
+    const errors = ts
+      .getPreEmitDiagnostics(program)
+      .filter((diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error)
+      .map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
+
+    expect(errors).toEqual([]);
   });
   it("should include an exact pointer given an unsupported operation when rendering", () => {
     const invalid: any = structuredClone(document);
