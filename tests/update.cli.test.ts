@@ -214,6 +214,40 @@ describe("update CLI", () => {
     expect(JSON.parse(capture.logs[0])).toMatchObject({ root: null, decisions: [] });
   });
 
+  test("should accept force only for upgrade and bypass peer conflicts", async () => {
+    const root = await tempRoot(
+      '{"name":"fixture","dependencies":{"provider":"^1.0.0","peer":"^1.0.0"}}\n',
+    );
+    const packages = {
+      provider: {
+        "dist-tags": { latest: "2.0.0" },
+        versions: {
+          "1.0.0": { version: "1.0.0" },
+          "2.0.0": { version: "2.0.0", peerDependencies: { peer: "^2" } },
+        },
+      },
+      peer: { "dist-tags": { latest: "1.0.0" }, versions: { "1.0.0": { version: "1.0.0" } } },
+    };
+    const forced = ioCapture();
+    expect(
+      await runUpgradeCli(["--cwd", root, "provider", "-f", "--json"], forced.io, {
+        registry: registry(packages),
+      }),
+    ).toBe(0);
+    expect(await fs.readFile(path.join(root, "package.json"), "utf8")).toContain(
+      '"provider":"^2.0.0"',
+    );
+    expect(JSON.parse(forced.logs[0]).decisions[0].occurrences[0]).toMatchObject({
+      selectedVersion: "2.0.0",
+    });
+
+    const rejected = ioCapture();
+    expect(await runUpdateCli(["--force", "--json"], rejected.io)).toBe(1);
+    expect(rejected.errors.join("\n")).toContain("only supported by askr upgrade");
+    const outdated = ioCapture();
+    expect(await runOutdatedCli(["-f", "--json"], outdated.io)).toBe(1);
+  });
+
   test("should reserve stdout for one object given JSON output when scanning", async () => {
     const root = await tempRoot('{"name":"fixture","dependencies":{"foo":"^1.0.0"}}\n');
     const capture = ioCapture();

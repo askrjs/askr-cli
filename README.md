@@ -117,15 +117,17 @@ and failed decisions without running an install.
 askr outdated
 askr update
 askr upgrade
+askr upgrade --force
 askr update vite "@types/*"
 askr update --workspace "@scope/app" --tag next --json
 ```
 
-`askr update` writes safe range changes. `askr upgrade` additionally permits next-version
-major changes for stable packages and breaking minor changes for `0.x`
-packages. Peer requirements from co-dependencies are still enforced: a target
-is left for manual review if it would move outside another selected package's
-published peer range. `askr upgrade` never bypasses that compatibility guard.
+`askr update` writes safe range changes. `askr upgrade` jointly selects the newest
+peer-compatible published versions up to each package's configured dist-tag,
+including breaking changes. Required peers must be present; optional peers may
+be absent. `askr upgrade --force` writes the dist-tag targets directly and skips
+peer checks. Positional selection is strict: unselected dependencies constrain
+the solution but are never rewritten.
 
 The updater preserves exact, caret, tilde, and x-range styles. It can widen one
 bounded interval, and it updates only the highest clause of a simple OR union.

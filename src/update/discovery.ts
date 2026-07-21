@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { load } from "js-yaml";
 import { minimatch } from "minimatch";
+import semver from "semver";
 import { analyzeRange } from "./range";
 import { parseDependencySpecification } from "./specification";
 import {
@@ -428,6 +429,13 @@ export async function discoverProject(options: DiscoveryOptions): Promise<Discov
   }
 
   const localNames = new Set(workspaces.map((workspace) => workspace.name));
+  const localVersions = new Map(
+    workspaces.flatMap((workspace) =>
+      typeof workspace.manifest.version === "string" && semver.valid(workspace.manifest.version)
+        ? [[workspace.name, workspace.manifest.version] as const]
+        : [],
+    ),
+  );
   return {
     root,
     workspaces,
@@ -447,5 +455,6 @@ export async function discoverProject(options: DiscoveryOptions): Promise<Discov
       { ignore: [], tags: policy.tags },
       [],
     ),
+    localVersions,
   };
 }

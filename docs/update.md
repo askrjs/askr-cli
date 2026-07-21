@@ -1,13 +1,14 @@
 ﻿# update
 
 `askr outdated`, `askr update`, and `askr upgrade` manage dependency updates with Askr-owned logic and no install
-step. `outdated` is read-only, `update` writes safe changes, and `upgrade` writes
-latest-version changes that pass peer compatibility.
+step. `outdated` is read-only, `update` writes safe changes, and `upgrade` finds
+the newest jointly peer-compatible dependency set.
 
 ```bash
 askr outdated
 askr update
 askr upgrade
+askr upgrade --force
 askr update vite "@types/*"
 askr update --workspace "@scope/app"
 askr update --tag next
@@ -23,6 +24,7 @@ askr update --json
 | `--workspace <glob>` | Select workspace package names. Repeat for more filters. |
 | `--tag <tag>`        | Resolve every selected package through this dist-tag.    |
 | `--json`             | Write one deterministic result object to stdout.         |
+| `--force`, `-f`      | On `upgrade` only, use tag targets without peer checks.  |
 
 Positional package names are minimatch patterns. When any are supplied, they
 select the package set directly and override matching persistent ignores.
@@ -63,7 +65,8 @@ Policy is read only from the selected workspace root:
 ```
 
 `--tag` overrides configured package tags. An explicit positional package
-selection overrides ignores. Otherwise package tags take precedence over the
+selection overrides ignores. Selection is strict: packages outside that set
+may constrain peer resolution but are never rewritten. Otherwise package tags take precedence over the
 default `latest` tag.
 
 ## Compatibility and range changes
@@ -81,12 +84,18 @@ a minor change is breaking and a patch change is compatible.
 | Wildcard or tracking tag | No manifest change                                        | No manifest change                                 |
 | Complex or hyphen range  | Manual review                                             | Manual review                                      |
 
-Before any write, Askr also resolves the selected/current versions of
-co-dependencies and checks their published `peerDependencies`. A proposal is
-blocked as manual when it would turn an accepted peer version into a rejected
-one. For example, TypeScript 7 is not proposed while the selected Vite Plus
-version declares a TypeScript 6 peer range. `askr upgrade` does not bypass peer
-compatibility.
+Normal `upgrade` considers every published version between the currently allowed
+version and the selected tag target. It solves required peer dependencies jointly
+within each workspace, including discovered local-workspace versions; missing
+optional peers are allowed. It first maximizes the number of selected dependencies
+that advance, then prefers versions closest to their targets with deterministic
+package-name ordering. Compatible independent groups can advance even when another
+group is blocked, and blocked rows report the concrete peer requirement.
+
+`askr upgrade --force` bypasses peer conflicts and missing-peer checks and writes
+each selected tag target directly. It still preserves supported range styles and
+the manifest-only, strict-selection, transactional-failure boundaries. `--tag`
+continues to select the target used by force mode.
 
 ## npm configuration and failures
 
@@ -104,8 +113,10 @@ URLs. A successful scan or write exits `0`, even when safe or breaking updates
 remain.
 
 In JSON mode stdout contains one object with the root, selected workspaces,
-summary counts, sorted package decisions, applied occurrence count, and
-sanitized errors. Diagnostics go to stderr.
+summary counts, sorted package decisions, selected tag targets, each occurrence's
+chosen compatible version, applied occurrence count, and sanitized errors.
+Human output shows both chosen and latest versions when compatibility selects a
+fallback. Diagnostics go to stderr.
 
 ## Manifest-only boundary
 

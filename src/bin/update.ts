@@ -17,6 +17,7 @@ interface ParsedArgs {
   cwd: string;
   help: boolean;
   json: boolean;
+  force: boolean;
   packagePatterns: string[];
   tag?: string;
   workspacePatterns: string[];
@@ -52,6 +53,9 @@ function helpText(command: DependencyCommand): string {
     "  --workspace <glob>      Select workspace names (repeatable)",
     "  --tag <tag>             Use one registry dist-tag for selected packages",
     "  --json                  Emit one deterministic JSON object on stdout",
+    ...(command === "upgrade"
+      ? ["  --force, -f             Use tag targets without peer compatibility checks"]
+      : []),
     "  --help, -h              Show this help message",
     "",
     "Notes:",
@@ -76,11 +80,12 @@ function optionValue(
   return args[index + 1];
 }
 
-function parseArgs(args: string[]): ParsedArgs {
+function parseArgs(command: DependencyCommand, args: string[]): ParsedArgs {
   const parsed: ParsedArgs = {
     cwd: process.cwd(),
     help: false,
     json: false,
+    force: false,
     packagePatterns: [],
     workspacePatterns: [],
     errors: [],
@@ -97,6 +102,9 @@ function parseArgs(args: string[]): ParsedArgs {
       parsed.help = true;
     } else if (argument === "--json") {
       parsed.json = true;
+    } else if (argument === "--force" || argument === "-f") {
+      if (command === "upgrade") parsed.force = true;
+      else parsed.errors.push(`${argument} is only supported by askr upgrade`);
     } else if (argument === "--cwd") {
       const value = optionValue(args, index, "--cwd", parsed.errors);
       if (value !== null) {
@@ -168,6 +176,7 @@ function serializableDecision(decision: PackageDecision): Record<string, unknown
       currentSpecification: occurrence.currentSpecification,
       proposedSpecification: occurrence.proposedSpecification,
       allowedVersion: occurrence.allowedVersion,
+      selectedVersion: occurrence.selectedVersion,
       status: occurrence.status,
       reason: occurrence.reason,
     })),
@@ -225,7 +234,7 @@ function rangeText(occurrence: PlannedOccurrence, command: DependencyCommand): s
 }
 
 function renderTable(rows: string[][]): string[] {
-  const headings = ["Package", "Allowed", "Latest", "Status", "Range"];
+  const headings = ["Package", "Allowed", "Chosen", "Latest", "Status", "Range"];
   const widths = headings.map((heading, column) =>
     Math.max(heading.length, ...rows.map((row) => row[column].length)),
   );
@@ -251,6 +260,7 @@ function emitHuman(
       const row = [
         decision.package,
         occurrence.allowedVersion ?? "-",
+        occurrence.selectedVersion ?? "-",
         decision.targetVersion ?? "-",
         occurrence.status,
         rangeText(occurrence, command),
@@ -321,7 +331,7 @@ async function runDependencyCli(
   io: CliIo = console,
   runtime: UpdateRuntime = {},
 ): Promise<number> {
-  const parsed = parseArgs(args);
+  const parsed = parseArgs(command, args);
   if (parsed.help && parsed.errors.length === 0) {
     io.log(helpText(command));
     return 0;
@@ -384,7 +394,8 @@ async function runDependencyCli(
       failures: results.failures,
       tags: project.policy.tags,
       cliTag: parsed.tag,
-      force: command === "upgrade",
+      mode: command === "upgrade" ? (parsed.force ? "force" : "upgrade") : "update",
+      localVersions: project.localVersions,
     });
 
     let applied = 0;

@@ -186,6 +186,26 @@ function selectedVersions(packument: Packument, specifications: readonly string[
   return [...selected].sort(semver.compare);
 }
 
+function candidateVersions(packument: Packument, specifications: readonly string[]): string[] {
+  const versions = Object.keys(packument.versions ?? {}).filter(
+    (version) => semver.valid(version) !== null,
+  );
+  const selected = selectedVersions(packument, specifications);
+  const lowerBounds = specifications.flatMap((specification) => {
+    const parsed = parseDependencySpecification(specification);
+    if (parsed.type === "version") return semver.valid(parsed.rawSpec) ? [parsed.rawSpec] : [];
+    if (parsed.type === "range") {
+      const current = semver.maxSatisfying(versions, parsed.rawSpec);
+      return current ? [current] : [];
+    }
+    return [];
+  });
+  if (lowerBounds.length === 0 || selected.length === 0) return selected;
+  const floor = lowerBounds.sort(semver.compare)[0];
+  const ceiling = selected.sort(semver.compare)[selected.length - 1];
+  return versions.filter((version) => semver.gte(version, floor) && semver.lte(version, ceiling));
+}
+
 function mergeVersionMetadata(
   packument: Packument,
   value: unknown,
@@ -202,6 +222,9 @@ function mergeVersionMetadata(
     const metadata = packument.versions?.[entry.version];
     if (!isRecord(metadata)) continue;
     if (isRecord(entry.peerDependencies)) metadata.peerDependencies = entry.peerDependencies;
+    if (isRecord(entry.peerDependenciesMeta)) {
+      metadata.peerDependenciesMeta = entry.peerDependenciesMeta;
+    }
     merged.add(entry.version);
   }
   return selected.every((version) => merged.has(version));
@@ -217,11 +240,11 @@ async function executeNpmView(
   );
   if (!packument) return null;
 
-  const versions = selectedVersions(packument, specifications);
+  const versions = candidateVersions(packument, specifications);
   if (versions.length === 0) return packument;
   const selector = `${packageName}@${versions.join(" || ")}`;
   const metadata = await executeNpmJson(
-    ["view", selector, "version", "peerDependencies"],
+    ["view", selector, "version", "peerDependencies", "peerDependenciesMeta"],
     configuration,
     false,
   );
