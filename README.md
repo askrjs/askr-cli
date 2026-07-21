@@ -1,5 +1,8 @@
 ﻿# @askrjs/cli
 
+[![CI](https://github.com/askrjs/askr-cli/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/askrjs/askr-cli/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/%40askrjs%2Fcli.svg)](https://www.npmjs.com/package/@askrjs/cli)
+
 Unified CLI for the Askr platform.
 
 `@askrjs/cli` bundles project scaffolding and static-site generation commands
