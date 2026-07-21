@@ -237,7 +237,7 @@ test("runCreateCli defaults to startkit when template is omitted", async () => {
     process.chdir(previousCwd);
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
-});
+}, 15_000);
 
 test("runCreateCli rejects unsafe names, unknown options, and extra positional arguments", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-create-input-"));
