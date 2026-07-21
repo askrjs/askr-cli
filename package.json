@@ -1,6 +1,6 @@
 {
   "name": "@askrjs/cli",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Unified CLI for the Askr platform",
   "homepage": "https://github.com/askrjs/askr-cli#readme",
   "bugs": {
@@ -49,7 +49,7 @@
     "prepublishOnly": "npm run check && npm run test:templates"
   },
   "dependencies": {
-    "js-yaml": "^4.3.0",
+    "js-yaml": "^5.2.1",
     "minimatch": "^10.2.5",
     "semver": "^7.8.5",
     "tsx": "^4.23.1"
@@ -63,7 +63,7 @@
     "@askrjs/ui": ">=0.0.13 <0.1.0",
     "@askrjs/vite": ">=0.0.6 <0.1.0",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^20.19.43",
+    "@types/node": "^26.1.1",
     "@types/semver": "^7.7.1",
     "@vitest/coverage-v8": "^4.1.10",
     "publint": "^0.3.21",
