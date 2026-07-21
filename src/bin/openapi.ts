@@ -107,7 +107,7 @@ function exporterFrom(moduleValue: unknown): DocumentExporter {
 }
 
 export function serializeOpenApi(document: unknown): string {
-  const yaml = dump(document, { lineWidth: -1, noCompatMode: true, noRefs: true });
+  const yaml = dump(document, { lineWidth: -1, noRefs: true });
   return `${yaml.replace(/\n+$/, "")}\n`;
 }
 
