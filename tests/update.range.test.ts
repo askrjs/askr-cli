@@ -170,4 +170,134 @@ describe("update range planner", () => {
       reason: "vite-plus@1.1.0 requires typescript@^7.0.0",
     });
   });
+
+  test("should move selected peers together given compatible targets when upgrading", () => {
+    const app = occurrence("^1.0.0", "app");
+    const peer = occurrence("^1.0.0", "peer");
+    const plan = planUpdates({
+      occurrences: [app, peer],
+      contextOccurrences: [app, peer],
+      mode: "upgrade",
+      packuments: new Map([
+        [
+          "app",
+          {
+            "dist-tags": { latest: "2.0.0" },
+            versions: {
+              "1.0.0": { version: "1.0.0", peerDependencies: { peer: "^1" } },
+              "2.0.0": { version: "2.0.0", peerDependencies: { peer: "^2" } },
+            },
+          },
+        ],
+        ["peer", packument("2.0.0", ["1.0.0", "2.0.0"])],
+      ]),
+    });
+    expect(plan.decisions.map((decision) => decision.occurrences[0].selectedVersion)).toEqual([
+      "2.0.0",
+      "2.0.0",
+    ]);
+  });
+
+  test("should choose an older compatible release below latest when upgrading", () => {
+    const app = occurrence("^1.0.0", "app");
+    const peer = occurrence("^1.0.0", "peer");
+    const plan = planUpdates({
+      occurrences: [app],
+      contextOccurrences: [app, peer],
+      mode: "upgrade",
+      packuments: new Map([
+        [
+          "app",
+          {
+            "dist-tags": { latest: "2.1.0" },
+            versions: {
+              "1.0.0": { version: "1.0.0" },
+              "2.0.0": { version: "2.0.0", peerDependencies: { peer: "^1" } },
+              "2.1.0": { version: "2.1.0", peerDependencies: { peer: "^2" } },
+            },
+          },
+        ],
+        ["peer", packument("1.9.0", ["1.9.0"])],
+      ]),
+    });
+    expect(plan.decisions[0]).toMatchObject({ targetVersion: "2.1.0" });
+    expect(plan.decisions[0].occurrences[0]).toMatchObject({
+      selectedVersion: "2.0.0",
+      proposedSpecification: "^2.0.0",
+    });
+  });
+
+  test("should allow a missing optional peer and reject a missing required peer when upgrading", () => {
+    const optional = occurrence("1.0.0", "optional-provider");
+    const required = occurrence("1.0.0", "required-provider");
+    const plan = planUpdates({
+      occurrences: [optional, required],
+      contextOccurrences: [optional, required],
+      mode: "upgrade",
+      packuments: new Map([
+        [
+          "optional-provider",
+          {
+            "dist-tags": { latest: "2.0.0" },
+            versions: {
+              "1.0.0": { version: "1.0.0" },
+              "2.0.0": {
+                version: "2.0.0",
+                peerDependencies: { absent: "^1" },
+                peerDependenciesMeta: { absent: { optional: true } },
+              },
+            },
+          },
+        ],
+        [
+          "required-provider",
+          {
+            "dist-tags": { latest: "2.0.0" },
+            versions: {
+              "1.0.0": { version: "1.0.0" },
+              "2.0.0": { version: "2.0.0", peerDependencies: { absent: "^1" } },
+            },
+          },
+        ],
+      ]),
+    });
+    expect(
+      plan.decisions.find((decision) => decision.package === "optional-provider")?.occurrences[0]
+        .proposedSpecification,
+    ).toBe("2.0.0");
+    expect(
+      plan.decisions.find((decision) => decision.package === "required-provider")?.occurrences[0],
+    ).toMatchObject({
+      status: "manual",
+      reason: "required-provider@2.0.0 requires missing peer absent@^1",
+    });
+  });
+
+  test("should use the tag target despite peer conflicts in force mode", () => {
+    const provider = occurrence("^1.0.0", "provider");
+    const peer = occurrence("^1.0.0", "peer");
+    const plan = planUpdates({
+      occurrences: [provider],
+      contextOccurrences: [provider, peer],
+      mode: "force",
+      packuments: new Map([
+        [
+          "provider",
+          {
+            "dist-tags": { next: "2.0.0" },
+            versions: {
+              "1.0.0": { version: "1.0.0" },
+              "2.0.0": { version: "2.0.0", peerDependencies: { peer: "^2" } },
+            },
+          },
+        ],
+        ["peer", packument("1.0.0", ["1.0.0"])],
+      ]),
+      cliTag: "next",
+    });
+    expect(plan.decisions[0].occurrences[0]).toMatchObject({
+      selectedVersion: "2.0.0",
+      proposedSpecification: "^2.0.0",
+    });
+  });
 });

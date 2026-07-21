@@ -42,6 +42,7 @@ export interface DiscoveredProject {
   policy: UpdatePolicy;
   occurrences: DependencyOccurrence[];
   contextOccurrences: DependencyOccurrence[];
+  localVersions: Map<string, string>;
 }
 
 export interface Packument {
@@ -59,6 +60,7 @@ export interface PlannedOccurrence {
   status: UpdateStatus;
   reason: string;
   allowedVersion: string | null;
+  selectedVersion: string | null;
 }
 
 export interface PackageDecision {

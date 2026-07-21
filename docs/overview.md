@@ -45,6 +45,7 @@ askr ssg --config <path> --output <dir> # Run static site generation
 askr outdated                   # Report available dependency updates
 askr update                     # Apply safe dependency manifest updates
 askr upgrade                    # Apply latest peer-compatible upgrades
+askr upgrade --force            # Apply dist-tag targets without peer checks
 ```
 
 ### Project templates
