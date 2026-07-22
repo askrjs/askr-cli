@@ -136,13 +136,13 @@ function rewriteXRange(shape: Extract<AtomicRangeShape, { kind: "x" }>, target: 
   return `${parsed.major}.${parsed.minor}`;
 }
 
-function rewriteAtomic(shape: AtomicRangeShape, target: string, forcedBreaking: boolean): string {
+function rewriteAtomic(shape: AtomicRangeShape, target: string, _forcedBreaking: boolean): string {
   if (shape.kind === "exact") return target;
   if (shape.kind === "operator") return `${shape.operator}${target}`;
   if (shape.kind === "x") return rewriteXRange(shape, target);
 
   const boundary = nextBreakingBoundary(target);
-  return forcedBreaking ? `>=${target} <${boundary}` : `${shape.lower} <${boundary}`;
+  return `>=${target} <${boundary}`;
 }
 
 export function rewriteRange(shape: RangeShape, target: string, forcedBreaking: boolean): string {

@@ -44,13 +44,17 @@
     "test:publint": "publint",
     "pack:check": "npm pack --ignore-scripts --dry-run --json",
     "test:templates": "node scripts/verify-packed-templates.mjs",
+    "bench": "npm run build --silent && node --import tsx benchmarks/cli.mjs --gate",
+    "bench:json": "npm run build --silent && node --import tsx benchmarks/cli.mjs --gate --json",
     "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run test:publint && npm run pack:check",
     "prepack": "npm run build",
     "prepublishOnly": "npm run check && npm run test:templates"
   },
   "dependencies": {
+    "@npmcli/config": "^10.12.0",
     "js-yaml": "^5.2.1",
     "minimatch": "^10.2.5",
+    "npm-registry-fetch": "^19.1.1",
     "semver": "^7.8.5",
     "tsx": "^4.23.1"
   },

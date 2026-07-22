@@ -79,3 +79,20 @@ jobs:
         run: npm ci
       - name: Verify packed CLI against every template
         run: npm run test:templates
+
+  benchmark:
+    name: Performance gate (Ubuntu, Node 20.19.0)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20.19.0
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run deterministic CLI performance gate
+        run: npm run bench

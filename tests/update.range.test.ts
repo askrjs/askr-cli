@@ -38,17 +38,17 @@ function proposal(
 }
 
 describe("update range planner", () => {
-  test("should leave a covered bounded range unchanged given a target inside it when planning", () => {
+  test("should rebase a covered bounded range given a newer target inside it when planning", () => {
     expect(proposal(">=0.0.53 <0.1.0", "0.0.61", ["0.0.53", "0.0.61"])).toMatchObject({
-      status: "current",
-      proposedSpecification: null,
+      status: "safe",
+      proposedSpecification: ">=0.0.61 <0.1.0",
     });
   });
 
   test("should widen the upper boundary given a compatible target outside a bounded range when planning", () => {
     expect(proposal(">=1.2 <1.5", "1.8.4", ["1.4.9", "1.8.4"])).toMatchObject({
       status: "safe",
-      proposedSpecification: ">=1.2 <2.0.0",
+      proposedSpecification: ">=1.8.4 <2.0.0",
     });
   });
 
@@ -94,7 +94,7 @@ describe("update range planner", () => {
   test("should update only the highest clause given a compatible simple union when planning", () => {
     expect(proposal(">=1.0 <1.3 || >=1.4 <1.6", "1.8.0", ["1.5.0", "1.8.0"])).toMatchObject({
       status: "safe",
-      proposedSpecification: ">=1.0 <1.3 || >=1.4 <2.0.0",
+      proposedSpecification: ">=1.0 <1.3 || >=1.8.0 <2.0.0",
     });
   });
 
@@ -299,5 +299,45 @@ describe("update range planner", () => {
       selectedVersion: "2.0.0",
       proposedSpecification: "^2.0.0",
     });
+  });
+
+  test("should leave a dense component unchanged when the exact search budget is exhausted", () => {
+    const names = Array.from({ length: 7 }, (_, index) => `dense-${index}`);
+    const versions = Array.from({ length: 8 }, (_, index) => `1.${index}.0`);
+    const occurrences = names.map((name) => occurrence("1.0.0", name));
+    const packuments = new Map(
+      names.map((name) => [
+        name,
+        {
+          "dist-tags": { latest: versions.at(-1) },
+          versions: Object.fromEntries(
+            versions.map((version) => [
+              version,
+              {
+                version,
+                peerDependencies: Object.fromEntries(
+                  names.filter((peer) => peer !== name).map((peer) => [peer, "*"]),
+                ),
+              },
+            ]),
+          ),
+        },
+      ]),
+    );
+    const plan = planUpdates({
+      occurrences,
+      contextOccurrences: occurrences,
+      mode: "upgrade",
+      packuments,
+    });
+
+    expect(
+      plan.decisions.every((decision) => decision.occurrences[0].selectedVersion === "1.0.0"),
+    ).toBe(true);
+    expect(
+      plan.decisions.every((decision) =>
+        decision.occurrences[0].reason.includes("50,000-state budget"),
+      ),
+    ).toBe(true);
   });
 });
