@@ -148,16 +148,14 @@ function planOne(
       targetVersion: target,
       occurrence: { ...withVersions, status: "manual", reason: blocker },
     };
-  if (
-    semver.satisfies(selected, occurrence.currentSpecification) ||
-    !semver.gt(selected, allowed)
-  ) {
+  const declared = semver.minVersion(occurrence.currentSpecification)?.version ?? allowed;
+  if (!semver.gt(selected, declared)) {
     return {
       targetVersion: target,
       occurrence: {
         ...withVersions,
         status: "current",
-        reason: blocker ?? "selected version is already covered by the current specification",
+        reason: blocker ?? "the declared version is current",
       },
     };
   }
@@ -177,11 +175,22 @@ function planOne(
         reason: "breaking update is available via askr upgrade",
       },
     };
+  const proposedSpecification = rewriteRange(analysis.shape, selected, breaking);
+  if (proposedSpecification === occurrence.currentSpecification) {
+    return {
+      targetVersion: target,
+      occurrence: {
+        ...withVersions,
+        status: "current",
+        reason: "the selected version cannot further rebase this range style",
+      },
+    };
+  }
   return {
     targetVersion: target,
     occurrence: {
       ...withVersions,
-      proposedSpecification: rewriteRange(analysis.shape, selected, breaking),
+      proposedSpecification,
       status: breaking ? "breaking" : "safe",
       reason:
         selected === target
@@ -248,16 +257,19 @@ function solveWorkspace(
   const variables = [...states.entries()]
     .filter(([, state]) => state.selected && state.candidates.length > 0)
     .sort(([a], [b]) => a.localeCompare(b));
-  const fixed = new Map(
+  const fixed = new Map<string, string>(
     [...states].flatMap(([name, state]) =>
       state.selected ? [] : state.current ? [[name, state.current] as const] : [],
     ),
   );
-  let best: Map<string, string> | null = null;
-  let bestChanged = -1;
-  let firstFailure = "no jointly peer-compatible published version set exists";
+  const currentChoices = new Map(
+    variables.flatMap(([name, state]) => (state.current ? [[name, state.current] as const] : [])),
+  );
 
-  const validate = (choices: Map<string, string>): string | null => {
+  const validate = (
+    choices: ReadonlyMap<string, string>,
+    domains?: ReadonlyMap<string, readonly string[]>,
+  ): string | null => {
     const installed = new Map([...fixed, ...choices]);
     for (const [name, version] of installed) {
       const packument = packuments.get(name);
@@ -269,11 +281,20 @@ function solveWorkspace(
       )) {
         if (typeof requirement !== "string") continue;
         const providerChanged = states.get(name)?.current !== version;
+        const assignedPeer = choices.get(peer);
         const peerChanged =
-          states.get(peer)?.selected && states.get(peer)?.current !== installed.get(peer);
+          assignedPeer !== undefined && states.get(peer)?.current !== assignedPeer;
         if (!providerChanged && !peerChanged) continue;
-        const peerVersion = installed.get(peer) ?? localVersions.get(peer);
+        const peerVersion =
+          assignedPeer ?? (states.get(peer)?.selected ? undefined : installed.get(peer));
         if (!peerVersion) {
+          const peerDomain = domains?.get(peer);
+          if (
+            peerDomain?.some((candidate) =>
+              semver.satisfies(candidate, requirement, { includePrerelease: true }),
+            )
+          )
+            continue;
           if (optionalPeer(meta, peer)) continue;
           return `${name}@${version} requires missing peer ${peer}@${requirement}`;
         }
@@ -283,37 +304,130 @@ function solveWorkspace(
     }
     return null;
   };
-  const visit = (index: number, choices: Map<string, string>): void => {
-    if (index === variables.length) {
-      const failure = validate(choices);
+
+  // Join only packages that can constrain one another. Independent packages are
+  // resolved immediately instead of inflating a whole-workspace Cartesian search.
+  const edges = new Map(variables.map(([name]) => [name, new Set<string>()]));
+  for (const [name, state] of variables) {
+    for (const version of state.candidates) {
+      const peers = metadata(packuments.get(name)!, version)?.peerDependencies ?? {};
+      for (const peer of Object.keys(peers)) {
+        if (!edges.has(peer)) continue;
+        edges.get(name)!.add(peer);
+        edges.get(peer)!.add(name);
+      }
+    }
+  }
+  const components: string[][] = [];
+  const unseen = new Set(edges.keys());
+  while (unseen.size > 0) {
+    const start = [...unseen].sort()[0];
+    const component: string[] = [];
+    const pending = [start];
+    unseen.delete(start);
+    while (pending.length > 0) {
+      const name = pending.pop()!;
+      component.push(name);
+      for (const neighbor of [...edges.get(name)!].sort().reverse()) {
+        if (!unseen.delete(neighbor)) continue;
+        pending.push(neighbor);
+      }
+    }
+    components.push(component.sort());
+  }
+
+  const choices = new Map(currentChoices);
+  const blockers = new Map<string, string>();
+  for (const component of components) {
+    const componentSet = new Set(component);
+    const baseChoices = new Map([...choices].filter(([name]) => !componentSet.has(name)));
+    const domains = new Map(component.map((name) => [name, states.get(name)!.candidates] as const));
+    let best: Map<string, string> | null = null;
+    let bestChanged = -1;
+    let bestVector: number[] = [];
+    let statesVisited = 0;
+    let exhausted = false;
+    let firstFailure = "no jointly peer-compatible published version set exists";
+    const memo = new Set<string>();
+
+    const visit = (assigned: Map<string, string>): void => {
+      if (exhausted) return;
+      statesVisited += 1;
+      if (statesVisited > 50_000) {
+        exhausted = true;
+        return;
+      }
+      const merged = new Map([...baseChoices, ...assigned]);
+      const remaining = component.filter((name) => !assigned.has(name));
+      const changed = component.filter(
+        (name) => assigned.has(name) && assigned.get(name) !== states.get(name)!.current,
+      ).length;
+      if (changed + remaining.length < bestChanged) return;
+
+      const pruned = new Map<string, readonly string[]>();
+      for (const name of remaining) {
+        const viable = domains
+          .get(name)!
+          .filter((version) => validate(new Map([...merged, [name, version]]), domains) === null);
+        if (viable.length === 0) {
+          firstFailure = validate(merged, domains) ?? firstFailure;
+          return;
+        }
+        pruned.set(name, viable);
+      }
+      const failure = validate(merged, new Map([...domains, ...pruned]));
       if (failure) {
         firstFailure = failure;
         return;
       }
-      const changed = variables.filter(
-        ([name, state]) => choices.get(name) !== state.current,
-      ).length;
-      if (changed > bestChanged) {
-        best = new Map(choices);
-        bestChanged = changed;
+      if (remaining.length === 0) {
+        const vector = component.map((name) =>
+          states.get(name)!.candidates.indexOf(assigned.get(name)!),
+        );
+        const newer = vector.some(
+          (value, index) =>
+            value < (bestVector[index] ?? Number.POSITIVE_INFINITY) &&
+            vector.slice(0, index).every((prior, priorIndex) => prior === bestVector[priorIndex]),
+        );
+        if (changed > bestChanged || (changed === bestChanged && newer)) {
+          best = new Map(assigned);
+          bestChanged = changed;
+          bestVector = vector;
+        }
+        return;
       }
-      return;
+      const next = remaining
+        .map((name) => [name, pruned.get(name)!] as const)
+        .sort(
+          ([leftName, left], [rightName, right]) =>
+            left.length - right.length || leftName.localeCompare(rightName),
+        )[0];
+      const signature = component
+        .map((name) => `${name}=${assigned.get(name) ?? (pruned.get(name) ?? []).join(",")}`)
+        .join("|");
+      if (memo.has(signature)) return;
+      memo.add(signature);
+      for (const version of next[1]) {
+        assigned.set(next[0], version);
+        visit(assigned);
+        assigned.delete(next[0]);
+      }
+    };
+    visit(new Map());
+
+    if (exhausted) {
+      const reason =
+        "peer compatibility search exceeded the 50,000-state budget; resolve this component manually";
+      for (const name of component) blockers.set(name, reason);
+    } else if (!best) {
+      for (const name of component) blockers.set(name, firstFailure);
+    } else {
+      for (const [name, version] of best as Map<string, string>) choices.set(name, version);
     }
-    const [name, state] = variables[index];
-    for (const version of state.candidates) {
-      choices.set(name, version);
-      visit(index + 1, choices);
-    }
-  };
-  visit(0, new Map());
-  const blockers = new Map<string, string>();
-  if (!best) for (const [name] of variables) blockers.set(name, firstFailure);
-  const choices =
-    best ??
-    new Map(
-      variables.flatMap(([name, state]) => (state.current ? [[name, state.current] as const] : [])),
-    );
+  }
+
   for (const [name, state] of variables) {
+    if (blockers.has(name)) continue;
     if (choices.get(name) !== state.current || state.candidates[0] === state.current) continue;
     const attempted = new Map(choices).set(name, state.candidates[0]);
     blockers.set(

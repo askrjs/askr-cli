@@ -266,7 +266,19 @@ describe("update CLI", () => {
     expect(JSON.parse(capture.logs[0])).toMatchObject({
       root,
       workspaces: [{ name: "fixture", path: ".", manifest: "package.json" }],
-      summary: { packages: 1, safe: 0, current: 1 },
+      summary: { packages: 1, safe: 1, current: 0 },
+      decisions: [
+        {
+          package: "foo",
+          occurrences: [
+            {
+              currentSpecification: "^1.0.0",
+              proposedSpecification: "^1.1.0",
+              status: "safe",
+            },
+          ],
+        },
+      ],
       errors: [],
     });
   });
@@ -368,8 +380,10 @@ describe("update CLI", () => {
 
     expect(manifest.engines.node).toBe("^20.19.0 || >=22.12.0");
     expect(Object.keys(manifest.dependencies).sort()).toEqual([
+      "@npmcli/config",
       "js-yaml",
       "minimatch",
+      "npm-registry-fetch",
       "semver",
       "tsx",
     ]);

@@ -25,18 +25,15 @@ afterEach(async () => {
 });
 
 describe("update npm configuration and registry", () => {
-  test("should ignore another package manager given npm_execpath when selecting npm", async () => {
+  test("should load npm configuration without inheriting another package manager executable", async () => {
     const root = await tempRoot();
     const configuration = await loadNpmConfiguration(root, {
       HOME: root,
       npm_execpath: path.join(root, "pnpm.cjs"),
     });
 
-    const command = [configuration.invocation.executable, ...configuration.invocation.prefix].join(
-      " ",
-    );
-    expect(command.toLowerCase()).toContain("npm");
-    expect(command).not.toContain(path.join(root, "pnpm.cjs"));
+    expect(configuration.cwd).toBe(root);
+    expect(JSON.stringify(configuration.options)).not.toContain(path.join(root, "pnpm.cjs"));
   });
 
   test("should apply npm precedence given global user project and environment settings when loading", async () => {
@@ -207,6 +204,75 @@ describe("update npm configuration and registry", () => {
 
     expect(calls).toBe(1);
     expect(result.packuments.size).toBe(1);
+  });
+
+  test("should bound concurrent requests using npm maxsockets when fetching", async () => {
+    const root = await tempRoot();
+    await fs.writeFile(path.join(root, ".npmrc"), "maxsockets=3\n");
+    let active = 0;
+    let maximum = 0;
+    const result = await fetchPackuments(
+      Array.from({ length: 12 }, (_, index) => `fixture-${index}`),
+      await loadNpmConfiguration(root, { HOME: root }),
+      {
+        viewPackage: async () => {
+          active += 1;
+          maximum = Math.max(maximum, active);
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          active -= 1;
+          return { "dist-tags": { latest: "1.0.0" }, versions: { "1.0.0": { version: "1.0.0" } } };
+        },
+      },
+    );
+
+    expect(result.packuments.size).toBe(12);
+    expect(maximum).toBe(3);
+  });
+
+  test("should expose cache proxy and certificate npm options to registry requests", async () => {
+    const root = await tempRoot();
+    const cache = path.join(root, "npm-cache");
+    const certificate = path.join(root, "certificate.pem");
+    await fs.writeFile(
+      path.join(root, ".npmrc"),
+      [
+        `cache=${cache}`,
+        "proxy=http://proxy.invalid:8080",
+        `cafile=${certificate}`,
+        "prefer-online=true",
+        "",
+      ].join("\n"),
+    );
+    await fs.writeFile(
+      certificate,
+      "-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n",
+    );
+    let observed: Record<string, unknown> = {};
+    await fetchPackuments(["fixture"], await loadNpmConfiguration(root, { HOME: root }), {
+      viewPackage: async (_name, configuration) => {
+        observed = configuration.options;
+        return { "dist-tags": { latest: "1.0.0" }, versions: { "1.0.0": { version: "1.0.0" } } };
+      },
+    });
+
+    expect(observed).toMatchObject({
+      cache: path.join(cache, "_cacache"),
+      proxy: "http://proxy.invalid:8080/",
+      preferOnline: true,
+    });
+    expect(observed.ca).toBeTruthy();
+  });
+
+  test("should reject malformed abbreviated packuments without exposing their contents", async () => {
+    const root = await tempRoot();
+    const result = await fetchPackuments(
+      ["fixture"],
+      await loadNpmConfiguration(root, { HOME: root }),
+      { viewPackage: async () => ({ secret: "do-not-report" }) },
+    );
+
+    expect(result.failures.get("fixture")).toBe("registry returned malformed package metadata");
+    expect(JSON.stringify([...result.failures])).not.toContain("do-not-report");
   });
 
   test("should sanitize credentials given a registry error with a credential-bearing message when reporting", () => {

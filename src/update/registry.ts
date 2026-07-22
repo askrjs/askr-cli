@@ -1,19 +1,14 @@
-import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
 import path from "node:path";
-import semver from "semver";
-import { parseDependencySpecification } from "./specification";
+import { fileURLToPath } from "node:url";
+import Config from "@npmcli/config";
+import npmDefinitions from "@npmcli/config/lib/definitions";
+import registryFetch from "npm-registry-fetch";
 import type { Packument } from "./types";
-
-interface NpmInvocation {
-  executable: string;
-  prefix: string[];
-}
 
 export interface NpmConfiguration {
   cwd: string;
   env: NodeJS.ProcessEnv;
-  invocation: NpmInvocation;
+  options: Record<string, unknown>;
 }
 
 export interface RegistryRequirements {
@@ -31,40 +26,6 @@ type ViewPackage = (
   specifications: readonly string[],
 ) => Promise<unknown>;
 
-function installedNpmCli(executable?: string): string | null {
-  const directories = new Set([path.dirname(process.execPath)]);
-  if (executable && path.isAbsolute(executable)) directories.add(path.dirname(executable));
-  for (const directory of directories) {
-    for (const candidate of [
-      path.join(directory, "node_modules", "npm", "bin", "npm-cli.js"),
-      path.resolve(directory, "..", "lib", "node_modules", "npm", "bin", "npm-cli.js"),
-    ]) {
-      if (existsSync(candidate)) return candidate;
-    }
-  }
-  return null;
-}
-
-function npmInvocation(env: NodeJS.ProcessEnv): NpmInvocation {
-  const executable = env.npm_execpath;
-  const executableName = executable ? path.basename(executable).toLowerCase() : "";
-  const isNpmExecutable =
-    executableName === "npm" ||
-    executableName === "npm.cmd" ||
-    /^npm(?:-cli)?\.(?:cjs|js|mjs)$/.test(executableName);
-  if (executable && isNpmExecutable) {
-    const extension = path.extname(executable).toLowerCase();
-    if ([".cjs", ".js", ".mjs"].includes(extension)) {
-      return { executable: process.execPath, prefix: [executable] };
-    }
-    const npmCli = installedNpmCli(executable);
-    return npmCli ? { executable: process.execPath, prefix: [npmCli] } : { executable, prefix: [] };
-  }
-  const npmCli = installedNpmCli();
-  if (npmCli) return { executable: process.execPath, prefix: [npmCli] };
-  return { executable: process.platform === "win32" ? "npm.cmd" : "npm", prefix: [] };
-}
-
 function executionEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   if (env === process.env) return { ...process.env };
   const inherited = { ...process.env };
@@ -79,180 +40,45 @@ export async function loadNpmConfiguration(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<NpmConfiguration> {
   const effectiveEnvironment = executionEnvironment(env);
-  return {
+  const { definitions, flatten, shorthands } = npmDefinitions;
+  const npmPath = path.dirname(fileURLToPath(import.meta.resolve("@npmcli/config/package.json")));
+  const configuration = new Config({
+    npmPath,
+    definitions,
+    flatten,
+    shorthands,
+    argv: [process.execPath, "askr"],
     cwd: root,
     env: effectiveEnvironment,
-    invocation: npmInvocation(effectiveEnvironment),
-  };
-}
-
-function npmError(error: { code?: string | number | null }, stderr: string): Error {
-  const details = `${String(error.code ?? "")}\n${stderr}`;
-  const safe = new Error("npm registry lookup failed") as Error & {
-    code?: string;
-    statusCode?: number;
-  };
-  const npmCode = details.match(/\bE(?:401|403|404|CONNRESET|TIMEDOUT|TIMEOUT)\b/i)?.[0];
-  safe.code = npmCode?.toUpperCase() ?? (typeof error.code === "string" ? error.code : "");
-  if (safe.code === "E401") safe.statusCode = 401;
-  if (safe.code === "E403") safe.statusCode = 403;
-  if (safe.code === "E404") safe.statusCode = 404;
-  return safe;
-}
-
-function executeNpmJson(
-  args: string[],
-  configuration: NpmConfiguration,
-  preferOnline: boolean,
-): Promise<unknown> {
-  const [command, ...positionals] = args;
-  return new Promise((resolve, reject) => {
-    execFile(
-      configuration.invocation.executable,
-      [
-        ...configuration.invocation.prefix,
-        command,
-        "--json",
-        preferOnline ? "--prefer-online" : "--prefer-offline",
-        "--offline=false",
-        "--loglevel=error",
-        "--update-notifier=false",
-        "--",
-        ...positionals,
-      ],
-      {
-        cwd: configuration.cwd,
-        encoding: "utf8",
-        env: configuration.env,
-        maxBuffer: 64 * 1024 * 1024,
-        windowsHide: true,
-      },
-      (error, stdout, stderr) => {
-        if (error) {
-          reject(npmError(error, stderr));
-          return;
-        }
-        try {
-          resolve(JSON.parse(stdout));
-        } catch {
-          reject(new Error("npm registry returned malformed JSON"));
-        }
-      },
-    );
+    execPath: process.execPath,
+    warn: false,
   });
+  await configuration.load();
+  configuration.validate();
+  return { cwd: root, env: effectiveEnvironment, options: { ...configuration.flat } };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function basePackument(value: unknown): Packument | null {
-  if (!isRecord(value) || !Array.isArray(value.versions) || !isRecord(value["dist-tags"])) {
-    return null;
-  }
-  const versions = value.versions.filter(
-    (version): version is string => typeof version === "string",
-  );
-  if (versions.length === 0) return null;
-  return {
-    "dist-tags": value["dist-tags"],
-    versions: Object.fromEntries(versions.map((version) => [version, { version }])),
-  };
-}
-
-function selectedVersions(packument: Packument, specifications: readonly string[]): string[] {
-  const versions = Object.keys(packument.versions ?? {}).filter(
-    (version) => semver.valid(version) !== null,
-  );
-  const selected = new Set(
-    Object.values(packument["dist-tags"] ?? {}).filter(
-      (version): version is string =>
-        typeof version === "string" && semver.valid(version) !== null && versions.includes(version),
-    ),
-  );
-
-  for (const specification of specifications) {
-    const parsed = parseDependencySpecification(specification);
-    if (parsed.type === "tag") {
-      const tagged = packument["dist-tags"]?.[parsed.rawSpec];
-      if (typeof tagged === "string" && versions.includes(tagged)) selected.add(tagged);
-    } else if (parsed.type === "version") {
-      if (versions.includes(parsed.rawSpec)) selected.add(parsed.rawSpec);
-    } else if (parsed.type === "range") {
-      const matching = semver.maxSatisfying(versions, parsed.rawSpec);
-      if (matching) selected.add(matching);
-    }
-  }
-  return [...selected].sort(semver.compare);
-}
-
-function candidateVersions(packument: Packument, specifications: readonly string[]): string[] {
-  const versions = Object.keys(packument.versions ?? {}).filter(
-    (version) => semver.valid(version) !== null,
-  );
-  const selected = selectedVersions(packument, specifications);
-  const lowerBounds = specifications.flatMap((specification) => {
-    const parsed = parseDependencySpecification(specification);
-    if (parsed.type === "version") return semver.valid(parsed.rawSpec) ? [parsed.rawSpec] : [];
-    if (parsed.type === "range") {
-      const current = semver.maxSatisfying(versions, parsed.rawSpec);
-      return current ? [current] : [];
-    }
-    return [];
-  });
-  if (lowerBounds.length === 0 || selected.length === 0) return selected;
-  const floor = lowerBounds.sort(semver.compare)[0];
-  const ceiling = selected.sort(semver.compare)[selected.length - 1];
-  return versions.filter((version) => semver.gte(version, floor) && semver.lte(version, ceiling));
-}
-
-function mergeVersionMetadata(
-  packument: Packument,
-  value: unknown,
-  selected: readonly string[],
-): boolean {
-  const entries = Array.isArray(value) ? value : [value];
-  const merged = new Set<string>();
-  for (const entry of entries) {
-    if (typeof entry === "string") {
-      if (packument.versions?.[entry]) merged.add(entry);
-      continue;
-    }
-    if (!isRecord(entry) || typeof entry.version !== "string") continue;
-    const metadata = packument.versions?.[entry.version];
-    if (!isRecord(metadata)) continue;
-    if (isRecord(entry.peerDependencies)) metadata.peerDependencies = entry.peerDependencies;
-    if (isRecord(entry.peerDependenciesMeta)) {
-      metadata.peerDependenciesMeta = entry.peerDependenciesMeta;
-    }
-    merged.add(entry.version);
-  }
-  return selected.every((version) => merged.has(version));
-}
-
-async function executeNpmView(
-  packageName: string,
-  configuration: NpmConfiguration,
-  specifications: readonly string[],
-): Promise<Packument | null> {
-  const packument = basePackument(
-    await executeNpmJson(["view", packageName, "versions", "dist-tags"], configuration, true),
-  );
-  if (!packument) return null;
-
-  const versions = candidateVersions(packument, specifications);
-  if (versions.length === 0) return packument;
-  const selector = `${packageName}@${versions.join(" || ")}`;
-  const metadata = await executeNpmJson(
-    ["view", selector, "version", "peerDependencies", "peerDependenciesMeta"],
-    configuration,
-    false,
-  );
-  return mergeVersionMetadata(packument, metadata, versions) ? packument : null;
-}
-
 function isPackument(value: unknown): value is Packument {
   return isRecord(value) && isRecord(value["dist-tags"]) && isRecord(value.versions);
+}
+
+async function fetchPackage(
+  packageName: string,
+  configuration: NpmConfiguration,
+  _specifications: readonly string[],
+): Promise<unknown> {
+  return registryFetch.json(packageName.replace("/", "%2f"), {
+    ...configuration.options,
+    spec: packageName,
+    headers: {
+      ...(isRecord(configuration.options.headers) ? configuration.options.headers : {}),
+      accept: "application/vnd.npm.install-v1+json",
+    },
+  });
 }
 
 export function sanitizeRegistryError(error: unknown): string {
@@ -290,30 +116,31 @@ export async function fetchPackuments(
   const names = [...new Set(packageNames)].sort((left, right) => left.localeCompare(right));
   const packuments = new Map<string, Packument>();
   const failures = new Map<string, string>();
-  const viewPackage = options.viewPackage ?? executeNpmView;
+  const viewPackage = options.viewPackage ?? fetchPackage;
+  const configuredSockets = Number(configuration.options.maxSockets ?? 15);
+  const concurrency = Math.max(
+    1,
+    Math.min(names.length, Number.isFinite(configuredSockets) ? configuredSockets : 15),
+  );
   let nextIndex = 0;
 
   const worker = async (): Promise<void> => {
     while (nextIndex < names.length) {
-      const packageName = names[nextIndex];
-      nextIndex += 1;
+      const packageName = names[nextIndex++];
       try {
         const result = await viewPackage(
           packageName,
           configuration,
           options.requirements?.specifications?.get(packageName) ?? [],
         );
-        if (isPackument(result)) {
-          packuments.set(packageName, result);
-        } else {
-          failures.set(packageName, "registry returned malformed package metadata");
-        }
+        if (isPackument(result)) packuments.set(packageName, result);
+        else failures.set(packageName, "registry returned malformed package metadata");
       } catch (error) {
         failures.set(packageName, sanitizeRegistryError(error));
       }
     }
   };
 
-  await Promise.all(Array.from({ length: Math.min(8, names.length) }, worker));
+  await Promise.all(Array.from({ length: concurrency }, worker));
   return { packuments, failures };
 }
