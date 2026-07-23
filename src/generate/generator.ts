@@ -13,7 +13,7 @@ import { lookup } from "node:dns/promises";
 import { request as httpsRequest } from "node:https";
 import type { IncomingHttpHeaders, IncomingMessage } from "node:http";
 import { BlockList, isIP } from "node:net";
-import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { load } from "js-yaml";
 
@@ -450,10 +450,14 @@ async function readSource(uri: string, options: ResolvedLoadOptions): Promise<So
   if (uri.startsWith("http://") || uri.startsWith("https://")) return fetchSource(uri, options);
   const path = fileURLToPath(uri);
   const canonical = await realpath(path);
+  const relativePath = options.localRootDirectory
+    ? relative(options.localRootDirectory, canonical)
+    : "..";
   if (
     !options.localRootDirectory ||
-    (canonical !== options.localRootDirectory &&
-      !canonical.startsWith(`${options.localRootDirectory}/`))
+    relativePath === ".." ||
+    relativePath.startsWith(`..${sep}`) ||
+    isAbsolute(relativePath)
   )
     throw new GenerationError(
       `Local OpenAPI reference escapes the specification directory: ${path}`,
