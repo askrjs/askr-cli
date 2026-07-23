@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
@@ -279,6 +279,133 @@ describe("askr generate", () => {
     expect(bundled.components.schemas.User.properties.parent).toEqual({
       $ref: "#/components/schemas/User",
     });
+  });
+  it("should reject local references escaping the specification directory", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "askr-openapi-boundary-"));
+    const root = join(parent, "spec");
+    await mkdir(root);
+    await writeFile(join(parent, "outside.yaml"), "type: string");
+    await writeFile(
+      join(root, "openapi.yaml"),
+      [
+        "openapi: 3.1.0",
+        "info: { title: Boundary, version: '1' }",
+        "paths: {}",
+        "components:",
+        "  schemas:",
+        "    Escape: { $ref: '../outside.yaml' }",
+      ].join("\n"),
+    );
+    await expect(loadOpenApi(join(root, "openapi.yaml"))).rejects.toThrow(
+      "escapes the specification directory",
+    );
+  });
+  it("should reject symlink and remote-to-file reference pivots", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "askr-openapi-pivot-"));
+    const root = join(parent, "spec");
+    await mkdir(root);
+    await writeFile(join(parent, "outside.yaml"), "type: string");
+    await symlink(join(parent, "outside.yaml"), join(root, "linked.yaml"));
+    const writeRoot = async (ref: string) =>
+      writeFile(
+        join(root, "openapi.yaml"),
+        [
+          "openapi: 3.1.0",
+          "info: { title: Pivot, version: '1' }",
+          "paths: {}",
+          "components:",
+          "  schemas:",
+          `    Escape: { $ref: '${ref}' }`,
+        ].join("\n"),
+      );
+    await writeRoot("./linked.yaml");
+    await expect(loadOpenApi(join(root, "openapi.yaml"))).rejects.toThrow(
+      "escapes the specification directory",
+    );
+    await writeRoot("file:///etc/passwd");
+    await expect(loadOpenApi(join(root, "openapi.yaml"))).rejects.toThrow(
+      "escapes the specification directory",
+    );
+  });
+  it("should enforce bounded reference depth and response size", async () => {
+    const root = await mkdtemp(join(tmpdir(), "askr-openapi-limits-"));
+    await writeFile(
+      join(root, "deep.yaml"),
+      [
+        "openapi: 3.1.0",
+        "info: { title: Deep, version: '1' }",
+        "paths: {}",
+        "components:",
+        "  schemas:",
+        "    A: { $ref: './b.yaml' }",
+      ].join("\n"),
+    );
+    await writeFile(join(root, "b.yaml"), "{ $ref: './c.yaml' }");
+    await writeFile(join(root, "c.yaml"), "type: string");
+    await expect(loadOpenApi(join(root, "deep.yaml"), { maxDepth: 1 })).rejects.toThrow(
+      "reference depth exceeds",
+    );
+    await expect(loadOpenApi(join(root, "deep.yaml"), { maxBytes: 10 })).rejects.toThrow(
+      "exceeds 10 bytes",
+    );
+  });
+  it("should strictly validate remote reference origins and numeric limits", async () => {
+    const root = await mkdtemp(join(tmpdir(), "askr-openapi-options-"));
+    const input = join(root, "openapi.yaml");
+    await writeFile(
+      input,
+      "openapi: 3.1.0\ninfo: { title: Options, version: '1' }\npaths: {}\n",
+    );
+    for (const origin of [
+      "http://example.com",
+      "https://user@example.com",
+      "https://example.com/path",
+      "https://example.com/?query=1",
+      "https://example.com/#fragment",
+    ]) {
+      await expect(
+        loadOpenApi(input, { allowedReferenceOrigins: [origin] }),
+      ).rejects.toThrow("must be an HTTPS origin");
+    }
+    for (const options of [
+      { timeoutMs: 0 },
+      { maxBytes: -1 },
+      { maxDepth: Number.MAX_SAFE_INTEGER + 1 },
+      { maxRedirects: 1.5 },
+    ]) {
+      await expect(loadOpenApi(input, options)).rejects.toThrow(
+        "positive safe integer",
+      );
+    }
+  });
+  it("should accept and validate all bounded-reference CLI flags", async () => {
+    const root = await mkdtemp(join(tmpdir(), "askr-openapi-cli-limits-"));
+    const input = join(root, "openapi.yaml");
+    const output = join(root, "generated");
+    await writeFile(
+      input,
+      "openapi: 3.1.0\ninfo: { title: Options, version: '1' }\npaths: {}\n",
+    );
+    const io = { log() {}, error() {} };
+    expect(
+      await runGenerateCli(
+        [
+          input,
+          "-o",
+          output,
+          "--ref-timeout-ms",
+          "1000",
+          "--ref-max-bytes",
+          "10000",
+          "--ref-max-depth",
+          "8",
+          "--ref-max-redirects",
+          "2",
+        ],
+        io,
+      ),
+    ).toBe(0);
+    expect(await runGenerateCli([input, "-o", output, "--ref-max-bytes", "0"], io)).toBe(1);
   });
   it("should reject unknown and missing options given invalid CLI arguments when parsing", async () => {
     const io = { log() {}, error() {} };

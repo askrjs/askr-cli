@@ -7,7 +7,18 @@ import { telemetry } from "../telemetry";
 import { createActionHandlers } from "./action-registry";
 import type { AppDependencies } from "./dependencies";
 
+function csrfSecret(): string {
+  const secret = process.env.CSRF_SECRET;
+  if (process.env.NODE_ENV !== "production") return secret ?? "development-only-secret";
+  if (!secret || secret.length < 32 || new Set(secret).size < 12) {
+    throw new Error("Production requires a strong CSRF_SECRET (at least 32 varied characters).");
+  }
+  return secret;
+}
+
 export function createApp(deps: AppDependencies) {
+  const secret = csrfSecret();
+  const development = process.env.NODE_ENV !== "production";
   return createAskrApp({
     name: "{{appName}}",
     version: "1.0.0",
@@ -37,26 +48,33 @@ export function createApp(deps: AppDependencies) {
           .summary("Create a message")
           .tags("Messages")
           .use(
-            csrf({ secret: process.env.CSRF_SECRET ?? "development-only-secret" }),
-            rateLimit({ store: deps.rateLimits, limit: 30, windowMs: 60_000 }),
+            csrf({ secret }),
+            rateLimit({
+              store: deps.rateLimits,
+              limit: 30,
+              windowMs: 60_000,
+              key: (ctx) => `message:${ctx.auth.session?.id ?? "anonymous"}`,
+            }),
           )
           .created(Message)
           .badRequest()
           .unprocessableEntity()
           .tooManyRequests();
-        api
-          .post("/session", (ctx) => {
-            const response = ctx.redirect("/", 303);
-            return ctx.setCookie(response, "askr-session", "demo-session", {
-              httpOnly: true,
-              sameSite: "lax",
-              secure: ctx.url.protocol === "https:",
-              path: "/",
-            });
-          })
-          .operationId("createSession")
-          .summary("Create a demo session")
-          .seeOther();
+        if (development) {
+          api
+            .post("/session", (ctx) => {
+              const response = ctx.redirect("/", 303);
+              return ctx.setCookie(response, "askr-session", "demo-session", {
+                httpOnly: true,
+                sameSite: "lax",
+                secure: ctx.url.protocol === "https:",
+                path: "/",
+              });
+            })
+            .operationId("createSession")
+            .summary("Create a development-only demo session")
+            .seeOther();
+        }
       },
     },
     auth: {
@@ -68,7 +86,7 @@ export function createApp(deps: AppDependencies) {
     },
     actions: {
       handlers: createActionHandlers(),
-      csrf: { secret: process.env.CSRF_SECRET ?? "development-only-secret" },
+      csrf: { secret },
     },
     middleware: [requestId(), securityHeaders()],
     telemetry,

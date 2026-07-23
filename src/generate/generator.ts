@@ -1,4 +1,8 @@
-import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
+import { lookup } from "node:dns/promises";
+import { request as httpsRequest } from "node:https";
+import type { IncomingHttpHeaders, IncomingMessage } from "node:http";
+import { BlockList, isIP } from "node:net";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { load } from "js-yaml";
@@ -132,6 +136,21 @@ function codecFor(mediaType: string, type: string) {
 }
 
 type SourceDocument = { uri: string; document: Json };
+export interface OpenApiLoadOptions {
+  /** Additional HTTPS origins allowed for references from a remote root. */
+  readonly allowedReferenceOrigins?: readonly string[];
+  readonly maxBytes?: number;
+  readonly maxDepth?: number;
+  readonly maxRedirects?: number;
+  readonly timeoutMs?: number;
+  /** Intended only for controlled tests and private development networks. */
+  readonly allowPrivateHosts?: boolean;
+}
+type ResolvedLoadOptions = Required<Omit<OpenApiLoadOptions, "allowedReferenceOrigins">> & {
+  allowedReferenceOrigins: ReadonlySet<string>;
+  localRootDirectory?: string;
+  remoteRootOrigin?: string;
+};
 
 const pointerPart = (value: string): string =>
   decodeURIComponent(value).replace(/~1/g, "/").replace(/~0/g, "~");
@@ -168,17 +187,240 @@ function parseOpenApiDocument(contents: string, source: string): Json {
   return parsed as Json;
 }
 
-async function readSource(uri: string): Promise<SourceDocument> {
-  if (uri.startsWith("http://") || uri.startsWith("https://")) {
-    const response = await fetch(uri);
-    if (!response.ok)
-      throw new GenerationError(
-        `Unable to fetch OpenAPI reference ${uri}: ${response.status} ${response.statusText}`,
-      );
-    return { uri, document: parseOpenApiDocument(await response.text(), uri) };
+const blockedAddresses = new BlockList();
+for (const [network, prefix] of [
+  ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8],
+  ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.0.0.0", 24], ["192.0.2.0", 24],
+  ["192.168.0.0", 16], ["198.18.0.0", 15], ["198.51.100.0", 24],
+  ["203.0.113.0", 24], ["224.0.0.0", 4], ["240.0.0.0", 4],
+] as const) blockedAddresses.addSubnet(network, prefix, "ipv4");
+for (const [network, prefix] of [
+  ["::", 128], ["::1", 128], ["fc00::", 7], ["fe80::", 10], ["ff00::", 8],
+  ["2001:db8::", 32], ["2001:2::", 48],
+] as const) blockedAddresses.addSubnet(network, prefix, "ipv6");
+
+function privateAddress(address: string): boolean {
+  const family = isIP(address);
+  if (family === 4) return blockedAddresses.check(address, "ipv4");
+  if (family !== 6) return true;
+  const mappedSuffix = /^::ffff:(.+)$/i.exec(address)?.[1];
+  const mapped =
+    mappedSuffix?.includes(".")
+      ? mappedSuffix
+      : mappedSuffix && /^[0-9a-f]{1,4}:[0-9a-f]{1,4}$/i.test(mappedSuffix)
+        ? mappedSuffix
+            .split(":")
+            .flatMap((part) => {
+              const value = Number.parseInt(part, 16);
+              return [value >> 8, value & 0xff];
+            })
+            .join(".")
+        : undefined;
+  return mapped
+    ? privateAddress(mapped)
+    : blockedAddresses.check(address, "ipv6");
+}
+
+type VettedAddress = { address: string; family: 4 | 6 };
+type HttpsResponse = {
+  status: number;
+  statusText: string;
+  headers: IncomingHttpHeaders;
+  message: IncomingMessage;
+};
+
+function remaining(deadline: number, uri: string): number {
+  const value = deadline - Date.now();
+  if (value <= 0) throw new GenerationError(`Timed out fetching OpenAPI reference ${uri}`);
+  return value;
+}
+
+async function withDeadline<T>(promise: Promise<T>, deadline: number, uri: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new GenerationError(`Timed out fetching OpenAPI reference ${uri}`)),
+          remaining(deadline, uri),
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
   }
+}
+
+async function vettedAddresses(
+  url: URL,
+  options: ResolvedLoadOptions,
+  deadline: number,
+): Promise<VettedAddress[]> {
+  const hostname = url.hostname.replace(/^\[|\]$/g, "");
+  const answers = isIP(hostname)
+    ? [{ address: hostname, family: isIP(hostname) as 4 | 6 }]
+    : await withDeadline(lookup(hostname, { all: true, verbatim: true }), deadline, url.href);
+  if (
+    answers.length === 0 ||
+    (!options.allowPrivateHosts && answers.some(({ address }) => privateAddress(address)))
+  ) {
+    throw new GenerationError(
+      `OpenAPI reference resolves to a private, reserved, or link-local address: ${url.origin}`,
+    );
+  }
+  return answers.map(({ address, family }) => ({ address, family: family as 4 | 6 }));
+}
+
+function retryableConnectionError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const code = (error as NodeJS.ErrnoException).code ?? "";
+  return !/^ERR_TLS_|^CERT_|SELF_SIGNED|CERTIFICATE/.test(code) &&
+    ["ECONNREFUSED", "ECONNRESET", "EHOSTUNREACH", "ENETUNREACH", "ETIMEDOUT", "EPIPE"].includes(code);
+}
+
+function requestAddress(
+  url: URL,
+  vetted: VettedAddress,
+  deadline: number,
+): Promise<HttpsResponse> {
+  return new Promise((resolve, reject) => {
+    let receivedHeaders = false;
+    const request = httpsRequest(url, {
+      method: "GET",
+      headers: { accept: "application/json, application/yaml, text/yaml, */*", "accept-encoding": "identity" },
+      servername: url.hostname,
+      lookup: (_hostname, _options, callback) =>
+        callback(null, vetted.address, vetted.family),
+    }, (message) => {
+      receivedHeaders = true;
+      resolve({
+        status: message.statusCode ?? 0,
+        statusText: message.statusMessage ?? "",
+        headers: message.headers,
+        message,
+      });
+    });
+    request.setTimeout(remaining(deadline, url.href), () => {
+      request.destroy(Object.assign(new Error("connection timed out"), { code: "ETIMEDOUT" }));
+    });
+    request.on("error", (error) => reject(Object.assign(error, { receivedHeaders })));
+    request.end();
+  });
+}
+
+async function requestVetted(
+  url: URL,
+  addresses: VettedAddress[],
+  deadline: number,
+): Promise<HttpsResponse> {
+  let lastError: unknown;
+  for (const address of addresses) {
+    try {
+      return await withDeadline(requestAddress(url, address, deadline), deadline, url.href);
+    } catch (error) {
+      lastError = error;
+      if (!retryableConnectionError(error)) throw error;
+    }
+  }
+  throw lastError;
+}
+
+async function responseText(
+  response: HttpsResponse,
+  uri: string,
+  maxBytes: number,
+  deadline: number,
+): Promise<string> {
+  const declared = Number(response.headers["content-length"]);
+  if (Number.isFinite(declared) && declared > maxBytes)
+    throw new GenerationError(`OpenAPI reference exceeds ${maxBytes} bytes: ${uri}`);
+  const encoding = response.headers["content-encoding"];
+  if (encoding && encoding !== "identity")
+    throw new GenerationError(`OpenAPI reference returned unsupported content encoding: ${encoding}`);
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    await withDeadline(new Promise<void>((resolve, reject) => {
+      response.message.on("data", (value: Buffer) => {
+        size += value.byteLength;
+        if (size > maxBytes) {
+          response.message.destroy();
+          reject(new GenerationError(`OpenAPI reference exceeds ${maxBytes} bytes: ${uri}`));
+          return;
+        }
+        chunks.push(value);
+      });
+      response.message.on("end", resolve);
+      response.message.on("error", reject);
+      response.message.on("aborted", () =>
+        reject(new GenerationError(`OpenAPI response body was aborted: ${uri}`)),
+      );
+    }), deadline, uri);
+  } catch (error) {
+    response.message.destroy();
+    throw error;
+  }
+  if (size > maxBytes) {
+    throw new GenerationError(`OpenAPI reference exceeds ${maxBytes} bytes: ${uri}`);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+async function fetchSource(uri: string, options: ResolvedLoadOptions): Promise<SourceDocument> {
+  let current = new URL(uri);
+  const deadline = Date.now() + options.timeoutMs;
+  for (let redirects = 0; ; redirects += 1) {
+    if (current.protocol !== "https:")
+      throw new GenerationError(`Remote OpenAPI references must use HTTPS: ${current.href}`);
+    if (current.username || current.password)
+      throw new GenerationError(`Remote OpenAPI references must not include credentials: ${current.origin}`);
+    if (
+      current.origin !== options.remoteRootOrigin &&
+      !options.allowedReferenceOrigins.has(current.origin)
+    )
+      throw new GenerationError(`Cross-origin OpenAPI reference is not allowed: ${current.origin}`);
+    const addresses = await vettedAddresses(current, options, deadline);
+    const response = await requestVetted(current, addresses, deadline);
+    if (response.status >= 300 && response.status < 400) {
+      if (redirects >= options.maxRedirects)
+        throw new GenerationError(`Too many redirects while fetching OpenAPI reference ${uri}`);
+      response.message.resume();
+      const location = response.headers.location;
+      if (!location) throw new GenerationError(`OpenAPI redirect is missing Location: ${current.href}`);
+      current = new URL(location, current);
+      continue;
+    }
+    if (response.status < 200 || response.status >= 300) {
+      response.message.resume();
+      throw new GenerationError(
+        `Unable to fetch OpenAPI reference ${current.href}: ${response.status} ${response.statusText}`,
+      );
+    }
+    return {
+      uri: current.href,
+      document: parseOpenApiDocument(
+        await responseText(response, current.href, options.maxBytes, deadline),
+        current.href,
+      ),
+    };
+  }
+}
+
+async function readSource(uri: string, options: ResolvedLoadOptions): Promise<SourceDocument> {
+  if (uri.startsWith("http://") || uri.startsWith("https://")) return fetchSource(uri, options);
   const path = fileURLToPath(uri);
-  return { uri, document: parseOpenApiDocument(await readFile(path, "utf8"), path) };
+  const canonical = await realpath(path);
+  if (
+    !options.localRootDirectory ||
+    (canonical !== options.localRootDirectory &&
+      !canonical.startsWith(`${options.localRootDirectory}/`))
+  )
+    throw new GenerationError(`Local OpenAPI reference escapes the specification directory: ${path}`);
+  const contents = await readFile(canonical);
+  if (contents.byteLength > options.maxBytes)
+    throw new GenerationError(`OpenAPI reference exceeds ${options.maxBytes} bytes: ${path}`);
+  return { uri: pathToFileURL(canonical).href, document: parseOpenApiDocument(contents.toString("utf8"), canonical) };
 }
 
 class OpenApiBundler {
@@ -189,6 +431,7 @@ class OpenApiBundler {
   constructor(
     private readonly root: Json,
     private readonly rootUri: string,
+    private readonly options: ResolvedLoadOptions,
   ) {}
 
   async bundle(): Promise<Json> {
@@ -201,7 +444,7 @@ class OpenApiBundler {
   private async source(uri: string): Promise<SourceDocument> {
     let pending = this.sources.get(uri);
     if (!pending) {
-      pending = readSource(uri);
+      pending = readSource(uri, this.options);
       this.sources.set(uri, pending);
     }
     return pending;
@@ -239,6 +482,8 @@ class OpenApiBundler {
     document: Json,
     stack: Set<string>,
   ): Promise<unknown> {
+    if (stack.size > this.options.maxDepth)
+      throw new GenerationError(`OpenAPI reference depth exceeds ${this.options.maxDepth}`);
     if (Array.isArray(value))
       return Promise.all(value.map((item) => this.expand(item, uri, document, stack)));
     if (!value || typeof value !== "object") return value;
@@ -304,10 +549,53 @@ class OpenApiBundler {
   }
 }
 
-export async function loadOpenApi(input: string): Promise<Json> {
-  const uri = /^https?:\/\//.test(input) ? input : pathToFileURL(resolve(input)).href;
-  const source = await readSource(uri);
-  return new OpenApiBundler(source.document, source.uri).bundle();
+export async function loadOpenApi(input: string, options: OpenApiLoadOptions = {}): Promise<Json> {
+  const remote = /^https?:\/\//.test(input);
+  const localPath = remote ? undefined : await realpath(resolve(input));
+  const uri = remote ? new URL(input).href : pathToFileURL(localPath!).href;
+  const rootUrl = new URL(uri);
+  if (remote && rootUrl.protocol !== "https:")
+    throw new GenerationError("Remote OpenAPI roots must use HTTPS.");
+  const positiveOption = (name: string, value: number): number => {
+    if (!Number.isSafeInteger(value) || value <= 0)
+      throw new GenerationError(`${name} must be a positive safe integer.`);
+    return value;
+  };
+  const allowedReferenceOrigins = new Set(
+    (options.allowedReferenceOrigins ?? []).map((origin) => {
+      let parsed: URL;
+      try {
+        parsed = new URL(origin);
+      } catch {
+        throw new GenerationError(`Allowed reference origin must be an HTTPS origin: ${origin}`);
+      }
+      if (
+        parsed.protocol !== "https:" ||
+        parsed.username ||
+        parsed.password ||
+        parsed.pathname !== "/" ||
+        parsed.search ||
+        parsed.hash ||
+        parsed.href !== parsed.origin + "/"
+      ) {
+        throw new GenerationError(`Allowed reference origin must be an HTTPS origin: ${origin}`);
+      }
+      return parsed.origin;
+    }),
+  );
+  const resolved: ResolvedLoadOptions = {
+    allowedReferenceOrigins,
+    allowPrivateHosts: options.allowPrivateHosts ?? false,
+    maxBytes: positiveOption("maxBytes", options.maxBytes ?? 5 * 1024 * 1024),
+    maxDepth: positiveOption("maxDepth", options.maxDepth ?? 32),
+    maxRedirects: positiveOption("maxRedirects", options.maxRedirects ?? 5),
+    timeoutMs: positiveOption("timeoutMs", options.timeoutMs ?? 10_000),
+    ...(remote
+      ? { remoteRootOrigin: rootUrl.origin }
+      : { localRootDirectory: await realpath(dirname(localPath!)) }),
+  };
+  const source = await readSource(uri, resolved);
+  return new OpenApiBundler(source.document, source.uri, resolved).bundle();
 }
 export function generateFiles(document: Json): Record<(typeof OWNED)[number], string> {
   const version = String(document.openapi ?? "");
@@ -528,7 +816,12 @@ export async function writeGenerated(
     await rm(stage, { recursive: true, force: true });
   }
 }
-export async function generate(input: string, output: string, check = false) {
+export async function generate(
+  input: string,
+  output: string,
+  check = false,
+  loadOptions: OpenApiLoadOptions = {},
+) {
   if (!/^https?:\/\//.test(input)) {
     const resolvedInput = resolve(input);
     const resolvedOutput = resolve(output);
@@ -537,7 +830,7 @@ export async function generate(input: string, output: string, check = false) {
       throw new GenerationError("Generated output must not contain its OpenAPI input document");
     }
   }
-  const document = await loadOpenApi(input);
+  const document = await loadOpenApi(input, loadOptions);
   const files = generateFiles(document);
   await mkdir(dirname(resolve(output)), { recursive: true });
   await writeGenerated(output, files, check);
