@@ -6,11 +6,18 @@ askr generate ./openapi.yml --output ./src/generated/api --check
 askr generate ./openapi.yml --output ./src/generated/api --json
 ```
 
-Generation accepts OpenAPI 3.0.x and 3.1.x JSON or YAML, bundles local and HTTP
+Generation accepts OpenAPI 3.0.x and 3.1.x JSON or YAML, bundles local and HTTPS
 references, and atomically replaces only directories carrying the CLI ownership
 manifest. `--check` performs no writes and fails for missing, extra, or stale
 generated files.
 `--json` emits a single machine-readable success or error object.
+
+Remote references use a DNS-pinned HTTPS connection for every root and redirect
+hop. Cross-origin references require `--allow-ref-origin <https-origin>`.
+`--ref-timeout-ms`, `--ref-max-bytes`, `--ref-max-depth`, and
+`--ref-max-redirects` accept positive safe integers and bound remote reference
+loading. Private, local, reserved, and mixed public/private DNS answers are
+rejected.
 
 Supported schemas include references, constants, enums, objects, arrays,
 `oneOf`, `anyOf`, `allOf`, nullable 3.0 schemas, and 3.1 type arrays such as

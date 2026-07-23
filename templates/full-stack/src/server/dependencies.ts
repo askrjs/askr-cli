@@ -29,11 +29,16 @@ export function createDependencies(): AppDependencies {
   const counters = new Map<string, { count: number; reset: number }>();
   return {
     sessions: {
-      get: async (id) => (id === "demo-session" ? { id, subject: "demo-user" } : null),
+      get: async (id) =>
+        process.env.NODE_ENV !== "production" && id === "demo-session"
+          ? { id, subject: "demo-user" }
+          : null,
     },
     principals: {
       get: async (subject) =>
-        subject === "demo-user" ? { id: subject, subject, permissions: ["messages:create"] } : null,
+        process.env.NODE_ENV !== "production" && subject === "demo-user"
+          ? { id: subject, subject, permissions: ["messages:create"] }
+          : null,
     },
     actions: { record: async () => undefined },
     rateLimits: {
