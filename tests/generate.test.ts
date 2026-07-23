@@ -352,10 +352,7 @@ describe("askr generate", () => {
   it("should strictly validate remote reference origins and numeric limits", async () => {
     const root = await mkdtemp(join(tmpdir(), "askr-openapi-options-"));
     const input = join(root, "openapi.yaml");
-    await writeFile(
-      input,
-      "openapi: 3.1.0\ninfo: { title: Options, version: '1' }\npaths: {}\n",
-    );
+    await writeFile(input, "openapi: 3.1.0\ninfo: { title: Options, version: '1' }\npaths: {}\n");
     for (const origin of [
       "http://example.com",
       "https://user@example.com",
@@ -363,9 +360,9 @@ describe("askr generate", () => {
       "https://example.com/?query=1",
       "https://example.com/#fragment",
     ]) {
-      await expect(
-        loadOpenApi(input, { allowedReferenceOrigins: [origin] }),
-      ).rejects.toThrow("must be an HTTPS origin");
+      await expect(loadOpenApi(input, { allowedReferenceOrigins: [origin] })).rejects.toThrow(
+        "must be an HTTPS origin",
+      );
     }
     for (const options of [
       { timeoutMs: 0 },
@@ -373,19 +370,14 @@ describe("askr generate", () => {
       { maxDepth: Number.MAX_SAFE_INTEGER + 1 },
       { maxRedirects: 1.5 },
     ]) {
-      await expect(loadOpenApi(input, options)).rejects.toThrow(
-        "positive safe integer",
-      );
+      await expect(loadOpenApi(input, options)).rejects.toThrow("positive safe integer");
     }
   });
   it("should accept and validate all bounded-reference CLI flags", async () => {
     const root = await mkdtemp(join(tmpdir(), "askr-openapi-cli-limits-"));
     const input = join(root, "openapi.yaml");
     const output = join(root, "generated");
-    await writeFile(
-      input,
-      "openapi: 3.1.0\ninfo: { title: Options, version: '1' }\npaths: {}\n",
-    );
+    await writeFile(input, "openapi: 3.1.0\ninfo: { title: Options, version: '1' }\npaths: {}\n");
     const io = { log() {}, error() {} };
     expect(
       await runGenerateCli(

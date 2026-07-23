@@ -51,9 +51,7 @@ export async function runGenerateCli(args: string[], io: Io = console): Promise<
       }[arg] as keyof typeof referenceLimits;
       referenceLimits[key] = parsed;
       i += 1;
-    } else if (
-      /^--ref-(?:timeout-ms|max-bytes|max-depth|max-redirects)=/.test(arg)
-    ) {
+    } else if (/^--ref-(?:timeout-ms|max-bytes|max-depth|max-redirects)=/.test(arg)) {
       const [flag, value = ""] = arg.split("=", 2);
       const parsed = Number(value);
       if (!Number.isSafeInteger(parsed) || parsed <= 0) {

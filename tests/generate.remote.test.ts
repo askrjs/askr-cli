@@ -95,8 +95,8 @@ describe("remote OpenAPI transport", () => {
 
   it("should reject chunked bodies above the byte ceiling", async () => {
     transport.responses.push({ chunks: ["12345", "67890"] });
-    await expect(
-      loadOpenApi("https://spec.example/openapi.yaml", { maxBytes: 8 }),
-    ).rejects.toThrow("exceeds 8 bytes");
+    await expect(loadOpenApi("https://spec.example/openapi.yaml", { maxBytes: 8 })).rejects.toThrow(
+      "exceeds 8 bytes",
+    );
   });
 });

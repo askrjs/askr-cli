@@ -1,4 +1,14 @@
-import { mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { lookup } from "node:dns/promises";
 import { request as httpsRequest } from "node:https";
 import type { IncomingHttpHeaders, IncomingMessage } from "node:http";
@@ -189,36 +199,50 @@ function parseOpenApiDocument(contents: string, source: string): Json {
 
 const blockedAddresses = new BlockList();
 for (const [network, prefix] of [
-  ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8],
-  ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.0.0.0", 24], ["192.0.2.0", 24],
-  ["192.168.0.0", 16], ["198.18.0.0", 15], ["198.51.100.0", 24],
-  ["203.0.113.0", 24], ["224.0.0.0", 4], ["240.0.0.0", 4],
-] as const) blockedAddresses.addSubnet(network, prefix, "ipv4");
+  ["0.0.0.0", 8],
+  ["10.0.0.0", 8],
+  ["100.64.0.0", 10],
+  ["127.0.0.0", 8],
+  ["169.254.0.0", 16],
+  ["172.16.0.0", 12],
+  ["192.0.0.0", 24],
+  ["192.0.2.0", 24],
+  ["192.168.0.0", 16],
+  ["198.18.0.0", 15],
+  ["198.51.100.0", 24],
+  ["203.0.113.0", 24],
+  ["224.0.0.0", 4],
+  ["240.0.0.0", 4],
+] as const)
+  blockedAddresses.addSubnet(network, prefix, "ipv4");
 for (const [network, prefix] of [
-  ["::", 128], ["::1", 128], ["fc00::", 7], ["fe80::", 10], ["ff00::", 8],
-  ["2001:db8::", 32], ["2001:2::", 48],
-] as const) blockedAddresses.addSubnet(network, prefix, "ipv6");
+  ["::", 128],
+  ["::1", 128],
+  ["fc00::", 7],
+  ["fe80::", 10],
+  ["ff00::", 8],
+  ["2001:db8::", 32],
+  ["2001:2::", 48],
+] as const)
+  blockedAddresses.addSubnet(network, prefix, "ipv6");
 
 function privateAddress(address: string): boolean {
   const family = isIP(address);
   if (family === 4) return blockedAddresses.check(address, "ipv4");
   if (family !== 6) return true;
   const mappedSuffix = /^::ffff:(.+)$/i.exec(address)?.[1];
-  const mapped =
-    mappedSuffix?.includes(".")
+  const mapped = mappedSuffix?.includes(".")
+    ? mappedSuffix
+    : mappedSuffix && /^[0-9a-f]{1,4}:[0-9a-f]{1,4}$/i.test(mappedSuffix)
       ? mappedSuffix
-      : mappedSuffix && /^[0-9a-f]{1,4}:[0-9a-f]{1,4}$/i.test(mappedSuffix)
-        ? mappedSuffix
-            .split(":")
-            .flatMap((part) => {
-              const value = Number.parseInt(part, 16);
-              return [value >> 8, value & 0xff];
-            })
-            .join(".")
-        : undefined;
-  return mapped
-    ? privateAddress(mapped)
-    : blockedAddresses.check(address, "ipv6");
+          .split(":")
+          .flatMap((part) => {
+            const value = Number.parseInt(part, 16);
+            return [value >> 8, value & 0xff];
+          })
+          .join(".")
+      : undefined;
+  return mapped ? privateAddress(mapped) : blockedAddresses.check(address, "ipv6");
 }
 
 type VettedAddress = { address: string; family: 4 | 6 };
@@ -275,32 +299,38 @@ async function vettedAddresses(
 function retryableConnectionError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const code = (error as NodeJS.ErrnoException).code ?? "";
-  return !/^ERR_TLS_|^CERT_|SELF_SIGNED|CERTIFICATE/.test(code) &&
-    ["ECONNREFUSED", "ECONNRESET", "EHOSTUNREACH", "ENETUNREACH", "ETIMEDOUT", "EPIPE"].includes(code);
+  return (
+    !/^ERR_TLS_|^CERT_|SELF_SIGNED|CERTIFICATE/.test(code) &&
+    ["ECONNREFUSED", "ECONNRESET", "EHOSTUNREACH", "ENETUNREACH", "ETIMEDOUT", "EPIPE"].includes(
+      code,
+    )
+  );
 }
 
-function requestAddress(
-  url: URL,
-  vetted: VettedAddress,
-  deadline: number,
-): Promise<HttpsResponse> {
+function requestAddress(url: URL, vetted: VettedAddress, deadline: number): Promise<HttpsResponse> {
   return new Promise((resolve, reject) => {
     let receivedHeaders = false;
-    const request = httpsRequest(url, {
-      method: "GET",
-      headers: { accept: "application/json, application/yaml, text/yaml, */*", "accept-encoding": "identity" },
-      servername: url.hostname,
-      lookup: (_hostname, _options, callback) =>
-        callback(null, vetted.address, vetted.family),
-    }, (message) => {
-      receivedHeaders = true;
-      resolve({
-        status: message.statusCode ?? 0,
-        statusText: message.statusMessage ?? "",
-        headers: message.headers,
-        message,
-      });
-    });
+    const request = httpsRequest(
+      url,
+      {
+        method: "GET",
+        headers: {
+          accept: "application/json, application/yaml, text/yaml, */*",
+          "accept-encoding": "identity",
+        },
+        servername: url.hostname,
+        lookup: (_hostname, _options, callback) => callback(null, vetted.address, vetted.family),
+      },
+      (message) => {
+        receivedHeaders = true;
+        resolve({
+          status: message.statusCode ?? 0,
+          statusText: message.statusMessage ?? "",
+          headers: message.headers,
+          message,
+        });
+      },
+    );
     request.setTimeout(remaining(deadline, url.href), () => {
       request.destroy(Object.assign(new Error("connection timed out"), { code: "ETIMEDOUT" }));
     });
@@ -337,26 +367,32 @@ async function responseText(
     throw new GenerationError(`OpenAPI reference exceeds ${maxBytes} bytes: ${uri}`);
   const encoding = response.headers["content-encoding"];
   if (encoding && encoding !== "identity")
-    throw new GenerationError(`OpenAPI reference returned unsupported content encoding: ${encoding}`);
+    throw new GenerationError(
+      `OpenAPI reference returned unsupported content encoding: ${encoding}`,
+    );
   const chunks: Uint8Array[] = [];
   let size = 0;
   try {
-    await withDeadline(new Promise<void>((resolve, reject) => {
-      response.message.on("data", (value: Buffer) => {
-        size += value.byteLength;
-        if (size > maxBytes) {
-          response.message.destroy();
-          reject(new GenerationError(`OpenAPI reference exceeds ${maxBytes} bytes: ${uri}`));
-          return;
-        }
-        chunks.push(value);
-      });
-      response.message.on("end", resolve);
-      response.message.on("error", reject);
-      response.message.on("aborted", () =>
-        reject(new GenerationError(`OpenAPI response body was aborted: ${uri}`)),
-      );
-    }), deadline, uri);
+    await withDeadline(
+      new Promise<void>((resolve, reject) => {
+        response.message.on("data", (value: Buffer) => {
+          size += value.byteLength;
+          if (size > maxBytes) {
+            response.message.destroy();
+            reject(new GenerationError(`OpenAPI reference exceeds ${maxBytes} bytes: ${uri}`));
+            return;
+          }
+          chunks.push(value);
+        });
+        response.message.on("end", resolve);
+        response.message.on("error", reject);
+        response.message.on("aborted", () =>
+          reject(new GenerationError(`OpenAPI response body was aborted: ${uri}`)),
+        );
+      }),
+      deadline,
+      uri,
+    );
   } catch (error) {
     response.message.destroy();
     throw error;
@@ -374,7 +410,9 @@ async function fetchSource(uri: string, options: ResolvedLoadOptions): Promise<S
     if (current.protocol !== "https:")
       throw new GenerationError(`Remote OpenAPI references must use HTTPS: ${current.href}`);
     if (current.username || current.password)
-      throw new GenerationError(`Remote OpenAPI references must not include credentials: ${current.origin}`);
+      throw new GenerationError(
+        `Remote OpenAPI references must not include credentials: ${current.origin}`,
+      );
     if (
       current.origin !== options.remoteRootOrigin &&
       !options.allowedReferenceOrigins.has(current.origin)
@@ -387,7 +425,8 @@ async function fetchSource(uri: string, options: ResolvedLoadOptions): Promise<S
         throw new GenerationError(`Too many redirects while fetching OpenAPI reference ${uri}`);
       response.message.resume();
       const location = response.headers.location;
-      if (!location) throw new GenerationError(`OpenAPI redirect is missing Location: ${current.href}`);
+      if (!location)
+        throw new GenerationError(`OpenAPI redirect is missing Location: ${current.href}`);
       current = new URL(location, current);
       continue;
     }
@@ -416,11 +455,16 @@ async function readSource(uri: string, options: ResolvedLoadOptions): Promise<So
     (canonical !== options.localRootDirectory &&
       !canonical.startsWith(`${options.localRootDirectory}/`))
   )
-    throw new GenerationError(`Local OpenAPI reference escapes the specification directory: ${path}`);
+    throw new GenerationError(
+      `Local OpenAPI reference escapes the specification directory: ${path}`,
+    );
   const contents = await readFile(canonical);
   if (contents.byteLength > options.maxBytes)
     throw new GenerationError(`OpenAPI reference exceeds ${options.maxBytes} bytes: ${path}`);
-  return { uri: pathToFileURL(canonical).href, document: parseOpenApiDocument(contents.toString("utf8"), canonical) };
+  return {
+    uri: pathToFileURL(canonical).href,
+    document: parseOpenApiDocument(contents.toString("utf8"), canonical),
+  };
 }
 
 class OpenApiBundler {
