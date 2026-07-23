@@ -601,6 +601,9 @@ test("runCreateCli scaffolds a function-first full-stack project", async () => {
     expect(serverFile).toMatch(/mediaTypes: \[["']application\/json["']\]/);
     expect(serverFile).toMatch(/csrf/);
     expect(serverFile).toMatch(/rateLimit/);
+    expect(serverFile).toMatch(/Production requires a strong CSRF_SECRET/);
+    expect(serverFile).not.toMatch(/CSRF_SECRET \?\? "development-only-secret"/);
+    expect(serverFile).toMatch(/if \(development\)/);
     expect(brief).toMatch(/src\/server\/action-registry\.ts/);
     expect(brief).toMatch(/src\/schemas\.ts/);
   } finally {
