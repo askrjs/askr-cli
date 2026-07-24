@@ -1,4 +1,4 @@
-import { fallback, group, registerRoutes } from '@askrjs/askr/router';
+import { createRouteRegistry, fallback, group } from '@askrjs/askr/router';
 import RootLayout from './_layout';
 import AuthLayout from './auth/_layout';
 import { registerAuthRoutes } from './auth/_routes';
@@ -8,7 +8,7 @@ import NotFoundPage from './not-found';
 import { registerPublicRoutes } from './public/_routes';
 import PublicLayout from './public/_layout';
 
-registerRoutes(() => {
+export const pageRegistry = createRouteRegistry(() => {
   group({ layout: RootLayout }, () => {
     group({ layout: PublicLayout }, () => {
       registerPublicRoutes();
