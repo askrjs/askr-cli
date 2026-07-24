@@ -38,7 +38,7 @@ code lives in `src/adapters`.
 
 ```tsx
 // src/pages/_routes.tsx
-import { fallback, group, registerRoutes } from '@askrjs/askr/router';
+import { createRouteRegistry, fallback, group } from '@askrjs/askr/router';
 import RootLayout from './_layout';
 import NotFoundPage from './not-found';
 import AuthLayout from './auth/_layout';
@@ -48,7 +48,7 @@ import { registerAppRoutes } from './app/_routes';
 import PublicLayout from './public/_layout';
 import { registerPublicRoutes } from './public/_routes';
 
-registerRoutes(() => {
+export const pageRegistry = createRouteRegistry(() => {
   group({ layout: RootLayout }, () => {
     group({ layout: PublicLayout }, () => {
       registerPublicRoutes();

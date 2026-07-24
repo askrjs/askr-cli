@@ -397,7 +397,11 @@ test("runCreateCli scaffolds SPA with the route-first themed app shell", async (
     expect(authLoginFile).toMatch(/Sign in/);
     expect(appRoutesFile).toMatch(/route\(["']\/app\/agents["']/);
     expect(mainFile).toMatch(/@askrjs\/askr\/boot/);
-    expect(mainFile).toMatch(/getManifest/);
+    expect(mainFile).toMatch(/registry:\s*pageRegistry/);
+    expect(mainFile).not.toMatch(/getManifest/);
+    expect(mainFile).not.toMatch(/import ['"]\.\/pages\/_routes['"]/);
+    expect(routesFile).toMatch(/export const pageRegistry = createRouteRegistry/);
+    expect(routesFile).not.toMatch(/registerRoutes/);
     expect(stylesFile).toMatch(/@import ["']\.\/styles\/reset\.css["']/);
     expect(stylesFile).toMatch(/@import ["']\.\/styles\/tokens\.css["']/);
     expect(stylesFile).toMatch(/@import ["']\.\/styles\/theme\.css["']/);
