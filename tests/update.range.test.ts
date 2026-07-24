@@ -198,6 +198,36 @@ describe("update range planner", () => {
     ]);
   });
 
+  test("should resolve a valid peer set when a singleton domain is assigned", () => {
+    const app = occurrence("^1.0.0", "app");
+    const peer = occurrence("^1.0.0", "peer");
+    const plan = planUpdates({
+      occurrences: [app, peer],
+      contextOccurrences: [app, peer],
+      mode: "upgrade",
+      packuments: new Map([
+        [
+          "app",
+          {
+            "dist-tags": { latest: "1.1.0" },
+            versions: {
+              "1.0.0": { version: "1.0.0" },
+              "1.1.0": { version: "1.1.0", peerDependencies: { peer: "^1.1.0" } },
+            },
+          },
+        ],
+        ["peer", packument("1.1.0", ["1.0.0", "1.1.0"])],
+      ]),
+    });
+
+    expect(plan.decisions.map((decision) => decision.occurrences[0])).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ status: "safe", selectedVersion: "1.1.0" }),
+        expect.objectContaining({ status: "safe", selectedVersion: "1.1.0" }),
+      ]),
+    );
+  });
+
   test("should choose an older compatible release below latest when upgrading", () => {
     const app = occurrence("^1.0.0", "app");
     const peer = occurrence("^1.0.0", "peer");
