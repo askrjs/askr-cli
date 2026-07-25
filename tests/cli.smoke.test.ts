@@ -259,6 +259,33 @@ test("runCreateCli rejects unsafe names, unknown options, and extra positional a
   }
 });
 
+test("startkit registers pages from the canonical route metadata", async () => {
+  const expectedRoutes = [
+    ["src/routes/public.ts", "landingRoute.href", "route('/')"],
+    ["src/routes/auth.ts", "loginRoute.href", "route('/login')"],
+    ["src/routes/workspace/index.ts", "dashboardRoute.href", "route('/dashboard')"],
+    ["src/routes/workspace/index.ts", "settingsRoute.href", "route('/settings')"],
+    ["src/routes/workspace/accounts.ts", "accountsRoute.href", "route('/accounts')"],
+  ] as const;
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-startkit-routes-"));
+  const previousCwd = process.cwd();
+
+  try {
+    process.chdir(tempRoot);
+    expect(await runCreateCli(["startkit", "sample-app", "--no-install"], createIo().io)).toBe(0);
+    const appRoot = path.join(tempRoot, "sample-app");
+
+    for (const [relativePath, canonicalHref, rawRoute] of expectedRoutes) {
+      const source = await fs.readFile(path.join(appRoot, relativePath), "utf8");
+      expect(source, relativePath).toContain(canonicalHref);
+      expect(source, relativePath).not.toContain(rawRoute);
+    }
+  } finally {
+    process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("runCreateCli supports an explicit output directory without deriving it from the package name", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-create-dir-"));
   const target = path.join(tempRoot, "nested", "project");
