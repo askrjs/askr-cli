@@ -425,7 +425,6 @@ const REVIEW_PROMPTS: ReviewPromptDefinition[] = [
         re("local Sidebar", String.raw`export\s+(?:default\s+)?function\s+Sidebar\b`),
       ]),
       requireAny("Keeps Askr-native route or state primitives in use.", [
-        re("registerRoutes", String.raw`\bregisterRoutes\s*\(`),
         re("createRouteRegistry", String.raw`\bcreateRouteRegistry\s*\(`),
         re("state()", String.raw`\bstate\s*\(`),
         re("resource()", String.raw`\bresource\s*\(`),
