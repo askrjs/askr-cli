@@ -21,8 +21,6 @@ interface PlannerOptions {
   tags?: Record<string, string>;
   cliTag?: string;
   mode?: PlannerMode;
-  /** @deprecated Use mode. Retained for callers compiled against the original planner. */
-  force?: boolean;
   localVersions?: ReadonlyMap<string, string>;
 }
 
@@ -478,7 +476,7 @@ function summarize(decisions: PackageDecision[]): UpdateSummary {
 export function planUpdates(options: PlannerOptions): UpdatePlan {
   const failures = options.failures ?? new Map<string, string>();
   const tags = options.tags ?? {};
-  const mode: PlannerMode = options.mode ?? (options.force ? "upgrade" : "update");
+  const mode: PlannerMode = options.mode ?? "update";
   const context = options.contextOccurrences ?? options.occurrences;
   const workspaceSolutions = new Map<string, ReturnType<typeof solveWorkspace>>();
   if (mode !== "force") {

@@ -33,7 +33,7 @@ function proposal(
   return planUpdates({
     occurrences: [occurrence(specification)],
     packuments: new Map([["fixture", packument(target, versions)]]),
-    force,
+    ...(force ? { mode: "force" as const } : {}),
   }).decisions[0].occurrences[0];
 }
 
@@ -133,7 +133,7 @@ describe("update range planner", () => {
           },
         ],
       ]),
-      force: true,
+      mode: "upgrade",
     });
 
     expect(plan.decisions[0].occurrences[0]).toMatchObject({

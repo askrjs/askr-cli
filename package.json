@@ -59,7 +59,7 @@
     "tsx": "^4.23.1"
   },
   "devDependencies": {
-    "@askrjs/askr": ">=0.0.53 <0.1.0",
+    "@askrjs/askr": "^0.0.66",
     "@askrjs/charts": ">=0.1.0 <0.2.0",
     "@askrjs/logos": ">=0.0.3 <0.1.0",
     "@askrjs/lucide": ">=0.0.3 <0.1.0",
