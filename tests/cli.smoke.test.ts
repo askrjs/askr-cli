@@ -1744,6 +1744,16 @@ test("runSkillsCli passes ssr-ssg review for environment-safe static routes", as
   }
 });
 
+test("ssr-ssg skill teaches registry-only route setup", async () => {
+  const skill = await fs.readFile(
+    new URL("../skills/askr-ssr-ssg/SKILL.md", import.meta.url),
+    "utf8",
+  );
+
+  expect(skill).toMatch(/createRouteRegistry/);
+  expect(skill).not.toMatch(/registerRoutes/);
+});
+
 test("runSkillsCli fails a negative review when React defaults appear", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
 
