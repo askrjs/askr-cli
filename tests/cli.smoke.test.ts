@@ -874,6 +874,26 @@ test("runSsgCli rejects unknown, missing, and invalid option values", async () =
   }
 });
 
+test("runSsgCli rejects raw route arrays", async () => {
+  const { io, errors } = createIo();
+  const code = await runSsgCli(
+    ["--config", "ssg.config.ts", "--output", "dist"],
+    {
+      cwd: () => "/workspace",
+      existsSync: () => true,
+      importConfig: async () => ({
+        routes: [{ path: "/" }],
+        siteUrl: "https://example.com",
+        sitemap: false,
+      }),
+    },
+    io,
+  );
+
+  expect(code).toBe(1);
+  expect(errors).toContain("Error: Config must provide a route registry and no raw routes array");
+});
+
 test("runSsgCli preserves live output when sitemap metadata fails", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-ssg-atomic-"));
   const output = path.join(root, "dist");
@@ -886,7 +906,7 @@ test("runSsgCli preserves live output when sitemap metadata fails", async () => 
         cwd: () => root,
         existsSync: () => true,
         importConfig: async () => ({
-          routes: [{ path: "/" }],
+          registry: { records: [] },
           siteUrl: "https://example.com",
           sitemap: { resolve: () => Promise.reject(new Error("metadata failed")) },
         }),
@@ -945,7 +965,7 @@ test("runSsgCli requires a canonical site URL unless sitemap generation is disab
     {
       cwd: () => "/workspace",
       existsSync: () => true,
-      importConfig: async () => ({ routes: [{ path: "/" }] }),
+      importConfig: async () => ({ registry: { records: [] } }),
       createStaticGen: () => ({ generate }),
     },
     io,
@@ -962,7 +982,7 @@ test("runSsgCli loads TypeScript configs without an external loader", async () =
   const configPath = path.join(tempRoot, "ssg.config.ts");
   await fs.writeFile(
     configPath,
-    'const routes: Array<{ path: string }> = [{ path: "/" }]; export const siteUrl = "https://example.com"; export { routes };\n',
+    'export const registry = { records: [] }; export const siteUrl = "https://example.com";\n',
     "utf8",
   );
   const generate = async () => ({
@@ -1017,7 +1037,7 @@ test("askr ssg executes TSX route modules with the project JSX runtime", async (
     );
     await fs.writeFile(
       configPath,
-      'import { Page } from "./page.tsx"; export const siteUrl = "https://example.com"; export const routes = [{ path: "/", component: Page }];\n',
+      'import { createRouteRegistry, route } from "@askrjs/askr/router"; import { Page } from "./page.tsx"; export const siteUrl = "https://example.com"; export const registry = createRouteRegistry(() => route("/", Page));\n',
       "utf8",
     );
 
@@ -1114,7 +1134,7 @@ test("runSsgCli preserves the previous full output when sitemap generation fails
         cwd: () => tempRoot,
         existsSync: () => true,
         importConfig: async () => ({
-          routes: [{ path: "/" }],
+          registry: { records: [] },
           siteUrl: "https://example.com",
           sitemap: {
             resolve: () => {

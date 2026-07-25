@@ -25,7 +25,6 @@ interface ParsedSsgArgs {
 }
 
 interface LoadedConfig {
-  routes?: unknown[];
   registry?: unknown;
   seed?: unknown;
   dataOverrides?: unknown;
@@ -65,7 +64,6 @@ interface SsgDeps {
   existsSync?: typeof existsSync;
   importConfig?: (filePath: string) => Promise<unknown>;
   createStaticGen?: (options: {
-    routes?: unknown[];
     registry?: unknown;
     outputDir: string;
     seed?: unknown;
@@ -312,7 +310,6 @@ export async function runSsgCli(
     const configModule = imported as {
       default?: LoadedConfig;
       staticConfig?: LoadedConfig;
-      routes?: unknown[];
       registry?: unknown;
       seed?: unknown;
       dataOverrides?: unknown;
@@ -323,11 +320,10 @@ export async function runSsgCli(
       sitemap?: SitemapConfig | false;
     };
     const candidate = configModule.default ?? configModule.staticConfig ?? configModule;
-    const hasRoutes = Array.isArray(candidate.routes);
     const hasRegistry = candidate.registry !== undefined;
 
-    if (hasRoutes === hasRegistry) {
-      io.error("Error: Config must provide exactly one route source: routes or registry");
+    if (!hasRegistry || Object.prototype.hasOwnProperty.call(candidate, "routes")) {
+      io.error("Error: Config must provide a route registry and no raw routes array");
       return 1;
     }
     const config = candidate as LoadedConfig;
@@ -337,11 +333,7 @@ export async function runSsgCli(
       return 1;
     }
 
-    io.log(
-      hasRoutes
-        ? `Generating ${config.routes?.length ?? 0} routes...`
-        : "Generating registered routes...",
-    );
+    io.log("Generating registered routes...");
 
     const createStaticGen =
       typeof resolvedDeps.createStaticGen === "function"
@@ -358,7 +350,7 @@ export async function runSsgCli(
     const generationOutputDir = cliStagingDir;
 
     const ssg = createStaticGen({
-      ...(hasRoutes ? { routes: config.routes } : { registry: config.registry }),
+      registry: config.registry,
       outputDir: generationOutputDir,
       seed: config.seed,
       dataOverrides: config.dataOverrides,
