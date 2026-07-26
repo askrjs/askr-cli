@@ -10,8 +10,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "vp lint src server.ts tests vite.config.ts",
     "lint:fix": "npm run lint -- --fix",
+    "analyze": "askr analyze --check",
     "fmt": "vp fmt \"src/**/*.{ts,tsx,css}\" \"server.ts\" \"tests/**/*.{ts,tsx}\" \"*.md\"",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build"
+    "check": "askr check"
   },
   "dependencies": {
     "@askrjs/askr": ">=0.0.53 <0.1.0",

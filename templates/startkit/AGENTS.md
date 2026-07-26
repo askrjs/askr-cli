@@ -75,3 +75,6 @@ tests/               # Vitest tests
 - Run `npm run typecheck` for type-sensitive changes.
 - Run `npm run build` when app boot, routing, or packaging changes.
 - Confirm loading, empty, error, stale, and pending states remain truthful for user-visible flows.
+- Run `askr repair` after analyzer failures; it applies only safe mechanical fixes.
+- Resolve remaining semantic diagnostics deliberately.
+- Run `npm run check` before declaring work complete. It requires clean Askr analysis, then runs lint, typecheck, tests, and build.

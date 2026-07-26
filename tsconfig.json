@@ -11,6 +11,13 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "vite.config.ts", "vitest.config.ts"],
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "benchmarks/**/*.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "vitest.bench.config.ts"
+  ],
   "exclude": ["dist", "node_modules"]
 }

@@ -39,6 +39,10 @@ askr add page <name>            # Generate a route page into an existing SPA app
 askr add action <name> --route /path # Generate a declared full-stack action
 askr generate <openapi> -o <dir> # Generate a typed API client
 askr openapi --entry <path>      # Export deterministic OpenAPI YAML
+askr analyze --check             # Check Askr source without writing
+askr doctor                      # Diagnose project and environment health
+askr repair                      # Apply safe fixes and identify semantic work
+askr check                       # Run analysis, lint, types, tests, and build
 askr skills install             # Install bundled Askr agent skills
 askr skills sync                # Update bundled Askr agent skills
 askr ssg --config <path> --output <dir> # Run static site generation

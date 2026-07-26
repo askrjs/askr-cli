@@ -34,6 +34,8 @@ Use this when the app renders outside the browser or produces static output. The
 ## Copy This Shape
 
 ```ts
+import { createRouteRegistry } from "@askrjs/askr/router";
+
 const registry = createRouteRegistry(() => {
   page("/docs/{slug}", DocsPage, {
     entries: async () => [{ slug: "getting-started" }, { slug: "routing" }],

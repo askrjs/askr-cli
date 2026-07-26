@@ -21,6 +21,8 @@ interface PlannerOptions {
   tags?: Record<string, string>;
   cliTag?: string;
   mode?: PlannerMode;
+  /** @deprecated Use mode. Retained for callers compiled against the original planner. */
+  force?: boolean;
   localVersions?: ReadonlyMap<string, string>;
 }
 
@@ -403,8 +405,8 @@ function solveWorkspace(
       const signature = component
         .map((name) => {
           const assignedVersion = assigned.get(name);
-          if (assignedVersion !== undefined) return `${name}=assigned:${assignedVersion}`;
-          return `${name}=domain:${(pruned.get(name) ?? []).join(",")}`;
+          const domain = pruned.get(name) ?? [];
+          return `${name}:assigned=${JSON.stringify(assignedVersion ?? null)}:domain=${JSON.stringify(domain)}`;
         })
         .join("|");
       if (memo.has(signature)) return;
@@ -476,7 +478,7 @@ function summarize(decisions: PackageDecision[]): UpdateSummary {
 export function planUpdates(options: PlannerOptions): UpdatePlan {
   const failures = options.failures ?? new Map<string, string>();
   const tags = options.tags ?? {};
-  const mode: PlannerMode = options.mode ?? "update";
+  const mode: PlannerMode = options.mode ?? (options.force ? "upgrade" : "update");
   const context = options.contextOccurrences ?? options.occurrences;
   const workspaceSolutions = new Map<string, ReturnType<typeof solveWorkspace>>();
   if (mode !== "force") {

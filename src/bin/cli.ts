@@ -13,12 +13,16 @@ function printHelp(io: CliIo = console): void {
   io.log("");
   io.log("Commands:");
   io.log("  add        Generate pages or declared actions into an Askr project");
+  io.log("  analyze    Analyze Askr correctness and performance");
+  io.log("  check      Run the complete project validation path");
   io.log("  create     Create a new Askr app from a template or product prompt");
+  io.log("  doctor     Diagnose environment and Askr project health");
   io.log("  generate   Generate an @askrjs/fetch client from OpenAPI");
   io.log("  openapi    Generate or check an OpenAPI YAML artifact");
   io.log("  skills     Install or sync Askr agent skills");
   io.log("  ssg        Run static-site generation");
   io.log("  outdated   List available dependency updates");
+  io.log("  repair     Apply safe fixes and identify remaining semantic work");
   io.log("  update     Apply safe dependency updates");
   io.log("  upgrade    Apply latest peer-compatible dependency upgrades");
   io.log("");
@@ -31,6 +35,10 @@ function printHelp(io: CliIo = console): void {
   io.log('  askr create --prompt "Agent workflow console with approvals"');
   io.log("  askr add page audit-log");
   io.log("  askr add action approve-request --route /requests/{id}");
+  io.log("  askr analyze --check");
+  io.log("  askr doctor");
+  io.log("  askr repair");
+  io.log("  askr check");
   io.log("  askr skills install");
   io.log("  askr openapi --check");
   io.log("  askr skills review foundation --cwd ./candidate-app");
@@ -64,6 +72,16 @@ export async function runCli(
   if (command === "add") {
     const { runAddCli } = await import("./add");
     return runAddCli(args.slice(1), io);
+  }
+
+  if (command === "analyze") {
+    const { runAnalyzeCli } = await import("./analyze");
+    return runAnalyzeCli(args.slice(1), io);
+  }
+
+  if (command === "check" || command === "doctor" || command === "repair") {
+    const { runGuardrailCli } = await import("./guardrails");
+    return runGuardrailCli(command, args.slice(1), io);
   }
 
   if (command === "generate") {

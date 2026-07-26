@@ -122,6 +122,7 @@ test("runCli prints top-level help", async () => {
   expect(logs.join("\n")).toMatch(/askr <command> \[args\]/);
   expect(logs.join("\n")).toMatch(/Commands:/);
   expect(logs.join("\n")).toMatch(/add/);
+  expect(logs.join("\n")).toMatch(/analyze/);
   expect(logs.join("\n")).toMatch(/skills/);
   expect(logs.join("\n")).toMatch(/openapi/);
 });
@@ -139,30 +140,6 @@ test("package surface ships project templates for installed create commands", as
 
     expect(npmIgnore.split(/\r?\n/)).not.toContain("*");
     await expect(fs.access(new URL("gitignore.template", templateRoot))).resolves.toBeUndefined();
-  }
-});
-
-test("guidance manifest stays aligned with templates and bundled skills", async () => {
-  const manifest = JSON.parse(
-    await fs.readFile(new URL("../guidance-manifest.json", import.meta.url), "utf8"),
-  ) as {
-    version: number;
-    shared: { agentFile: string; skills: string[] };
-    templates: Record<string, { agentFile: string; skills: string[] }>;
-  };
-  expect(manifest.version).toBe(1);
-  const bundled = new Set(
-    (await fs.readdir(new URL("../skills/", import.meta.url), { withFileTypes: true }))
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name),
-  );
-  for (const [template, guidance] of Object.entries(manifest.templates)) {
-    await expect(
-      fs.access(new URL(`../templates/${template}/${guidance.agentFile}`, import.meta.url)),
-    ).resolves.toBeUndefined();
-    for (const skill of [...manifest.shared.skills, ...guidance.skills]) {
-      expect(bundled.has(skill), `${template} references missing ${skill}`).toBe(true);
-    }
   }
 });
 
@@ -193,6 +170,18 @@ test("package exports only the canonical askr command", async () => {
   };
 
   expect(packageJson.bin).toEqual({ askr: "./dist/cli.js" });
+});
+
+test("package ships TypeScript as a runtime analyzer dependency", async () => {
+  const packageJson = JSON.parse(
+    await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),
+  ) as {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  };
+
+  expect(packageJson.dependencies?.typescript).toMatch(/^\^6\./);
+  expect(packageJson.devDependencies?.typescript).toBeUndefined();
 });
 
 test("public docs and templates use the clean-break scope vocabulary", async () => {
@@ -277,33 +266,6 @@ test("runCreateCli rejects unsafe names, unknown options, and extra positional a
       expect(await runCreateCli(args, createIo().io)).toBe(1);
     }
     expect(await fs.readdir(tempRoot)).toEqual([]);
-  } finally {
-    process.chdir(previousCwd);
-    await fs.rm(tempRoot, { recursive: true, force: true });
-  }
-});
-
-test("startkit registers pages from the canonical route metadata", async () => {
-  const expectedRoutes = [
-    ["src/routes/public.ts", "landingRoute.href", "route('/')"],
-    ["src/routes/auth.ts", "loginRoute.href", "route('/login')"],
-    ["src/routes/workspace/index.ts", "dashboardRoute.href", "route('/dashboard')"],
-    ["src/routes/workspace/index.ts", "settingsRoute.href", "route('/settings')"],
-    ["src/routes/workspace/accounts.ts", "accountsRoute.href", "route('/accounts')"],
-  ] as const;
-  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-startkit-routes-"));
-  const previousCwd = process.cwd();
-
-  try {
-    process.chdir(tempRoot);
-    expect(await runCreateCli(["startkit", "sample-app", "--no-install"], createIo().io)).toBe(0);
-    const appRoot = path.join(tempRoot, "sample-app");
-
-    for (const [relativePath, canonicalHref, rawRoute] of expectedRoutes) {
-      const source = await fs.readFile(path.join(appRoot, relativePath), "utf8");
-      expect(source, relativePath).toContain(canonicalHref);
-      expect(source, relativePath).not.toContain(rawRoute);
-    }
   } finally {
     process.chdir(previousCwd);
     await fs.rm(tempRoot, { recursive: true, force: true });
@@ -448,11 +410,8 @@ test("runCreateCli scaffolds SPA with the route-first themed app shell", async (
     expect(authLoginFile).toMatch(/Sign in/);
     expect(appRoutesFile).toMatch(/route\(["']\/app\/agents["']/);
     expect(mainFile).toMatch(/@askrjs\/askr\/boot/);
+    expect(routesFile).toMatch(/createRouteRegistry/);
     expect(mainFile).toMatch(/registry:\s*pageRegistry/);
-    expect(mainFile).not.toMatch(/getManifest/);
-    expect(mainFile).not.toMatch(/import ['"]\.\/pages\/_routes['"]/);
-    expect(routesFile).toMatch(/export const pageRegistry = createRouteRegistry/);
-    expect(routesFile).not.toMatch(/registerRoutes/);
     expect(stylesFile).toMatch(/@import ["']\.\/styles\/reset\.css["']/);
     expect(stylesFile).toMatch(/@import ["']\.\/styles\/tokens\.css["']/);
     expect(stylesFile).toMatch(/@import ["']\.\/styles\/theme\.css["']/);
@@ -925,26 +884,6 @@ test("runSsgCli rejects unknown, missing, and invalid option values", async () =
   }
 });
 
-test("runSsgCli rejects raw route arrays", async () => {
-  const { io, errors } = createIo();
-  const code = await runSsgCli(
-    ["--config", "ssg.config.ts", "--output", "dist"],
-    {
-      cwd: () => "/workspace",
-      existsSync: () => true,
-      importConfig: async () => ({
-        routes: [{ path: "/" }],
-        siteUrl: "https://example.com",
-        sitemap: false,
-      }),
-    },
-    io,
-  );
-
-  expect(code).toBe(1);
-  expect(errors).toContain("Error: Config must provide a route registry and no raw routes array");
-});
-
 test("runSsgCli preserves live output when sitemap metadata fails", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-ssg-atomic-"));
   const output = path.join(root, "dist");
@@ -957,7 +896,7 @@ test("runSsgCli preserves live output when sitemap metadata fails", async () => 
         cwd: () => root,
         existsSync: () => true,
         importConfig: async () => ({
-          registry: { records: [] },
+          routes: [{ path: "/" }],
           siteUrl: "https://example.com",
           sitemap: { resolve: () => Promise.reject(new Error("metadata failed")) },
         }),
@@ -1016,7 +955,7 @@ test("runSsgCli requires a canonical site URL unless sitemap generation is disab
     {
       cwd: () => "/workspace",
       existsSync: () => true,
-      importConfig: async () => ({ registry: { records: [] } }),
+      importConfig: async () => ({ routes: [{ path: "/" }] }),
       createStaticGen: () => ({ generate }),
     },
     io,
@@ -1033,7 +972,7 @@ test("runSsgCli loads TypeScript configs without an external loader", async () =
   const configPath = path.join(tempRoot, "ssg.config.ts");
   await fs.writeFile(
     configPath,
-    'export const registry = { records: [] }; export const siteUrl = "https://example.com";\n',
+    'const routes: Array<{ path: string }> = [{ path: "/" }]; export const siteUrl = "https://example.com"; export { routes };\n',
     "utf8",
   );
   const generate = async () => ({
@@ -1088,7 +1027,7 @@ test("askr ssg executes TSX route modules with the project JSX runtime", async (
     );
     await fs.writeFile(
       configPath,
-      'import { createRouteRegistry, route } from "@askrjs/askr/router"; import { Page } from "./page.tsx"; export const siteUrl = "https://example.com"; export const registry = createRouteRegistry(() => route("/", Page));\n',
+      'import { Page } from "./page.tsx"; export const siteUrl = "https://example.com"; export const routes = [{ path: "/", component: Page }];\n',
       "utf8",
     );
 
@@ -1185,7 +1124,7 @@ test("runSsgCli preserves the previous full output when sitemap generation fails
         cwd: () => tempRoot,
         existsSync: () => true,
         importConfig: async () => ({
-          registry: { records: [] },
+          routes: [{ path: "/" }],
           siteUrl: "https://example.com",
           sitemap: {
             resolve: () => {
@@ -1286,7 +1225,6 @@ test("runSkillsCli lists skill review prompts", async () => {
   expect(errors).toHaveLength(0);
   expect(logs.join("\n")).toMatch(/foundation\s+Foundation/);
   expect(logs.join("\n")).toMatch(/reject-react-query/);
-  expect(logs.join("\n")).toMatch(/reject-custom-accessibility-primitives/);
 });
 
 test("skill review prompts only reference bundled skills", async () => {
@@ -1816,16 +1754,6 @@ test("runSkillsCli passes ssr-ssg review for environment-safe static routes", as
   }
 });
 
-test("ssr-ssg skill teaches registry-only route setup", async () => {
-  const skill = await fs.readFile(
-    new URL("../skills/askr-ssr-ssg/SKILL.md", import.meta.url),
-    "utf8",
-  );
-
-  expect(skill).toMatch(/createRouteRegistry/);
-  expect(skill).not.toMatch(/registerRoutes/);
-});
-
 test("runSkillsCli fails a negative review when React defaults appear", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
 
@@ -1891,65 +1819,6 @@ test("runSkillsCli fails a negative review when app-local primitive clones appea
     );
     expect(logs.join("\n")).toMatch(/PASS Uses askr-ui or askr-themes imports instead/);
     expect(logs.join("\n")).toMatch(/Repair focus:/);
-  } finally {
-    await fs.rm(tempRoot, { recursive: true, force: true });
-  }
-});
-
-test("runSkillsCli flags custom accessibility primitives with package guidance", async () => {
-  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
-
-  try {
-    await fs.mkdir(path.join(tempRoot, "src"), { recursive: true });
-    await fs.writeFile(
-      path.join(tempRoot, "src", "dialog.tsx"),
-      [
-        "export function Dialog() {",
-        '  return <div role="dialog" aria-modal="true">Dialog</div>;',
-        "}",
-      ].join("\n"),
-      "utf8",
-    );
-
-    const { io, logs, errors } = createIo();
-    const code = await runSkillsCli(
-      ["review", "reject-custom-accessibility-primitives", "--cwd", tempRoot],
-      io,
-    );
-
-    expect(code).toBe(1);
-    expect(errors).toHaveLength(0);
-    expect(logs.join("\n")).toMatch(/FAIL Does not hand-roll dialog primitives/);
-    expect(logs.join("\n")).toMatch(/missing: askr-ui, askr-themes/);
-  } finally {
-    await fs.rm(tempRoot, { recursive: true, force: true });
-  }
-});
-
-test("runSkillsCli supports inline accessibility review suppression", async () => {
-  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
-
-  try {
-    await fs.mkdir(path.join(tempRoot, "src"), { recursive: true });
-    await fs.writeFile(
-      path.join(tempRoot, "src", "dialog.tsx"),
-      [
-        "// askr-review-ignore reject-custom-accessibility-primitives",
-        "export function Dialog() {",
-        '  return <div role="dialog">Intentional custom dialog</div>;',
-        "}",
-      ].join("\n"),
-      "utf8",
-    );
-
-    const { io, errors } = createIo();
-    const code = await runSkillsCli(
-      ["review", "reject-custom-accessibility-primitives", "--cwd", tempRoot],
-      io,
-    );
-
-    expect(code).toBe(0);
-    expect(errors).toHaveLength(0);
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }

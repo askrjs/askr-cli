@@ -4,6 +4,7 @@ export default defineConfig({
   pack: {
     entry: {
       add: "src/bin/add.ts",
+      analyze: "src/bin/analyze.ts",
       cli: "src/bin/cli.ts",
       create: "src/bin/create.ts",
       generate: "src/bin/generate.ts",
@@ -20,7 +21,7 @@ export default defineConfig({
       js: ".js",
     }),
     sourcemap: false,
-    copy: ["templates", "skills", "guidance-manifest.json"],
+    copy: ["templates", "skills"],
     deps: {
       neverBundle: [/^@askrjs\/askr(?:\/.*)?$/, "tsx/esm/api"],
     },

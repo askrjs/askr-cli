@@ -2,6 +2,7 @@
 
 import fs from "node:fs/promises";
 import { constants, type Dirent } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatSkillReviewReport, listSkillReviewPrompts, runSkillReview } from "./skill-review";
@@ -145,6 +146,76 @@ async function listBundledSkills(): Promise<string[]> {
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
+}
+
+async function directoryFingerprint(directory: string): Promise<string | null> {
+  const stat = await fs.stat(directory).catch(() => null);
+  if (!stat?.isDirectory()) return null;
+  const hash = createHash("sha256");
+  const visit = async (current: string, relative: string): Promise<void> => {
+    const entries = await fs.readdir(current, { withFileTypes: true });
+    entries.sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of entries) {
+      const childRelative = relative ? `${relative}/${entry.name}` : entry.name;
+      const child = path.join(current, entry.name);
+      hash.update(`${entry.isDirectory() ? "d" : "f"}:${childRelative}\0`);
+      if (entry.isDirectory()) await visit(child, childRelative);
+      else if (entry.isFile()) hash.update(await fs.readFile(child));
+      else if (entry.isSymbolicLink()) hash.update(await fs.readlink(child));
+    }
+  };
+  await visit(directory, "");
+  return hash.digest("hex");
+}
+
+export interface BundledSkillStatus {
+  readonly bundled: number;
+  readonly installed: number;
+  readonly missing: readonly string[];
+  readonly modified: readonly string[];
+  readonly obsolete: readonly string[];
+  readonly current: boolean;
+}
+
+export async function inspectBundledSkills(
+  options: { cwd?: string } = {},
+): Promise<BundledSkillStatus> {
+  const root = path.resolve(options.cwd ?? process.cwd());
+  const sourceRoot = await findBundledSkillsDir();
+  const targetRoot = path.join(root, PROJECT_SKILLS_DIR);
+  const bundledNames = await listBundledSkills();
+  const targetEntries = await fs
+    .readdir(targetRoot, { withFileTypes: true })
+    .catch(() => [] as Dirent[]);
+  const targetDirectories = new Set(
+    targetEntries.filter((entry) => entry.isDirectory()).map((entry) => entry.name),
+  );
+  const missing: string[] = [];
+  const modified: string[] = [];
+  for (const name of bundledNames) {
+    if (!targetDirectories.has(name)) {
+      missing.push(name);
+      continue;
+    }
+    const [sourceFingerprint, targetFingerprint] = await Promise.all([
+      directoryFingerprint(path.join(sourceRoot, name)),
+      directoryFingerprint(path.join(targetRoot, name)),
+    ]);
+    if (sourceFingerprint !== targetFingerprint) modified.push(name);
+  }
+  const bundledSet = new Set(bundledNames);
+  const obsolete = [...targetDirectories]
+    .filter((name) => name.startsWith(MANAGED_PREFIX) && !bundledSet.has(name))
+    .sort();
+  const installed = bundledNames.filter((name) => targetDirectories.has(name)).length;
+  return {
+    bundled: bundledNames.length,
+    installed,
+    missing,
+    modified,
+    obsolete,
+    current: missing.length === 0 && modified.length === 0 && obsolete.length === 0,
+  };
 }
 
 async function copyDir(src: string, dest: string): Promise<void> {

@@ -53,3 +53,9 @@ tests/                 # Vitest tests
 - Use askr-ui components for interactive elements and askr-themes layout/shell primitives for structure
 - Style with `--ak-*` tokens
 - Keep SSG routes synchronous at render time unless you intentionally wire SSR data into generation
+
+## Recovery and completion
+
+- Run `askr repair` after analyzer failures; it applies only safe mechanical fixes.
+- Resolve remaining semantic diagnostics deliberately.
+- Run `npm run check` before declaring work complete. It requires clean Askr analysis, then runs lint, typecheck, tests, and build.

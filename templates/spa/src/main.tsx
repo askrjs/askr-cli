@@ -1,7 +1,7 @@
 import { createSPA } from '@askrjs/askr/boot';
-import { pageRegistry } from './pages/_routes';
 
 import './styles.css';
+import { pageRegistry } from './pages/_routes';
 
 await createSPA({
   root: document.getElementById('app')!,

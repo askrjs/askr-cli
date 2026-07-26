@@ -18,6 +18,22 @@ The bundled skills are now meant to be used as task workflows, not just concept 
 
 ## Common task flows
 
+### Recover from a wrong first pass
+
+- `askr-agent-execution`
+- `askr-testing-determinism`
+
+```bash
+askr doctor
+askr repair
+# Resolve any report-only semantic diagnostics.
+askr check
+```
+
+`doctor` identifies environment, dependency, skills, and source drift without
+writing. `repair` applies safe mechanical fixes transactionally. `check`
+requires clean analysis before running lint, typecheck, tests, and build.
+
 ### Add a page or route
 
 - `askr-agent-execution`
@@ -183,6 +199,7 @@ npm run preview
 ## See also
 
 - [create](./create.md)
+- [project guardrails](./guardrails.md)
 - [skills](./skills.md)
 - [add](./add.md)
 - [SSG guide](https://github.com/askrjs/askr/tree/main/docs/guides/ssg.md)

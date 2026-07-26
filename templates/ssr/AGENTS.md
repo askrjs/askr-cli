@@ -26,3 +26,9 @@ npm run fmt
 ```
 
 Use askr-ui primitives for interactive controls, `--ak-*` theme tokens for styling, and preserve the shared server/browser route registry.
+
+## Recovery and completion
+
+- Run `askr repair` after analyzer failures; it applies only safe mechanical fixes.
+- Resolve remaining semantic diagnostics deliberately.
+- Run `npm run check` before declaring work complete. It requires clean Askr analysis, then runs lint, typecheck, tests, and build.
