@@ -9,6 +9,7 @@ import {
   DEPENDENCY_SECTIONS,
   type DependencyOccurrence,
   type DiscoveredProject,
+  type DiscoveredWorkspaceProject,
   type UpdatePolicy,
   type WorkspaceManifest,
 } from "./types";
@@ -417,7 +418,9 @@ function collectOccurrences(
   return occurrences;
 }
 
-export async function discoverProject(options: DiscoveryOptions): Promise<DiscoveredProject> {
+export async function discoverWorkspaceProject(
+  options: Pick<DiscoveryOptions, "cwd" | "workspacePatterns">,
+): Promise<DiscoveredWorkspaceProject> {
   const root = await findProjectRoot(options.cwd);
   const { policy, workspaces } = await discoverWorkspaces(root);
   const selectedWorkspaces =
@@ -427,6 +430,11 @@ export async function discoverProject(options: DiscoveryOptions): Promise<Discov
   if (selectedWorkspaces.length === 0) {
     throw new Error("No discovered workspace matches the requested --workspace filters.");
   }
+  return { root, workspaces, selectedWorkspaces, policy };
+}
+
+export async function discoverProject(options: DiscoveryOptions): Promise<DiscoveredProject> {
+  const { root, workspaces, selectedWorkspaces, policy } = await discoverWorkspaceProject(options);
 
   const localNames = new Set(workspaces.map((workspace) => workspace.name));
   const localVersions = new Map(

@@ -16,7 +16,7 @@ npm run fmt        # Prettier
 
 ## Architecture
 
-- **Routing:** `src/main.tsx` imports `src/pages/_routes.tsx`, then boots `createSPA()` with the route manifest. Route branches live under `src/pages/public`, `src/pages/auth`, and `src/pages/app`.
+- **Routing:** `src/main.tsx` imports the `pageRegistry` from `src/pages/_routes.tsx`, then passes it to `createSPA()`. Route branches live under `src/pages/public`, `src/pages/auth`, and `src/pages/app`.
 - **Layouts:** `_layout.tsx` files own shells. The root layout owns `ThemeScope`; public layouts own landing chrome, auth layouts own sign-in chrome, and app layouts own authenticated sidebar chrome.
 - **UI:** Prefer the `@askrjs/themes/components` catalog before writing local components. Use app-local components only for product concepts such as `MetricCard` and `StatusBadge`; keep charts in `@askrjs/charts`.
 - **State:** `const [value, setValue] = state(initial)`. Read with `value()`, update with `setValue(...)`. Use `derive()` for computed values and `resource()` for async data.
@@ -58,3 +58,9 @@ tests/
 - Use `Link` and `navigate` from `@askrjs/askr/router`.
 - Use headless `@askrjs/ui/*` for behavior primitives and `@askrjs/themes/*` for composed visual surfaces.
 - Avoid hardcoded color systems, custom component catalogs, and React habits like effect-driven data loading.
+
+## Recovery and completion
+
+- Run `askr repair` after analyzer failures; it applies only safe mechanical fixes.
+- Resolve remaining semantic diagnostics deliberately.
+- Run `npm run check` before declaring work complete. It requires clean Askr analysis, then runs lint, typecheck, tests, and build.

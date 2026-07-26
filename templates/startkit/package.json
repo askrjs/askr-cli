@@ -11,9 +11,10 @@
     "typecheck": "tsc --noEmit",
     "lint": "vp lint .",
     "lint:fix": "npm run lint -- --fix",
+    "analyze": "askr analyze --check",
     "fmt": "vp fmt .",
     "fmt:check": "vp fmt --check .",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build"
+    "check": "askr check"
   },
   "dependencies": {
     "@askrjs/askr": ">=0.0.53 <0.1.0",

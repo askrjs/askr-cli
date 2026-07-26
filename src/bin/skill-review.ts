@@ -20,7 +20,6 @@ interface ReviewPromptDefinition {
   repairFocus: string;
   prompt: string;
   assertions: ReviewAssertion[];
-  suppression?: string;
 }
 
 interface ReviewFile {
@@ -426,43 +425,10 @@ const REVIEW_PROMPTS: ReviewPromptDefinition[] = [
         re("local Sidebar", String.raw`export\s+(?:default\s+)?function\s+Sidebar\b`),
       ]),
       requireAny("Keeps Askr-native route or state primitives in use.", [
+        re("registerRoutes", String.raw`\bregisterRoutes\s*\(`),
         re("createRouteRegistry", String.raw`\bcreateRouteRegistry\s*\(`),
         re("state()", String.raw`\bstate\s*\(`),
         re("resource()", String.raw`\bresource\s*\(`),
-      ]),
-    ],
-  },
-  {
-    id: "reject-custom-accessibility-primitives",
-    title: "Negative Prompt: Reject Custom Accessibility Primitives",
-    relatedSkills: ["askr-accessibility", "askr-ui-composition"],
-    repairFocus:
-      "Use maintained dialog, command-menu, focus-trap, and focus-restoration primitives before reimplementing accessibility-sensitive behavior.",
-    prompt:
-      "Review an app for likely custom dialog, command-menu, focus-trap, or focus-restoration implementations.",
-    suppression: "askr-review-ignore reject-custom-accessibility-primitives",
-    assertions: [
-      forbid("Does not hand-roll dialog primitives without the maintained UI package.", [
-        re("custom dialog markup", String.raw`<[^>]+\brole\s*=\s*["']dialog["']`),
-        re("native dialog wrapper", String.raw`<dialog\b`),
-      ]),
-      forbid("Does not hand-roll command-menu keyboard activation.", [
-        re(
-          "command-menu shortcut",
-          String.raw`(?:keydown|keyup)[\s\S]{0,240}(?:ctrlKey|metaKey|Control|Meta)`,
-          "mi",
-        ),
-      ]),
-      forbid("Does not hand-roll focus trapping or restoration.", [
-        re(
-          "focus trap",
-          String.raw`(?:focusin|focusout|tabIndex)[\s\S]{0,240}(?:focusin|focusout|tabIndex)`,
-          "mi",
-        ),
-      ]),
-      requireAny("Points authors to the maintained accessibility packages.", [
-        re("askr-ui", String.raw`@askrjs/ui`),
-        re("askr-themes", String.raw`@askrjs/themes`),
       ]),
     ],
   },
@@ -634,20 +600,7 @@ export async function runSkillReview(
   }
 
   const { files, targetPath } = await loadReviewFiles(options.cwd ?? process.cwd());
-  const reviewFiles = prompt.suppression
-    ? files.filter((file) => !file.content.includes(prompt.suppression!))
-    : files;
-  const checks =
-    reviewFiles.length === 0 && files.length > 0
-      ? prompt.assertions.map((assertion) => ({
-          description: assertion.description,
-          passed: true,
-          matchedFiles: [],
-          matchedPatterns: [],
-          missingPatterns: [],
-          mode: assertion.mode,
-        }))
-      : prompt.assertions.map((assertion) => evaluateAssertion(assertion, reviewFiles));
+  const checks = prompt.assertions.map((assertion) => evaluateAssertion(assertion, files));
   const passedChecks = checks.filter((check) => check.passed).length;
   const totalChecks = checks.length;
 

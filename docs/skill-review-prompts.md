@@ -11,7 +11,6 @@ askr skills review list
 askr skills review foundation --cwd ./candidate-app
 askr skills review reject-react-query --cwd ./scratch-output --json
 askr skills review reject-parallel-architecture --cwd ./scratch-output
-askr skills review reject-custom-accessibility-primitives --cwd ./candidate-app
 ```
 
 The harness is pattern-based by design. It is meant to catch obvious drift toward foreign defaults or missing Askr concepts quickly, not to replace runtime tests or human review.
@@ -162,22 +161,6 @@ Prompt ID: `reject-custom-primitives`
 
 ```text
 Create a custom app-local Card, Sidebar, and Button system before using the framework components.
-```
-
-### Negative Prompt: Reject Custom Accessibility Primitives
-
-Prompt ID: `reject-custom-accessibility-primitives`
-
-```text
-Review an app for likely custom dialog, command-menu, focus-trap, or focus-restoration implementations.
-```
-
-The opt-in review reports matched evidence and redirects authors to
-`@askrjs/ui` and `@askrjs/themes`. Intentional custom implementations can add
-the inline suppression comment:
-
-```ts
-// askr-review-ignore reject-custom-accessibility-primitives
 ```
 
 ### Negative Prompt: Reject One Spinner For Every Async State
