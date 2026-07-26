@@ -1262,6 +1262,7 @@ test("runSkillsCli lists skill review prompts", async () => {
   expect(errors).toHaveLength(0);
   expect(logs.join("\n")).toMatch(/foundation\s+Foundation/);
   expect(logs.join("\n")).toMatch(/reject-react-query/);
+  expect(logs.join("\n")).toMatch(/reject-custom-accessibility-primitives/);
 });
 
 test("skill review prompts only reference bundled skills", async () => {
@@ -1866,6 +1867,65 @@ test("runSkillsCli fails a negative review when app-local primitive clones appea
     );
     expect(logs.join("\n")).toMatch(/PASS Uses askr-ui or askr-themes imports instead/);
     expect(logs.join("\n")).toMatch(/Repair focus:/);
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runSkillsCli flags custom accessibility primitives with package guidance", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
+
+  try {
+    await fs.mkdir(path.join(tempRoot, "src"), { recursive: true });
+    await fs.writeFile(
+      path.join(tempRoot, "src", "dialog.tsx"),
+      [
+        "export function Dialog() {",
+        '  return <div role="dialog" aria-modal="true">Dialog</div>;',
+        "}",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const { io, logs, errors } = createIo();
+    const code = await runSkillsCli(
+      ["review", "reject-custom-accessibility-primitives", "--cwd", tempRoot],
+      io,
+    );
+
+    expect(code).toBe(1);
+    expect(errors).toHaveLength(0);
+    expect(logs.join("\n")).toMatch(/FAIL Does not hand-roll dialog primitives/);
+    expect(logs.join("\n")).toMatch(/missing: askr-ui, askr-themes/);
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runSkillsCli supports inline accessibility review suppression", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
+
+  try {
+    await fs.mkdir(path.join(tempRoot, "src"), { recursive: true });
+    await fs.writeFile(
+      path.join(tempRoot, "src", "dialog.tsx"),
+      [
+        "// askr-review-ignore reject-custom-accessibility-primitives",
+        "export function Dialog() {",
+        '  return <div role="dialog">Intentional custom dialog</div>;',
+        "}",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const { io, errors } = createIo();
+    const code = await runSkillsCli(
+      ["review", "reject-custom-accessibility-primitives", "--cwd", tempRoot],
+      io,
+    );
+
+    expect(code).toBe(0);
+    expect(errors).toHaveLength(0);
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
