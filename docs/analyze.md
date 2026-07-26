@@ -35,8 +35,8 @@ another package or local module is not treated as an Askr API.
 - `askr/stable-render-call` enforces stable top-level calls for state, derived
   values, selectors, resources, lifecycle operations, actions, queries, and
   mutations where the AST establishes a component render context.
-- `askr/state-access` reports state getters used without calling them and
-  setters called without a value or updater.
+- `askr/state-access` reports state getters used without calling them in JSX
+  expressions or direct returns, and setters called without a value or updater.
 - `askr/state-render-write` reports state mutation during the owning component's
   render while allowing updates in event callbacks.
 - `askr/resource-cancellation` and `askr/data-cancellation` report fetch-based

@@ -403,7 +403,11 @@ function solveWorkspace(
             left.length - right.length || leftName.localeCompare(rightName),
         )[0];
       const signature = component
-        .map((name) => `${name}=${assigned.get(name) ?? (pruned.get(name) ?? []).join(",")}`)
+        .map((name) => {
+          const assignedVersion = assigned.get(name);
+          const domain = pruned.get(name) ?? [];
+          return `${name}:assigned=${JSON.stringify(assignedVersion ?? null)}:domain=${JSON.stringify(domain)}`;
+        })
         .join("|");
       if (memo.has(signature)) return;
       memo.add(signature);
