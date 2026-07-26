@@ -16,7 +16,7 @@ npm test         # Run tests with Vitest
 
 ```
 src/
-|-- main.tsx                         # SPA boot and route manifest
+|-- main.tsx                         # SPA boot and route registry
 |-- pages/
 |   |-- _routes.tsx                  # Top-level route branches
 |   |-- _layout.tsx                  # Theme provider and app root

@@ -45,6 +45,13 @@ export interface DiscoveredProject {
   localVersions: Map<string, string>;
 }
 
+export interface DiscoveredWorkspaceProject {
+  root: string;
+  workspaces: WorkspaceManifest[];
+  selectedWorkspaces: WorkspaceManifest[];
+  policy: UpdatePolicy;
+}
+
 export interface Packument {
   "dist-tags"?: Record<string, unknown>;
   versions?: Record<string, unknown>;

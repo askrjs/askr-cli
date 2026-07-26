@@ -386,12 +386,14 @@ describe("update CLI", () => {
       "npm-registry-fetch",
       "semver",
       "tsx",
+      "typescript",
     ]);
     expect(JSON.stringify(manifest)).not.toContain(forbiddenPackage);
     expect(JSON.stringify(manifest)).not.toContain(forbiddenAlias);
     expect(sources.join("\n")).not.toContain(forbiddenPackage);
     expect(sources.join("\n")).not.toContain(forbiddenAlias);
     expect(config).toMatch(/update: "src\/bin\/update\.ts"/);
+    expect(config).toMatch(/analyze: "src\/bin\/analyze\.ts"/);
   });
 
   test("should load command implementations lazily given the top-level CLI when inspecting source", async () => {
@@ -399,7 +401,7 @@ describe("update CLI", () => {
 
     expect(source).toContain('await import("./update")');
     expect(source).not.toMatch(
-      /^import .* from "\.\/(?:add|create|generate|openapi|skills|ssg|update)";/m,
+      /^import .* from "\.\/(?:add|analyze|create|generate|openapi|skills|ssg|update)";/m,
     );
   });
 });

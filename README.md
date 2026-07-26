@@ -41,6 +41,10 @@ unless you opt out with `--no-skills`.
 - `askr create [template] <name> [--prompt <text>] [--no-install] [--no-skills]`
 - `askr add page <name> [--branch app|public]`
 - `askr add action <name> --route <path>`
+- `askr analyze [--cwd <dir>] [--workspace <pattern>]... [--json] [--check]`
+- `askr doctor [--cwd <dir>] [--workspace <pattern>]... [--json]`
+- `askr repair [--cwd <dir>] [--workspace <pattern>]... [--json]`
+- `askr check [--cwd <dir>] [--workspace <pattern>]... [--json]`
 - `askr skills list`
 - `askr skills install [--cwd <dir>] [--force]`
 - `askr skills sync [--cwd <dir>]`
@@ -52,6 +56,50 @@ unless you opt out with `--no-skills`.
 
 The installed command is `askr`. Subcommands are intentionally not published
 as compatibility binaries.
+
+## Static analysis
+
+`askr analyze` discovers the containing npm or pnpm workspace, builds a
+TypeScript compiler program for every selected workspace, and checks current
+Askr state, lifecycle, data, control-flow, routing, boot, SSR/SSG, action, and
+configuration contracts.
+
+```bash
+askr analyze
+askr analyze --workspace "@scope/web"
+askr analyze --check
+askr analyze --json --check
+```
+
+All diagnostics include a stable rule ID and workspace-relative source
+location. The analyzer distinguishes canonical Askr imports from unrelated
+same-named functions and only recommends `<For>` for state-backed reactive JSX
+collections, so static transforms with `.map()` remain valid.
+
+By default it transactionally applies only mechanical route-parameter and
+plain-JSON JSX configuration fixes. `--check` is read-only for CI. Semantic
+rewrites, including `.map()` to `<For>`, conditional primitives, and key
+changes, are always report-only. See the
+[analyze command reference](./docs/analyze.md) for rules and configuration.
+
+## Project recovery loop
+
+Every generated project uses the same guardrail loop:
+
+```bash
+askr doctor
+askr repair
+askr check
+```
+
+`doctor` performs a read-only environment, package-manager, framework, skills,
+and static-analysis inspection. `repair` transactionally applies only safe
+mechanical fixes and reports remaining semantic work. `check` requires clean
+analysis before running the project's declared lint, typecheck, test, and build
+scripts in order. Generated projects expose that final gate as `npm run check`.
+
+See the [project guardrails reference](./docs/guardrails.md) for command and JSON
+contracts.
 
 ## Static sitemap generation
 

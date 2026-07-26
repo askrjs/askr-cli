@@ -10,6 +10,8 @@ The unified CLI for the Askr platform.
 - [skill-system-design](./skill-system-design.md) - Why the bundled skills are layered and how drift is constrained
 - [skill-review-prompts](./skill-review-prompts.md) - Golden prompts for auditing the bundled skill system
 - [add](./add.md) - Generate feature code into an existing project
+- [analyze](./analyze.md) - Check Askr correctness, performance, and configuration
+- [Project guardrails](./guardrails.md) - Diagnose, repair, and validate a project
 - [generate](./generate.md) - Generate a typed client from an OpenAPI document
 - [openapi](./openapi.md) - Export deterministic OpenAPI YAML
 - [ssg](./ssg.md) - Atomically publish static routes and sitemap artifacts

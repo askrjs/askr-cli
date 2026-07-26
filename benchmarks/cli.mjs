@@ -139,8 +139,12 @@ for (const [name, args] of [
 for (const command of [
   "create",
   "add",
+  "analyze",
+  "check",
+  "doctor",
   "generate",
   "openapi",
+  "repair",
   "skills",
   "ssg",
   "outdated",
@@ -155,6 +159,13 @@ for (const command of [
     samples,
   });
 }
+const analyze = commandSample(["analyze", "--cwd", "templates/startkit", "--json", "--check"]);
+rows.push({
+  name: "analyze:cold-35-file-template",
+  budgetMs: 350,
+  p95Ms: percentile(analyze, 0.95),
+  samples: analyze,
+});
 const ssg = await ssgSample();
 rows.push({
   name: "ssg:100-fixture-routes",
