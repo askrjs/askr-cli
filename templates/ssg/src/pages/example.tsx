@@ -1,6 +1,6 @@
 import { state } from '@askrjs/askr';
 import { Link } from '@askrjs/askr/router';
-import { Button, Input } from '@askrjs/ui';
+import { Button } from '@askrjs/ui';
 import Counter from '../components/counter';
 import {
   ActionRow,
@@ -65,10 +65,8 @@ export default function Preview() {
           description="Change the user id to prove the generated page still responds in the browser."
         >
           <div class="preview-controls">
-            <Input
-              type="number"
-              min="1"
-              step="1"
+            <input
+              class="input"
               value={String(userId())}
               onInput={(event: Event) => {
                 const nextValue = Number.parseInt(
