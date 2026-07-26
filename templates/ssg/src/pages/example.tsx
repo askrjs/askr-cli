@@ -67,9 +67,6 @@ export default function Preview() {
           <div class="preview-controls">
             <input
               class="input"
-              type="number"
-              min="1"
-              step="1"
               value={String(userId())}
               onInput={(event: Event) => {
                 const nextValue = Number.parseInt(
