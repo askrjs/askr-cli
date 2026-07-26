@@ -1,6 +1,6 @@
 import { state } from '@askrjs/askr';
 import { Link } from '@askrjs/askr/router';
-import { Button, Input } from '@askrjs/ui';
+import { Button } from '@askrjs/ui';
 import Counter from '../components/counter';
 import {
   ActionRow,
