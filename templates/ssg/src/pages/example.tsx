@@ -65,7 +65,8 @@ export default function Preview() {
           description="Change the user id to prove the generated page still responds in the browser."
         >
           <div class="preview-controls">
-            <Input
+            <input
+              class="input"
               type="number"
               min="1"
               step="1"
