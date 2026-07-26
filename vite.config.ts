@@ -20,7 +20,7 @@ export default defineConfig({
       js: ".js",
     }),
     sourcemap: false,
-    copy: ["templates", "skills"],
+    copy: ["templates", "skills", "guidance-manifest.json"],
     deps: {
       neverBundle: [/^@askrjs\/askr(?:\/.*)?$/, "tsx/esm/api"],
     },

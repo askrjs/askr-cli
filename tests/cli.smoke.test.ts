@@ -142,6 +142,30 @@ test("package surface ships project templates for installed create commands", as
   }
 });
 
+test("guidance manifest stays aligned with templates and bundled skills", async () => {
+  const manifest = JSON.parse(
+    await fs.readFile(new URL("../guidance-manifest.json", import.meta.url), "utf8"),
+  ) as {
+    version: number;
+    shared: { agentFile: string; skills: string[] };
+    templates: Record<string, { agentFile: string; skills: string[] }>;
+  };
+  expect(manifest.version).toBe(1);
+  const bundled = new Set(
+    (await fs.readdir(new URL("../skills/", import.meta.url), { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name),
+  );
+  for (const [template, guidance] of Object.entries(manifest.templates)) {
+    await expect(
+      fs.access(new URL(`../templates/${template}/${guidance.agentFile}`, import.meta.url)),
+    ).resolves.toBeUndefined();
+    for (const skill of [...manifest.shared.skills, ...guidance.skills]) {
+      expect(bundled.has(skill), `${template} references missing ${skill}`).toBe(true);
+    }
+  }
+});
+
 test("runCli prints version for short and long flags", async () => {
   const packageJson = JSON.parse(
     await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "shared": {
+    "agentFile": "AGENTS.md",
+    "skills": ["askr-agent-execution", "askr-mental-model", "askr-project-structure"]
+  },
+  "templates": {
+    "full-stack": { "agentFile": "AGENTS.md", "skills": ["askr-ssr-ssg"] },
+    "spa": { "agentFile": "AGENTS.md", "skills": ["askr-routing-layouts"] },
+    "ssr": { "agentFile": "AGENTS.md", "skills": ["askr-ssr-ssg"] },
+    "ssg": { "agentFile": "AGENTS.md", "skills": ["askr-ssr-ssg"] },
+    "startkit": { "agentFile": "AGENTS.md", "skills": ["askr-routing-layouts"] }
+  }
+}
