@@ -4,6 +4,7 @@ import {
   Clock3Icon,
   ShieldAlertIcon,
 } from '@askrjs/lucide';
+import { For } from '@askrjs/askr/control';
 import {
   Badge,
   Card,
@@ -18,12 +19,14 @@ import StatusBadge, {
 } from '../../components/shared/status-badge';
 
 const runs: Array<{
+  id: string;
   title: string;
   status: RunStatus;
   event: string;
   description: string;
 }> = [
   {
+    id: 'reconcile-billing-projection',
     title: 'Reconcile billing projection',
     status: 'running',
     event: 'tool call: compare-ledger',
@@ -31,6 +34,7 @@ const runs: Array<{
       'Streaming events are appended to the timeline and reconciled by event id.',
   },
   {
+    id: 'approve-enterprise-workspace',
     title: 'Approve enterprise workspace',
     status: 'requires-action',
     event: 'approval requested',
@@ -38,6 +42,7 @@ const runs: Array<{
       'Human gates are explicit product states, not hidden inside generated text.',
   },
   {
+    id: 'refresh-onboarding-cohort',
     title: 'Refresh onboarding cohort',
     status: 'succeeded',
     event: 'projection caught up',
@@ -61,32 +66,34 @@ export default function AgentRunsPage() {
       </section>
 
       <Block gap="md" class="agent-grid">
-        {runs.map((run) => (
-          <Card>
-            <CardHeader>
-              <Inline justify="between" align="start" gap="3">
-                <span class="card-icon">
-                  {run.status === 'succeeded' ? (
-                    <CheckCircle2Icon size={18} aria-hidden="true" />
-                  ) : run.status === 'requires-action' ? (
-                    <ShieldAlertIcon size={18} aria-hidden="true" />
-                  ) : (
-                    <BotIcon size={18} aria-hidden="true" />
-                  )}
-                </span>
-                <StatusBadge status={run.status} />
-              </Inline>
-              <CardTitle>{run.title}</CardTitle>
-              <CardDescription>{run.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Inline gap="2" align="center">
-                <Clock3Icon size={14} aria-hidden="true" />
-                <span>{run.event}</span>
-              </Inline>
-            </CardContent>
-          </Card>
-        ))}
+        <For each={runs} by={(run) => run.id}>
+          {(run) => (
+            <Card>
+              <CardHeader>
+                <Inline justify="between" align="start" gap="3">
+                  <span class="card-icon">
+                    {run.status === 'succeeded' ? (
+                      <CheckCircle2Icon size={18} aria-hidden="true" />
+                    ) : run.status === 'requires-action' ? (
+                      <ShieldAlertIcon size={18} aria-hidden="true" />
+                    ) : (
+                      <BotIcon size={18} aria-hidden="true" />
+                    )}
+                  </span>
+                  <StatusBadge status={run.status} />
+                </Inline>
+                <CardTitle>{run.title}</CardTitle>
+                <CardDescription>{run.description}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Inline gap="2" align="center">
+                  <Clock3Icon size={14} aria-hidden="true" />
+                  <span>{run.event}</span>
+                </Inline>
+              </CardContent>
+            </Card>
+          )}
+        </For>
       </Block>
     </Stack>
   );

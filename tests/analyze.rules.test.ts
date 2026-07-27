@@ -116,7 +116,7 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/stable-dependencies")).toHaveLength(1);
   });
 
-  it("checks For contracts, positional keys, and only reactive JSX map calls", async () => {
+  it("checks For contracts, positional keys, and direct JSX map calls", async () => {
     const root = await fixture({
       "src/page.tsx": `
         import { For, state } from "@askrjs/askr";
@@ -135,9 +135,69 @@ describe("analyzer rules", () => {
     });
 
     const found = await diagnostics(root);
-    expect(found.filter((entry) => entry.ruleId === "askr/prefer-for")).toHaveLength(1);
+    expect(found.filter((entry) => entry.ruleId === "askr/prefer-for")).toHaveLength(2);
     expect(found.filter((entry) => entry.ruleId === "askr/for-contract")).toHaveLength(2);
     expect(found.filter((entry) => entry.ruleId === "askr/stable-key")).toHaveLength(1);
+  });
+
+  it("reports eager controls behind changing conditionals but accepts scoped components", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { For, Show, state } from "@askrjs/askr";
+        function Dialog({ items }: { items: string[] }) {
+          return <ul>
+            <For each={items} by={(item) => item}>{(item) => <li>{item}</li>}</For>
+          </ul>;
+        }
+        export function Page(props: { visible: boolean }) {
+          const [open] = state(false);
+          return <main>
+            {open() ? <For each={["a"]} by={(item) => item}>{(item) => <p>{item}</p>}</For> : null}
+            {open() && <Show when={true}>visible</Show>}
+            {open() ? <Dialog items={["b"]} /> : null}
+            {props.visible ? <For each={["c"]} by={(item) => item}>{(item) => <p>{item}</p>}</For> : null}
+            {true ? <For each={["constant"]} by={(item) => item}>{(item) => <p>{item}</p>}</For> : null}
+            {<For each={["always"]} by={(item) => item}>{(item) => <p>{item}</p>}</For> && open()}
+            {<For each={["condition"]} by={(item) => item}>{(item) => <p>{item}</p>}</For> ? <p>yes</p> : null}
+            <Show when={open()}><For each={["d"]} by={(item) => item}>{(item) => <p>{item}</p>}</For></Show>
+          </main>;
+        }
+      `,
+    });
+
+    const found = await diagnostics(root);
+    const unstable = found.filter((entry) => entry.ruleId === "askr/stable-render-call");
+    expect(unstable).toHaveLength(3);
+    expect(unstable.map((entry) => entry.line)).toEqual([11, 12, 14]);
+    expect(unstable.every((entry) => /<Show>/.test(entry.remediation ?? ""))).toBe(true);
+    expect(unstable[1]?.remediation).toMatch(/Mount <Show> unconditionally/);
+  });
+
+  it("reports map arrays rendered as JSX children but accepts data transformations", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { For } from "@askrjs/askr";
+        export function Page({ items }: { items: Array<{ id: string; label: string }> }) {
+          const labels = items.map((item) => item.label);
+          return <main data-labels={items.map((item) => item.label)}>
+            {items.map((item) => <p key={item.id}>{item.label}</p>)}
+            {items.map((item) => item.label) && <p>always</p>}
+            {items.map((item) => <p>{item.label}</p>) ?? null}
+            {null ?? items.map((item) => <p>{item.label}</p>)}
+            {items.map((item) => item.label).join(", ")}
+            <For each={items.map((item) => item.id)} by={(item) => item}>
+              {(item) => <span>{item}</span>}
+            </For>
+            <output>{labels.join(", ")}</output>
+          </main>;
+        }
+      `,
+    });
+
+    const found = await diagnostics(root);
+    expect(
+      found.filter((entry) => entry.ruleId === "askr/prefer-for").map((entry) => entry.line),
+    ).toEqual([6, 8, 9]);
   });
 
   it("reports async components, bad boot wiring, and SSR browser globals", async () => {

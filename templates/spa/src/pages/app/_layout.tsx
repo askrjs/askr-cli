@@ -6,6 +6,7 @@ import {
   SettingsIcon,
   SunIcon,
 } from '@askrjs/lucide';
+import { For } from '@askrjs/askr/control';
 import { Link, navigate } from '@askrjs/askr/router';
 import { Button } from '@askrjs/themes/components';
 import { Container, Inline, Stack } from '@askrjs/themes/components';
@@ -42,14 +43,16 @@ export default function AppLayout({ children }: { children?: unknown }) {
             </Link>
           </NavBrand>
           <NavGroup label="Workspace">
-            {appNavItems.map((item) => (
-              <NavLink href={item.href} match={item.match}>
-                <Inline as="span" gap="2" align="center">
-                  {icons[item.icon]}
-                  <span>{item.label}</span>
-                </Inline>
-              </NavLink>
-            ))}
+            <For each={[...appNavItems]} by={(item) => item.href}>
+              {(item) => (
+                <NavLink href={item.href} match={item.match}>
+                  <Inline as="span" gap="2" align="center">
+                    {icons[item.icon]}
+                    <span>{item.label}</span>
+                  </Inline>
+                </NavLink>
+              )}
+            </For>
           </NavGroup>
           <NavGroup label="Session" align="end">
             <NavLink href="/" match="exact">

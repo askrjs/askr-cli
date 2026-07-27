@@ -1,3 +1,4 @@
+import { For } from '@askrjs/askr/control';
 import { Link } from '@askrjs/askr/router';
 import { Button } from '@askrjs/ui';
 import {
@@ -54,17 +55,19 @@ export default function Workflow() {
       />
 
       <CardGrid>
-        {steps.map((step) => (
-          <Card
-            eyebrow={step.number}
-            title={step.title}
-            description={step.body}
-          >
-            <p>
-              <code>{step.command}</code>
-            </p>
-          </Card>
-        ))}
+        <For each={steps} by={(step) => step.number}>
+          {(step) => (
+            <Card
+              eyebrow={step.number}
+              title={step.title}
+              description={step.body}
+            >
+              <p>
+                <code>{step.command}</code>
+              </p>
+            </Card>
+          )}
+        </For>
       </CardGrid>
 
       <Card

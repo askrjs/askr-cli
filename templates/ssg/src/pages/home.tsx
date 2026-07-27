@@ -1,3 +1,4 @@
+import { For } from '@askrjs/askr/control';
 import { Link } from '@askrjs/askr/router';
 import { Button } from '@askrjs/ui';
 import {
@@ -42,9 +43,11 @@ export default function Home() {
       />
 
       <CardGrid>
-        {highlights.map((highlight) => (
-          <Card title={highlight.title} description={highlight.body} />
-        ))}
+        <For each={highlights} by={(highlight) => highlight.title}>
+          {(highlight) => (
+            <Card title={highlight.title} description={highlight.body} />
+          )}
+        </For>
       </CardGrid>
     </>
   );

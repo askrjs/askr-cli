@@ -34,7 +34,11 @@ another package or local module is not treated as an Askr API.
   considered complete.
 - `askr/stable-render-call` enforces stable top-level calls for state, derived
   values, selectors, resources, lifecycle operations, actions, queries, and
-  mutations where the AST establishes a component render context.
+  mutations where the AST establishes a component render context. It also
+  reports eager control primitives such as `<For>`, `<Show>`, and `<Case>`
+  placed directly behind a non-constant ternary or logical expression. A conditionally mounted
+  component is not reported because the component owns a separate render
+  scope.
 - `askr/state-access` reports state getters used without calling them in JSX
   expressions or direct returns, and setters called without a value or updater.
 - `askr/state-render-write` reports state mutation during the owning component's
@@ -57,9 +61,9 @@ another package or local module is not treated as an Askr API.
 
 ### Performance
 
-- `askr/prefer-for` reports JSX `.map()` only when its receiver is proven to be
-  an Askr state-backed reactive collection. Static array transforms remain
-  valid.
+- `askr/prefer-for` reports `.map()` when its array result flows directly into
+  JSX children. Data transforms outside JSX, JSX attribute values, joined text,
+  and transforms passed to `<For each={...}>` remain valid.
 - `askr/stable-key` reports index-returning `by` functions.
 - `askr/stable-dependencies` reports object, array, function, and constructor
   allocations in resource dependency arrays.
