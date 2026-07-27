@@ -49,6 +49,7 @@ unless you opt out with `--no-skills`.
 - `askr skills install [--cwd <dir>] [--force]`
 - `askr skills sync [--cwd <dir>]`
 - `askr ssg --config <path> --output <dir> [--incremental]`
+- `askr verify-hydration [--output ./dist] [--route <path>]...`
 - `askr openapi [--entry ./src/api.ts] [--output ./openapi.yml] [--check]`
 - `askr outdated [packages...] [--workspace <glob>] [--tag <tag>] [--json]`
 - `askr update [packages...] [--workspace <glob>] [--tag <tag>] [--json]`
@@ -139,6 +140,24 @@ creates or updates `robots.txt` while preserving unrelated directives and tracks
 owned files so stale chunks and previous output paths are removed. Full and
 incremental builds publish through a sibling staging directory, so route output,
 metadata, assets, and sitemap artifacts change together or not at all.
+
+## Hydration verification
+
+`askr verify-hydration` builds SSG output, serves the generated route set, and
+loads every successful metadata route in a real headless browser both with and
+without JavaScript. It compares normalized tag-and-child topology under `#app`
+after hydration, so text, classes, and mutable ARIA state do not create noise
+while nodes migrating into the wrong sibling container fail with an actionable
+static-versus-hydrated path diff.
+
+```bash
+askr verify-hydration
+askr verify-hydration --route / --route /docs
+askr verify-hydration --no-build --output ./dist
+```
+
+See the [hydration verification reference](./docs/verify-hydration.md) for
+browser installation, timeout, route, and root-selector options.
 
 ## OpenAPI artifacts
 

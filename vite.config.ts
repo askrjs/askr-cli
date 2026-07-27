@@ -13,6 +13,7 @@ export default defineConfig({
       ssg: "src/bin/ssg.ts",
       "ssg-config": "src/ssg.ts",
       update: "src/bin/update.ts",
+      "verify-hydration": "src/bin/verify-hydration.ts",
     },
     format: ["esm"],
     outDir: "dist",
@@ -23,7 +24,7 @@ export default defineConfig({
     sourcemap: false,
     copy: ["templates", "skills"],
     deps: {
-      neverBundle: [/^@askrjs\/askr(?:\/.*)?$/, "tsx/esm/api"],
+      neverBundle: [/^@askrjs\/askr(?:\/.*)?$/, "playwright-core", "tsx/esm/api"],
     },
   },
 });

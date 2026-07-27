@@ -21,6 +21,7 @@ function printHelp(io: CliIo = console): void {
   io.log("  openapi    Generate or check an OpenAPI YAML artifact");
   io.log("  skills     Install or sync Askr agent skills");
   io.log("  ssg        Run static-site generation");
+  io.log("  verify-hydration  Verify SSG DOM structure in a real browser");
   io.log("  outdated   List available dependency updates");
   io.log("  repair     Apply safe fixes and identify remaining semantic work");
   io.log("  update     Apply safe dependency updates");
@@ -43,6 +44,7 @@ function printHelp(io: CliIo = console): void {
   io.log("  askr openapi --check");
   io.log("  askr skills review foundation --cwd ./candidate-app");
   io.log("  askr ssg --config ./ssg.config.ts --output ./dist/static");
+  io.log("  askr verify-hydration --output ./dist --route /");
   io.log("  askr outdated");
   io.log("  askr update");
   io.log("  askr upgrade");
@@ -92,6 +94,11 @@ export async function runCli(
   if (command === "ssg") {
     const { runSsgCli } = await import("./ssg");
     return runSsgCli(args.slice(1), undefined, io);
+  }
+
+  if (command === "verify-hydration") {
+    const { runVerifyHydrationCli } = await import("./verify-hydration");
+    return runVerifyHydrationCli(args.slice(1), undefined, io);
   }
 
   if (command === "openapi") {

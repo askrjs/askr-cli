@@ -150,6 +150,7 @@ for (const command of [
   "outdated",
   "update",
   "upgrade",
+  "verify-hydration",
 ]) {
   const samples = commandSample([command, "--help"]);
   rows.push({

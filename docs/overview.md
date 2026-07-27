@@ -46,6 +46,7 @@ askr check                       # Run analysis, lint, types, tests, and build
 askr skills install             # Install bundled Askr agent skills
 askr skills sync                # Update bundled Askr agent skills
 askr ssg --config <path> --output <dir> # Run static site generation
+askr verify-hydration                   # Verify SSG topology in a real browser
 askr outdated                   # Report available dependency updates
 askr update                     # Apply safe dependency manifest updates
 askr upgrade                    # Apply latest peer-compatible upgrades
