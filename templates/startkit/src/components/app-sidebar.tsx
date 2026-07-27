@@ -1,3 +1,4 @@
+import { For } from '@askrjs/askr/control';
 import { Link } from '@askrjs/askr/router';
 import {
   LayoutDashboardIcon,
@@ -67,27 +68,31 @@ export default function AppSidebar() {
         </NavBrand>
 
         <NavGroup id="workspace-nav-group" label="Workspace">
-          {primaryNav.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink href={item.href}>
-                <Icon size={16} aria-hidden={true} />
-                <span>{item.label}</span>
-              </NavLink>
-            );
-          })}
+          <For each={primaryNav} by={(item) => item.href}>
+            {(item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink href={item.href}>
+                  <Icon size={16} aria-hidden={true} />
+                  <span>{item.label}</span>
+                </NavLink>
+              );
+            }}
+          </For>
         </NavGroup>
 
         <NavGroup id="other-nav-group" label="Other" placement="bottom">
-          {secondaryNav.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink href={item.href}>
-                <Icon size={16} aria-hidden={true} />
-                <span>{item.label}</span>
-              </NavLink>
-            );
-          })}
+          <For each={secondaryNav} by={(item) => item.href}>
+            {(item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink href={item.href}>
+                  <Icon size={16} aria-hidden={true} />
+                  <span>{item.label}</span>
+                </NavLink>
+              );
+            }}
+          </For>
         </NavGroup>
       </Navbar>
     </aside>

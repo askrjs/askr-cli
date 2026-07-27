@@ -73,8 +73,10 @@ askr analyze --json --check
 
 All diagnostics include a stable rule ID and workspace-relative source
 location. The analyzer distinguishes canonical Askr imports from unrelated
-same-named functions and only recommends `<For>` for state-backed reactive JSX
-collections, so static transforms with `.map()` remain valid.
+same-named functions and recommends `<For>` only when a `.map()` result is
+rendered directly as JSX children, so ordinary data transforms remain valid.
+It reports eager `<For>`/`<Show>`/`<Case>` controls behind changing ternaries
+while accepting conditionally mounted components with their own render scope.
 
 By default it transactionally applies only mechanical route-parameter and
 plain-JSON JSX configuration fixes. `--check` is read-only for CI. Semantic

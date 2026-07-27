@@ -5,6 +5,7 @@ import {
   CheckCircle2Icon,
   ShieldCheckIcon,
 } from '@askrjs/lucide';
+import { For } from '@askrjs/askr/control';
 import { Link } from '@askrjs/askr/router';
 import { Button } from '@askrjs/themes/components';
 import {
@@ -111,15 +112,17 @@ export default function HomePage() {
       <Section paddingY="xl">
         <Container size="xl">
           <Block gap="md" class="feature-grid">
-            {capabilities.map((item) => (
-              <Card>
-                <CardHeader>
-                  <span class="card-icon">{item.icon}</span>
-                  <CardTitle>{item.title}</CardTitle>
-                  <CardDescription>{item.description}</CardDescription>
-                </CardHeader>
-              </Card>
-            ))}
+            <For each={capabilities} by={(item) => item.title}>
+              {(item) => (
+                <Card>
+                  <CardHeader>
+                    <span class="card-icon">{item.icon}</span>
+                    <CardTitle>{item.title}</CardTitle>
+                    <CardDescription>{item.description}</CardDescription>
+                  </CardHeader>
+                </Card>
+              )}
+            </For>
           </Block>
         </Container>
       </Section>

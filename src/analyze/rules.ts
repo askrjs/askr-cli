@@ -210,6 +210,55 @@ function functionName(node: ts.SignatureDeclaration): string | null {
   return null;
 }
 
+const EAGER_CONTROL_CONCEPTS = new Set(["Case", "For", "Show"]);
+
+function isConstantCondition(expression: ts.Expression): boolean {
+  if (ts.isParenthesizedExpression(expression)) return isConstantCondition(expression.expression);
+  return (
+    expression.kind === ts.SyntaxKind.TrueKeyword ||
+    expression.kind === ts.SyntaxKind.FalseKeyword ||
+    expression.kind === ts.SyntaxKind.NullKeyword ||
+    ts.isNumericLiteral(expression) ||
+    ts.isStringLiteral(expression) ||
+    ts.isNoSubstitutionTemplateLiteral(expression)
+  );
+}
+
+function unstableControlConditional(
+  node: ts.JsxOpeningLikeElement,
+  bindings: SourceBindings,
+): ts.ConditionalExpression | ts.BinaryExpression | null {
+  const ownElement =
+    ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent) ? node.parent : null;
+  let child: ts.Node = node;
+  for (let current = node.parent; current; current = current.parent) {
+    if (ts.isFunctionLike(current)) return null;
+    if (current !== ownElement && ts.isJsxElement(current)) {
+      const name = canonicalJsxName(current.openingElement.tagName, bindings);
+      if (name && EAGER_CONTROL_CONCEPTS.has(name)) return null;
+    }
+    if (
+      ts.isConditionalExpression(current) &&
+      (current.whenTrue === child || current.whenFalse === child) &&
+      !isConstantCondition(current.condition)
+    ) {
+      return current;
+    }
+    if (
+      ts.isBinaryExpression(current) &&
+      [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken].includes(
+        current.operatorToken.kind,
+      ) &&
+      current.right === child &&
+      !isConstantCondition(current.left)
+    ) {
+      return current;
+    }
+    child = current;
+  }
+  return null;
+}
+
 const stableRenderRule: AnalyzeRule = {
   id: "askr/stable-render-call",
   category: "correctness",
@@ -255,6 +304,26 @@ const stableRenderRule: AnalyzeRule = {
             ),
           );
         }
+      });
+      visit(sourceFile, (node) => {
+        if (!ts.isJsxOpeningElement(node) && !ts.isJsxSelfClosingElement(node)) return;
+        const name = canonicalJsxName(node.tagName, bindings);
+        if (!name || !EAGER_CONTROL_CONCEPTS.has(name)) return;
+        const conditional = unstableControlConditional(node, bindings);
+        if (!conditional) return;
+        const remediation =
+          name === "Show"
+            ? "Mount <Show> unconditionally and move the condition into its when prop."
+            : "Replace the ternary or logical expression with a <Show> boundary.";
+        diagnostics.push(
+          diagnostic(
+            context,
+            node.tagName,
+            this,
+            `<${name}> is mounted behind a changing conditional, so its render position is unstable.`,
+            remediation,
+          ),
+        );
       });
     }
     return diagnostics;
@@ -697,40 +766,59 @@ const stableKeyRule: AnalyzeRule = {
   },
 };
 
-function reactiveMapReceiver(
-  expression: ts.Expression,
-  stateGetters: ReadonlySet<string>,
-): boolean {
-  if (ts.isCallExpression(expression) && ts.isIdentifier(expression.expression)) {
-    return stateGetters.has(expression.expression.text);
+function mapResultIsJsxChild(node: ts.CallExpression): boolean {
+  let current: ts.Expression = node;
+  for (;;) {
+    const parent = current.parent;
+    if (ts.isJsxExpression(parent)) return !ts.isJsxAttribute(parent.parent);
+    if (
+      (ts.isParenthesizedExpression(parent) ||
+        ts.isAsExpression(parent) ||
+        ts.isTypeAssertionExpression(parent) ||
+        ts.isNonNullExpression(parent) ||
+        ts.isSatisfiesExpression(parent)) &&
+      parent.expression === current
+    ) {
+      current = parent;
+      continue;
+    }
+    if (
+      ts.isConditionalExpression(parent) &&
+      (parent.whenTrue === current || parent.whenFalse === current)
+    ) {
+      current = parent;
+      continue;
+    }
+    if (
+      ts.isBinaryExpression(parent) &&
+      ((parent.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken &&
+        parent.right === current) ||
+        (parent.operatorToken.kind === ts.SyntaxKind.BarBarToken &&
+          (parent.left === current || parent.right === current)) ||
+        (parent.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken &&
+          (parent.left === current || parent.right === current)))
+    ) {
+      current = parent;
+      continue;
+    }
+    return false;
   }
-  if (ts.isCallExpression(expression) && ts.isPropertyAccessExpression(expression.expression)) {
-    return reactiveMapReceiver(expression.expression.expression, stateGetters);
-  }
-  if (ts.isPropertyAccessExpression(expression)) {
-    return reactiveMapReceiver(expression.expression, stateGetters);
-  }
-  return false;
 }
 
 const preferForRule: AnalyzeRule = {
   id: "askr/prefer-for",
   category: "performance",
   severity: "warning",
-  description: "Reactive JSX collections should use For for keyed reconciliation.",
+  description: "Collection arrays rendered as JSX children should use For.",
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
-      const state = collectStateBindings(sourceFile, bindings);
       visit(sourceFile, (node) => {
         if (
           !ts.isCallExpression(node) ||
           !ts.isPropertyAccessExpression(node.expression) ||
           node.expression.name.text !== "map" ||
-          !reactiveMapReceiver(node.expression.expression, state.getters) ||
-          !node.parent ||
-          !ts.isJsxExpression(node.parent)
+          !mapResultIsJsxChild(node)
         ) {
           return;
         }
@@ -739,7 +827,7 @@ const preferForRule: AnalyzeRule = {
             context,
             node.expression.name,
             this,
-            "A reactive collection is rendered with .map(), bypassing keyed <For> reconciliation.",
+            "A collection array is rendered with .map(), bypassing keyed <For> reconciliation.",
             "Render it with <For each={...} by={...}>. This semantic rewrite is report-only.",
           ),
         );
