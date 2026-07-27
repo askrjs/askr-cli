@@ -1,6 +1,6 @@
 {
   "name": "@askrjs/cli",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "Unified CLI for the Askr platform",
   "homepage": "https://github.com/askrjs/askr-cli#readme",
   "bugs": {
@@ -36,6 +36,7 @@
     "clean": "npx rimraf dist node_modules",
     "build": "vp pack",
     "dev": "vp pack --watch",
+    "analyze": "tsx src/bin/cli.ts analyze --check",
     "test": "vp test run -c vitest.config.ts",
     "test:coverage": "vp test run -c vitest.config.ts --coverage",
     "fmt": "vp fmt .",
@@ -47,7 +48,7 @@
     "bench": "npm run build --silent && npm run bench:analyze && node --import tsx benchmarks/cli.mjs --gate",
     "bench:analyze": "vp test bench --run -c vitest.bench.config.ts",
     "bench:json": "npm run build --silent && node --import tsx benchmarks/cli.mjs --gate --json",
-    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run test:publint && npm run pack:check",
+    "check": "npm run analyze && npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run test:publint && npm run pack:check",
     "prepack": "npm run build",
     "prepublishOnly": "npm run check && npm run test:templates"
   },
@@ -86,5 +87,12 @@
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
+  },
+  "askr": {
+    "analyze": {
+      "exclude": [
+        "templates/**"
+      ]
+    }
   }
 }
