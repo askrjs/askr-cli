@@ -15,6 +15,7 @@ The unified CLI for the Askr platform.
 - [generate](./generate.md) - Generate a typed client from an OpenAPI document
 - [openapi](./openapi.md) - Export deterministic OpenAPI YAML
 - [ssg](./ssg.md) - Atomically publish static routes and sitemap artifacts
+- [verify-hydration](./verify-hydration.md) - Compare static and hydrated SSG DOM topology
 - [update](./update.md) - Plan and apply manifest-only dependency updates
 - [Workflows](./workflows.md) - End-to-end CLI workflows
 
