@@ -6,6 +6,7 @@ import { runCli } from "../src/bin/cli";
 import { parseVerifyHydrationArgs, runVerifyHydrationCli } from "../src/bin/verify-hydration";
 
 const roots: string[] = [];
+const browserTestTimeout = 30_000;
 
 function io() {
   const logs: string[] = [];
@@ -57,6 +58,7 @@ afterEach(async () => {
 
 describe("verify hydration", () => {
   it("parses route sets and rejects invalid timeouts", () => {
+    const defaultCwd = path.resolve("/workspace");
     expect(
       parseVerifyHydrationArgs(
         [
@@ -74,11 +76,11 @@ describe("verify hydration", () => {
           "--timeout",
           "2500",
         ],
-        "/workspace",
+        defaultCwd,
       ),
     ).toMatchObject({
-      cwd: "/workspace/fixture",
-      outputDir: "/workspace/fixture/.askr/site",
+      cwd: path.resolve(defaultCwd, "fixture"),
+      outputDir: path.resolve(defaultCwd, "fixture", ".askr", "site"),
       routes: ["/", "/docs"],
       rootSelector: "#root",
       build: false,
@@ -97,91 +99,103 @@ describe("verify hydration", () => {
     expect(output.logs.join("\n")).toContain("askr verify-hydration");
   });
 
-  it("accepts structural matches across a metadata route set", async () => {
-    const fixture = await outputFixture({
-      "/": document(
-        `<main><p>static text</p></main>
+  it(
+    "accepts structural matches across a metadata route set",
+    async () => {
+      const fixture = await outputFixture({
+        "/": document(
+          `<main><p>static text</p></main>
          <noscript><aside>JavaScript fallback</aside></noscript>`,
-        `document.querySelector("p").textContent = "hydrated text";
+          `document.querySelector("p").textContent = "hydrated text";
          document.querySelector("p").className = "ready";
          document.querySelector("p").setAttribute("aria-live", "polite");`,
-      ),
-      "/docs": document("<main><article><h1>Docs</h1></article></main>"),
-    });
-    const output = io();
-    const runBuild = vi.fn(async () => undefined);
+        ),
+        "/docs": document("<main><article><h1>Docs</h1></article></main>"),
+      });
+      const output = io();
+      const runBuild = vi.fn(async () => undefined);
 
-    const code = await runVerifyHydrationCli(
-      ["--cwd", fixture.root, "--output", fixture.outputDir],
-      { runBuild },
-      output.value,
-    );
+      const code = await runVerifyHydrationCli(
+        ["--cwd", fixture.root, "--output", fixture.outputDir],
+        { runBuild },
+        output.value,
+      );
 
-    expect(code).toBe(0);
-    expect(runBuild).toHaveBeenCalledWith(fixture.root, "build");
-    expect(output.errors).toEqual([]);
-    expect(output.logs).toEqual(["Verified hydration DOM for 2 route(s)."]);
-  });
+      expect(code, output.errors.join("\n")).toBe(0);
+      expect(runBuild).toHaveBeenCalledWith(fixture.root, "build");
+      expect(output.errors).toEqual([]);
+      expect(output.logs).toEqual(["Verified hydration DOM for 2 route(s)."]);
+    },
+    browserTestTimeout,
+  );
 
-  it("fails when hydration migrates a node into the wrong sibling container", async () => {
-    const fixture = await outputFixture({
-      "/": document("<main><p>Stable</p></main>"),
-      "/broken": document(
-        `<main>
+  it(
+    "fails when hydration migrates a node into the wrong sibling container",
+    async () => {
+      const fixture = await outputFixture({
+        "/": document("<main><p>Stable</p></main>"),
+        "/broken": document(
+          `<main>
           <section><span>Owned by section</span></section>
           <aside></aside>
         </main>`,
-        `const span = document.querySelector("section span");
+          `const span = document.querySelector("section span");
          document.querySelector("aside").append(span);`,
-      ),
-    });
-    const output = io();
+        ),
+      });
+      const output = io();
 
-    const code = await runVerifyHydrationCli(
-      ["--cwd", fixture.root, "--output", fixture.outputDir, "--route", "/broken", "--no-build"],
-      {},
-      output.value,
-    );
+      const code = await runVerifyHydrationCli(
+        ["--cwd", fixture.root, "--output", fixture.outputDir, "--route", "/broken", "--no-build"],
+        {},
+        output.value,
+      );
 
-    expect(code).toBe(1);
-    expect(output.errors.join("\n")).toContain("/broken: DOM diverged");
-    expect(output.errors.join("\n")).toContain("static:");
-    expect(output.errors.join("\n")).toContain("hydrated:");
-    expect(output.errors.join("\n")).not.toContain("/: DOM diverged");
-  });
+      expect(code).toBe(1);
+      expect(output.errors.join("\n")).toContain("/broken: DOM diverged");
+      expect(output.errors.join("\n")).toContain("static:");
+      expect(output.errors.join("\n")).toContain("hydrated:");
+      expect(output.errors.join("\n")).not.toContain("/: DOM diverged");
+    },
+    browserTestTimeout,
+  );
 
-  it("fails closed on browser errors and hydration timeouts", async () => {
-    const failed = await outputFixture({
-      "/error": document(
-        "<main />",
-        `console.error("hydration console failure");
+  it(
+    "fails closed on browser errors and hydration timeouts",
+    async () => {
+      const failed = await outputFixture({
+        "/error": document(
+          "<main />",
+          `console.error("hydration console failure");
          throw new Error("hydration exploded");`,
-      ),
-    });
-    const errorOutput = io();
-    expect(
-      await runVerifyHydrationCli(
-        ["--cwd", failed.root, "--output", failed.outputDir, "--no-build"],
-        {},
-        errorOutput.value,
-      ),
-    ).toBe(1);
-    expect(errorOutput.errors.join("\n")).toContain("hydration exploded");
-    expect(errorOutput.errors.join("\n")).toContain("hydration console failure");
+        ),
+      });
+      const errorOutput = io();
+      expect(
+        await runVerifyHydrationCli(
+          ["--cwd", failed.root, "--output", failed.outputDir, "--no-build"],
+          {},
+          errorOutput.value,
+        ),
+      ).toBe(1);
+      expect(errorOutput.errors.join("\n")).toContain("hydration exploded");
+      expect(errorOutput.errors.join("\n")).toContain("hydration console failure");
 
-    const stalled = await outputFixture({
-      "/stalled": document("<main />", "globalThis.requestAnimationFrame = () => 0;"),
-    });
-    const timeoutOutput = io();
-    expect(
-      await runVerifyHydrationCli(
-        ["--cwd", stalled.root, "--output", stalled.outputDir, "--no-build", "--timeout", "100"],
-        {},
-        timeoutOutput.value,
-      ),
-    ).toBe(1);
-    expect(timeoutOutput.errors.join("\n")).toMatch(/timeout|Timeout/i);
-  });
+      const stalled = await outputFixture({
+        "/stalled": document("<main />", "globalThis.requestAnimationFrame = () => 0;"),
+      });
+      const timeoutOutput = io();
+      expect(
+        await runVerifyHydrationCli(
+          ["--cwd", stalled.root, "--output", stalled.outputDir, "--no-build", "--timeout", "100"],
+          {},
+          timeoutOutput.value,
+        ),
+      ).toBe(1);
+      expect(timeoutOutput.errors.join("\n")).toMatch(/timeout|Timeout/i);
+    },
+    browserTestTimeout,
+  );
 
   it("closes the static server when browser launch fails", async () => {
     const fixture = await outputFixture({ "/": document("<main />") });
