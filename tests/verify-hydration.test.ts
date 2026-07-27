@@ -45,6 +45,7 @@ async function outputFixture(
 function document(body: string, script = ""): string {
   return `<!doctype html>
     <html>
+      <head><link rel="icon" href="data:," /></head>
       <body>
         <div id="app">${body}</div>
         ${script ? `<script type="module">${script}</script>` : ""}
@@ -116,7 +117,7 @@ describe("verify hydration", () => {
       const runBuild = vi.fn(async () => undefined);
 
       const code = await runVerifyHydrationCli(
-        ["--cwd", fixture.root, "--output", fixture.outputDir],
+        ["--cwd", fixture.root, "--output", fixture.outputDir, "--timeout", "2500"],
         { runBuild },
         output.value,
       );
@@ -146,7 +147,17 @@ describe("verify hydration", () => {
       const output = io();
 
       const code = await runVerifyHydrationCli(
-        ["--cwd", fixture.root, "--output", fixture.outputDir, "--route", "/broken", "--no-build"],
+        [
+          "--cwd",
+          fixture.root,
+          "--output",
+          fixture.outputDir,
+          "--route",
+          "/broken",
+          "--no-build",
+          "--timeout",
+          "2500",
+        ],
         {},
         output.value,
       );
@@ -173,7 +184,7 @@ describe("verify hydration", () => {
       const errorOutput = io();
       expect(
         await runVerifyHydrationCli(
-          ["--cwd", failed.root, "--output", failed.outputDir, "--no-build"],
+          ["--cwd", failed.root, "--output", failed.outputDir, "--no-build", "--timeout", "2500"],
           {},
           errorOutput.value,
         ),
