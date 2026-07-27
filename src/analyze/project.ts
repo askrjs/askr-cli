@@ -11,6 +11,7 @@ export const DEFAULT_ANALYZE_EXCLUDES = [
   "**/build/**",
   "**/coverage/**",
   "**/.git/**",
+  "**/.askr/**",
   "**/.next/**",
   "**/.output/**",
   "**/.turbo/**",

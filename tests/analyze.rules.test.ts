@@ -96,6 +96,201 @@ describe("analyzer rules", () => {
     });
   });
 
+  it("reports conditional calls through local render-owned API wrappers", async () => {
+    const root = await fixture({
+      "src/data.ts": `
+        import { createMutation, createQuery as query } from "@askrjs/askr/data";
+        import * as Askr from "@askrjs/askr";
+
+        export function createRowsQuery() {
+          return query({ key: "rows", fetch: async () => [] });
+        }
+        export const createNestedRowsQuery = () => createRowsQuery();
+        export function createSaveMutation() {
+          return createMutation({ action: async () => ({}) });
+        }
+        export function cyclicResourceA() {
+          return cyclicResourceB();
+        }
+        function cyclicResourceB() {
+          if (false) cyclicResourceA();
+          return Askr.resource(async () => [], []);
+        }
+        export function ordinaryHelper() {
+          return "ordinary";
+        }
+      `,
+      "src/page.tsx": `
+        import {
+          createNestedRowsQuery,
+          createSaveMutation as save,
+          cyclicResourceA,
+          ordinaryHelper,
+        } from "./data";
+
+        export function Page(props: { enabled: boolean }) {
+          const stable = createNestedRowsQuery();
+          const stableCycle = cyclicResourceA();
+          const rows = props.enabled ? createNestedRowsQuery() : null;
+          const mutation = props.enabled && save();
+          if (props.enabled) cyclicResourceA();
+          const ordinary = props.enabled ? ordinaryHelper() : "safe";
+          return <div>{String(stable && stableCycle && rows && mutation && ordinary)}</div>;
+        }
+
+        export const nestedComponentBody = (props: { enabled: boolean }) => {
+          if (!props.enabled) return <div>disabled</div>;
+          const rows = createNestedRowsQuery();
+          return <div>{String(rows)}</div>;
+        }
+      `,
+    });
+
+    const found = await diagnostics(root);
+    const unstable = found.filter((entry) => entry.ruleId === "askr/stable-render-call");
+    expect(unstable).toHaveLength(4);
+    expect(unstable.map((entry) => entry.line)).toEqual([12, 13, 14, 21]);
+    expect(unstable.every((entry) => /transitively calls/.test(entry.message))).toBe(true);
+  });
+
+  it("distinguishes unconditional wrappers with conditional render-owned internals", async () => {
+    const root = await fixture({
+      "src/data.ts": `
+        import { createQuery } from "@askrjs/askr/data";
+        export function createOptionalRows(enabled: boolean) {
+          if (enabled) {
+            return createQuery({ key: "rows", fetch: async () => [] });
+          }
+          return null;
+        }
+      `,
+      "src/page.tsx": `
+        import { createOptionalRows } from "./data";
+        export function Page(props: { enabled: boolean }) {
+          const rows = createOptionalRows(props.enabled);
+          return <main>{String(rows)}</main>;
+        }
+      `,
+    });
+
+    const found = await diagnostics(root);
+    expect(found.filter((entry) => entry.ruleId === "askr/stable-render-call")).toEqual([
+      expect.objectContaining({
+        file: "src/page.tsx",
+        line: 4,
+        message: expect.stringContaining("contains conditionally executed render-owned Askr APIs"),
+        remediation: expect.stringContaining("unconditional inside the wrapper"),
+      }),
+    ]);
+  });
+
+  it("reports unmanaged render side effects through wrappers and requires task cleanup", async () => {
+    const root = await fixture({
+      "src/effects.ts": `
+        export function startClock(setNow: (value: number) => void) {
+          window.setInterval(() => setNow(Date.now()), 1000);
+        }
+        export const startNestedClock = (setNow: (value: number) => void) =>
+          startClock(setNow);
+        export function startClockWithCleanup(setNow: (value: number) => void) {
+          const handle = window.setInterval(() => setNow(Date.now()), 1000);
+          return () => window.clearInterval(handle);
+        }
+        export function managedTimerTask() {
+          const handle = setInterval(() => {}, 1000);
+          return () => clearInterval(handle);
+        }
+        export function unmanagedTimerTask() {
+          setTimeout(() => {}, 1000);
+        }
+        export function startObserverCycle() {
+          return observerCycle();
+        }
+        function observerCycle() {
+          if (false) startObserverCycle();
+          return new MutationObserver(() => {});
+        }
+        export const ordinaryHelper = {
+          subscribe() {},
+          addEventListener() {},
+        };
+      `,
+      "src/page.tsx": `
+        import { state, task } from "@askrjs/askr";
+        import {
+          managedTimerTask,
+          ordinaryHelper,
+          startClockWithCleanup,
+          startNestedClock,
+          startObserverCycle,
+          unmanagedTimerTask,
+        } from "./effects";
+        declare const unrelatedHandle: ReturnType<typeof setTimeout>;
+        declare const otherObserver: { disconnect(): void };
+
+        export function Page() {
+          const [, setNow] = state(Date.now());
+          startNestedClock(setNow);
+          startObserverCycle();
+          task(() => {
+            setTimeout(() => setNow(Date.now()), 1000);
+          });
+          task(() => {
+            const handle = setInterval(() => setNow(Date.now()), 1000);
+            return () => clearInterval(handle);
+          });
+          task(() => {
+            window.addEventListener("resize", setNow);
+            return () => window.removeEventListener("resize", setNow);
+          });
+          task(() => {
+            window.addEventListener("scroll", setNow);
+          });
+          task(() => startClockWithCleanup(setNow));
+          task(() => {
+            const observer = new ResizeObserver(() => {});
+            observer.observe(document.body);
+            return () => observer.disconnect();
+          });
+          task(() => {
+            const handle = setInterval(() => setNow(Date.now()), 1000);
+            return () => clearTimeout(handle);
+          });
+          task(() => {
+            const handle = setTimeout(() => setNow(Date.now()), 1000);
+            return () => clearTimeout(unrelatedHandle);
+          });
+          task(() => {
+            const observer = new MutationObserver(() => {});
+            observer.observe(document.body);
+            return () => otherObserver.disconnect();
+          });
+          task(managedTimerTask);
+          task(unmanagedTimerTask);
+          ordinaryHelper.subscribe();
+          ordinaryHelper.addEventListener();
+          const onClick = () => setTimeout(() => setNow(Date.now()), 1000);
+          return <button onClick={onClick}>tick</button>;
+        }
+      `,
+    });
+
+    const found = await diagnostics(root);
+    const sideEffects = found.filter((entry) => entry.ruleId === "askr/render-side-effect");
+    expect(sideEffects).toHaveLength(9);
+    expect(
+      sideEffects.filter((entry) => entry.file === "src/page.tsx").map((entry) => entry.line),
+    ).toEqual([16, 17, 19, 30, 32, 39, 43, 47]);
+    expect(sideEffects.filter((entry) => entry.file === "src/effects.ts")).toEqual([
+      expect.objectContaining({
+        message: expect.stringMatching(
+          /task starts timer side effects without returning matching cleanup/,
+        ),
+      }),
+    ]);
+    expect(sideEffects.some((entry) => /cleanup/.test(entry.remediation ?? ""))).toBe(true);
+  });
+
   it("checks resource cancellation and stable dependencies while accepting forwarded signals", async () => {
     const root = await fixture({
       "src/page.tsx": `
@@ -171,6 +366,54 @@ describe("analyzer rules", () => {
     expect(unstable.map((entry) => entry.line)).toEqual([11, 12, 14]);
     expect(unstable.every((entry) => /<Show>/.test(entry.remediation ?? ""))).toBe(true);
     expect(unstable[1]?.remediation).toMatch(/Mount <Show> unconditionally/);
+  });
+
+  it("reports eager controls reached after conditional early returns", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { Case, For, Show } from "@askrjs/askr";
+
+        export function ForPage(props: { skip: boolean }) {
+          if (props.skip) return null;
+          return <For each={["a"]} by={(item) => item}>{(item) => <p>{item}</p>}</For>;
+        }
+        export function ShowPage(props: { skip: boolean }) {
+          if (props.skip) return <div>skipped</div>;
+          return <Show when={true}>shown</Show>;
+        }
+        export function CasePage(props: { skip: boolean }) {
+          if (props.skip) return null;
+          return <Case>matched</Case>;
+        }
+        export function ConstantEarlyReturn() {
+          if (false) return null;
+          return <For each={["a"]} by={(item) => item}>{(item) => <p>{item}</p>}</For>;
+        }
+        export function ReturnAfterControl(props: { skip: boolean }) {
+          const control = <Show when={true}>shown</Show>;
+          if (props.skip) return null;
+          return control;
+        }
+        export function NestedReturn(props: { skip: boolean }) {
+          const helper = () => {
+            if (props.skip) return null;
+            return "ready";
+          };
+          helper();
+          return <For each={["a"]} by={(item) => item}>{(item) => <p>{item}</p>}</For>;
+        }
+        export function OrdinaryJsx(props: { skip: boolean }) {
+          if (props.skip) return null;
+          return <div>ordinary</div>;
+        }
+      `,
+    });
+
+    const found = await diagnostics(root);
+    const unstable = found.filter((entry) => entry.ruleId === "askr/stable-render-call");
+    expect(unstable).toHaveLength(3);
+    expect(unstable.map((entry) => entry.line)).toEqual([6, 10, 14]);
+    expect(unstable.every((entry) => /early return/.test(entry.message))).toBe(true);
   });
 
   it("reports map arrays rendered as JSX children but accepts data transformations", async () => {
