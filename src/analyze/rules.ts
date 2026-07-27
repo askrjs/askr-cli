@@ -6,6 +6,7 @@ import {
   RENDER_SCOPED_CONCEPTS,
   type ImportedAskrBinding,
 } from "./catalog";
+import { localCallGraph, summarizeTransitiveCalls } from "./call-graph";
 import { workspaceRelativeFile } from "./project";
 import type {
   AnalyzeDiagnostic,
@@ -176,9 +177,11 @@ function containingFunction(node: ts.Node): ts.SignatureDeclaration | null {
 
 function isControlFlowAncestor(node: ts.Node, boundary: ts.Node): boolean {
   for (let current = node.parent; current && current !== boundary; current = current.parent) {
+    if (ts.isIfStatement(current) && !isConstantCondition(current.expression)) {
+      return true;
+    }
     if (
-      ts.isIfStatement(current) ||
-      ts.isConditionalExpression(current) ||
+      (ts.isConditionalExpression(current) && !isConstantCondition(current.condition)) ||
       ts.isSwitchStatement(current) ||
       ts.isForStatement(current) ||
       ts.isForInStatement(current) ||
@@ -193,10 +196,53 @@ function isControlFlowAncestor(node: ts.Node, boundary: ts.Node): boolean {
       ts.isBinaryExpression(current) &&
       [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken].includes(
         current.operatorToken.kind,
-      )
+      ) &&
+      !isConstantCondition(current.left)
     ) {
       return true;
     }
+  }
+  return hasConditionalEarlyExitBefore(node, boundary);
+}
+
+function containsFunctionExit(node: ts.Node): boolean {
+  let found = false;
+  const walk = (candidate: ts.Node): void => {
+    if (found || (candidate !== node && ts.isFunctionLike(candidate))) return;
+    if (ts.isReturnStatement(candidate) || ts.isThrowStatement(candidate)) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(candidate, walk);
+  };
+  walk(node);
+  return found;
+}
+
+function hasConditionalEarlyExitBefore(node: ts.Node, boundary: ts.Node): boolean {
+  let child: ts.Node = node;
+  for (let current = node.parent; current && current !== boundary; current = current.parent) {
+    if (ts.isBlock(current)) {
+      const statement = current.statements.find(
+        (candidate) =>
+          candidate === child || (candidate.pos <= child.pos && child.end <= candidate.end),
+      );
+      const index = statement ? current.statements.indexOf(statement) : -1;
+      if (
+        index > 0 &&
+        current.statements
+          .slice(0, index)
+          .some(
+            (candidate) =>
+              ts.isIfStatement(candidate) &&
+              !isConstantCondition(candidate.expression) &&
+              containsFunctionExit(candidate),
+          )
+      ) {
+        return true;
+      }
+    }
+    child = current;
   }
   return false;
 }
@@ -266,12 +312,56 @@ const stableRenderRule: AnalyzeRule = {
   description: "Render-scoped Askr primitives must have stable top-level call order.",
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
+    const wrapperSummary = summarizeTransitiveCalls(
+      context,
+      (call) => {
+        if (!ts.isCallExpression(call)) return null;
+        const name = canonicalCallName(call.expression, sourceBindings(call.getSourceFile()));
+        return name && (RENDER_SCOPED_CONCEPTS.has(name) || POSITIONAL_DATA_CONCEPTS.has(name))
+          ? {
+              value: name,
+              unstable: Boolean(
+                containingFunction(call) && isControlFlowAncestor(call, containingFunction(call)!),
+              ),
+            }
+          : null;
+      },
+      isControlFlowAncestor,
+    );
     for (const sourceFile of context.sourceFiles) {
       const bindings = sourceBindings(sourceFile);
       visit(sourceFile, (node) => {
         if (!ts.isCallExpression(node)) return;
         const name = canonicalCallName(node.expression, bindings);
         if (!name || (!RENDER_SCOPED_CONCEPTS.has(name) && !POSITIONAL_DATA_CONCEPTS.has(name))) {
+          const summary = wrapperSummary.forCall(node);
+          const owner = containingFunction(node);
+          if (
+            !summary ||
+            summary.values.size === 0 ||
+            !owner ||
+            (!/^[A-Z]/.test(functionName(owner) ?? "") && !containsJsx(owner)) ||
+            (!isControlFlowAncestor(node, owner) && summary.unstableValues.size === 0)
+          ) {
+            return;
+          }
+          const conditionalCallSite = isControlFlowAncestor(node, owner);
+          const conditionalWrapperInternals = summary.unstableValues.size > 0;
+          const concepts = [
+            ...(conditionalWrapperInternals ? summary.unstableValues : summary.values),
+          ]
+            .sort()
+            .join(", ");
+          const message =
+            conditionalCallSite && conditionalWrapperInternals
+              ? `${node.expression.getText()}() is called conditionally and transitively contains conditionally executed render-owned Askr APIs (${concepts}).`
+              : conditionalCallSite
+                ? `${node.expression.getText()}() is called conditionally and transitively calls render-owned Askr APIs (${concepts}).`
+                : `${node.expression.getText()}() transitively contains conditionally executed render-owned Askr APIs (${concepts}).`;
+          const remediation = conditionalCallSite
+            ? "Call the wrapper unconditionally at the top level and branch on its result or inputs."
+            : "Make the render-owned call unconditional inside the wrapper and branch on its result or inputs.";
+          diagnostics.push(diagnostic(context, node.expression, this, message, remediation));
           return;
         }
         const owner = containingFunction(node);
@@ -310,9 +400,16 @@ const stableRenderRule: AnalyzeRule = {
         const name = canonicalJsxName(node.tagName, bindings);
         if (!name || !EAGER_CONTROL_CONCEPTS.has(name)) return;
         const conditional = unstableControlConditional(node, bindings);
-        if (!conditional) return;
-        const remediation =
-          name === "Show"
+        const owner = containingFunction(node);
+        const followsEarlyReturn = Boolean(owner && hasConditionalEarlyExitBefore(node, owner));
+        if (!conditional && !followsEarlyReturn) return;
+        const remediation = followsEarlyReturn
+          ? name === "For"
+            ? "Keep <For> mounted and represent the unavailable case with an empty each source."
+            : name === "Show"
+              ? "Keep <Show> mounted and move the condition into its when prop."
+              : "Keep <Case> mounted and express the condition in its branches."
+          : name === "Show"
             ? "Mount <Show> unconditionally and move the condition into its when prop."
             : "Replace the ternary or logical expression with a <Show> boundary.";
         diagnostics.push(
@@ -320,11 +417,378 @@ const stableRenderRule: AnalyzeRule = {
             context,
             node.tagName,
             this,
-            `<${name}> is mounted behind a changing conditional, so its render position is unstable.`,
+            followsEarlyReturn
+              ? `<${name}> is reached after a conditional early return, so its render position is unstable.`
+              : `<${name}> is mounted behind a changing conditional, so its render position is unstable.`,
             remediation,
           ),
         );
       });
+    }
+    return diagnostics;
+  },
+};
+
+type RenderSideEffect = "listener" | "observer" | "subscription" | "timer";
+
+const TIMER_STARTS = new Set(["requestAnimationFrame", "setInterval", "setTimeout"]);
+const OBSERVER_CONSTRUCTORS = new Set([
+  "IntersectionObserver",
+  "MutationObserver",
+  "ResizeObserver",
+]);
+const SUBSCRIPTION_CONSTRUCTORS = new Set(["BroadcastChannel", "EventSource", "WebSocket"]);
+const PLATFORM_EVENT_TARGET_TYPES =
+  /^(?:AbortSignal|Document|EventTarget|HTMLElement|MediaQueryList|Window)(?:<.*>)?$/;
+const PROJECT_SOURCE_FILES = new WeakMap<ts.Program, ReadonlySet<ts.SourceFile>>();
+const CLEANUP_CALLS = new WeakMap<ts.SignatureDeclaration, readonly ts.CallExpression[]>();
+
+function projectDeclaredIdentifier(
+  identifier: ts.Identifier,
+  context: WorkspaceAnalysisContext,
+): boolean {
+  let symbol = context.checker.getSymbolAtLocation(identifier);
+  if (symbol && (symbol.flags & ts.SymbolFlags.Alias) !== 0) {
+    symbol = context.checker.getAliasedSymbol(symbol);
+  }
+  let sourceFiles = PROJECT_SOURCE_FILES.get(context.program);
+  if (!sourceFiles) {
+    sourceFiles = new Set(context.sourceFiles);
+    PROJECT_SOURCE_FILES.set(context.program, sourceFiles);
+  }
+  return (
+    symbol?.declarations?.some((declaration) => sourceFiles.has(declaration.getSourceFile())) ??
+    false
+  );
+}
+
+function knownGlobalObject(expression: ts.Expression, context: WorkspaceAnalysisContext): boolean {
+  return (
+    ts.isIdentifier(expression) &&
+    ["document", "globalThis", "window"].includes(expression.text) &&
+    !projectDeclaredIdentifier(expression, context)
+  );
+}
+
+function typedPlatformEventTarget(
+  expression: ts.Expression,
+  context: WorkspaceAnalysisContext,
+): boolean {
+  if (knownGlobalObject(expression, context)) return true;
+  if (!ts.isIdentifier(expression)) return false;
+  const symbol = context.checker.getSymbolAtLocation(expression);
+  return Boolean(
+    symbol?.declarations?.some((declaration) => {
+      if (
+        !ts.isVariableDeclaration(declaration) &&
+        !ts.isParameter(declaration) &&
+        !ts.isPropertyDeclaration(declaration)
+      ) {
+        return false;
+      }
+      return Boolean(
+        declaration.type && PLATFORM_EVENT_TARGET_TYPES.test(declaration.type.getText()),
+      );
+    }),
+  );
+}
+
+function directGlobalCall(
+  call: ts.CallExpression,
+  names: ReadonlySet<string>,
+  context: WorkspaceAnalysisContext,
+): string | null {
+  if (
+    ts.isIdentifier(call.expression) &&
+    names.has(call.expression.text) &&
+    !projectDeclaredIdentifier(call.expression, context)
+  ) {
+    return call.expression.text;
+  }
+  if (
+    ts.isPropertyAccessExpression(call.expression) &&
+    names.has(call.expression.name.text) &&
+    knownGlobalObject(call.expression.expression, context)
+  ) {
+    return call.expression.name.text;
+  }
+  return null;
+}
+
+function platformConstructorName(
+  expression: ts.LeftHandSideExpression,
+  context: WorkspaceAnalysisContext,
+): string | null {
+  if (ts.isIdentifier(expression) && !projectDeclaredIdentifier(expression, context)) {
+    return expression.text;
+  }
+  if (
+    ts.isPropertyAccessExpression(expression) &&
+    knownGlobalObject(expression.expression, context)
+  ) {
+    return expression.name.text;
+  }
+  return null;
+}
+
+function renderSideEffect(
+  node: ts.CallExpression | ts.NewExpression,
+  context: WorkspaceAnalysisContext,
+): RenderSideEffect | null {
+  if (ts.isNewExpression(node)) {
+    const name = platformConstructorName(node.expression, context);
+    if (name && OBSERVER_CONSTRUCTORS.has(name)) return "observer";
+    if (name && SUBSCRIPTION_CONSTRUCTORS.has(name)) return "subscription";
+    return null;
+  }
+  if (directGlobalCall(node, TIMER_STARTS, context)) return "timer";
+  if (
+    ts.isPropertyAccessExpression(node.expression) &&
+    node.expression.name.text === "addEventListener" &&
+    typedPlatformEventTarget(node.expression.expression, context)
+  ) {
+    return "listener";
+  }
+  if (
+    ts.isPropertyAccessExpression(node.expression) &&
+    node.expression.name.text === "watchPosition" &&
+    ts.isPropertyAccessExpression(node.expression.expression) &&
+    node.expression.expression.name.text === "geolocation" &&
+    ts.isIdentifier(node.expression.expression.expression) &&
+    node.expression.expression.expression.text === "navigator" &&
+    !projectDeclaredIdentifier(node.expression.expression.expression, context)
+  ) {
+    return "subscription";
+  }
+  return null;
+}
+
+function terminalCleanupFunction(
+  callback: ts.SignatureDeclaration,
+  context: WorkspaceAnalysisContext,
+): ts.SignatureDeclaration | null {
+  if (!("body" in callback) || !callback.body) return null;
+  let returned: ts.Expression | undefined;
+  if (ts.isArrowFunction(callback) && !ts.isBlock(callback.body)) {
+    returned = callback.body;
+  } else if (ts.isBlock(callback.body)) {
+    const last = callback.body.statements.at(-1);
+    if (last && ts.isReturnStatement(last)) returned = last.expression;
+  }
+  return resolvedFunction(returned, context);
+}
+
+function cleanupCalls(
+  callback: ts.SignatureDeclaration,
+  context: WorkspaceAnalysisContext,
+): readonly ts.CallExpression[] {
+  const cached = CLEANUP_CALLS.get(callback);
+  if (cached) return cached;
+  const cleanup = terminalCleanupFunction(callback, context);
+  if (!cleanup) {
+    CLEANUP_CALLS.set(callback, []);
+    return [];
+  }
+  const calls: ts.CallExpression[] = [];
+  const walk = (node: ts.Node): void => {
+    if (node !== cleanup && ts.isFunctionLike(node)) return;
+    if (ts.isCallExpression(node)) calls.push(node);
+    ts.forEachChild(node, walk);
+  };
+  walk(cleanup);
+  CLEANUP_CALLS.set(callback, calls);
+  return calls;
+}
+
+function assignedEffectReference(node: ts.CallExpression | ts.NewExpression): ts.Expression | null {
+  const parent = node.parent;
+  if (ts.isVariableDeclaration(parent) && parent.initializer === node) {
+    return ts.isIdentifier(parent.name) ? parent.name : null;
+  }
+  if (
+    ts.isBinaryExpression(parent) &&
+    parent.right === node &&
+    parent.operatorToken.kind === ts.SyntaxKind.EqualsToken
+  ) {
+    return parent.left;
+  }
+  return null;
+}
+
+function sameReference(
+  left: ts.Expression | undefined,
+  right: ts.Expression | undefined,
+  context: WorkspaceAnalysisContext,
+): boolean {
+  if (!left || !right) return false;
+  let leftSymbol = context.checker.getSymbolAtLocation(left);
+  let rightSymbol = context.checker.getSymbolAtLocation(right);
+  if (leftSymbol && (leftSymbol.flags & ts.SymbolFlags.Alias) !== 0) {
+    leftSymbol = context.checker.getAliasedSymbol(leftSymbol);
+  }
+  if (rightSymbol && (rightSymbol.flags & ts.SymbolFlags.Alias) !== 0) {
+    rightSymbol = context.checker.getAliasedSymbol(rightSymbol);
+  }
+  return leftSymbol && rightSymbol
+    ? leftSymbol === rightSymbol
+    : left.getText() === right.getText();
+}
+
+function taskCleansDirectEffect(
+  callback: ts.SignatureDeclaration,
+  node: ts.CallExpression | ts.NewExpression,
+  effect: RenderSideEffect,
+  context: WorkspaceAnalysisContext,
+): boolean {
+  const cleanup = cleanupCalls(callback, context);
+  if (effect === "listener" && ts.isCallExpression(node)) {
+    if (
+      !ts.isPropertyAccessExpression(node.expression) ||
+      node.expression.name.text !== "addEventListener"
+    ) {
+      return false;
+    }
+    const startExpression = node.expression;
+    return cleanup.some(
+      (call) =>
+        ts.isPropertyAccessExpression(call.expression) &&
+        call.expression.name.text === "removeEventListener" &&
+        sameReference(call.expression.expression, startExpression.expression, context) &&
+        sameReference(call.arguments[0], node.arguments[0], context) &&
+        sameReference(call.arguments[1], node.arguments[1], context) &&
+        (node.arguments[2] === undefined ||
+          sameReference(call.arguments[2], node.arguments[2], context)),
+    );
+  }
+
+  const handle = assignedEffectReference(node);
+  if (!handle) return false;
+  if (effect === "timer" && ts.isCallExpression(node)) {
+    const start = directGlobalCall(node, TIMER_STARTS, context);
+    const expected =
+      start === "setInterval"
+        ? "clearInterval"
+        : start === "setTimeout"
+          ? "clearTimeout"
+          : start === "requestAnimationFrame"
+            ? "cancelAnimationFrame"
+            : null;
+    const expectedSet = expected ? new Set([expected]) : new Set<string>();
+    return cleanup.some(
+      (call) =>
+        Boolean(directGlobalCall(call, expectedSet, context)) &&
+        sameReference(call.arguments[0], handle, context),
+    );
+  }
+  if (effect === "observer") {
+    return cleanup.some(
+      (call) =>
+        ts.isPropertyAccessExpression(call.expression) &&
+        call.expression.name.text === "disconnect" &&
+        sameReference(call.expression.expression, handle, context),
+    );
+  }
+  if (effect === "subscription") {
+    return cleanup.some((call) => {
+      if (
+        ts.isPropertyAccessExpression(call.expression) &&
+        (call.expression.name.text === "close" || call.expression.name.text === "unsubscribe") &&
+        sameReference(call.expression.expression, handle, context)
+      ) {
+        return true;
+      }
+      return (
+        ts.isCallExpression(node) &&
+        ts.isPropertyAccessExpression(call.expression) &&
+        call.expression.name.text === "clearWatch" &&
+        ts.isPropertyAccessExpression(call.expression.expression) &&
+        call.expression.expression.name.text === "geolocation" &&
+        ts.isIdentifier(call.expression.expression.expression) &&
+        call.expression.expression.expression.text === "navigator" &&
+        !projectDeclaredIdentifier(call.expression.expression.expression, context) &&
+        sameReference(call.arguments[0], handle, context)
+      );
+    });
+  }
+  return false;
+}
+
+function isRenderFunction(owner: ts.SignatureDeclaration): boolean {
+  return /^[A-Z]/.test(functionName(owner) ?? "") || containsJsx(owner);
+}
+
+const renderSideEffectRule: AnalyzeRule = {
+  id: "askr/render-side-effect",
+  category: "correctness",
+  severity: "error",
+  description: "Platform side effects started during render require lifecycle-owned cleanup.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    const graph = localCallGraph(context);
+    const summary = summarizeTransitiveCalls<RenderSideEffect>(
+      context,
+      (node) => {
+        const effect = renderSideEffect(node, context);
+        return effect ? { value: effect } : null;
+      },
+      () => false,
+    );
+    const lifecycleCallbacks = new Set<ts.SignatureDeclaration>();
+    for (const site of graph.calls) {
+      const name = canonicalCallName(
+        site.node.expression,
+        sourceBindings(site.node.getSourceFile()),
+      );
+      if (name !== "task") continue;
+      const argument = site.node.arguments[0];
+      const callback =
+        resolvedFunction(argument, context) ??
+        (argument ? graph.functionForExpression(argument) : null);
+      if (callback) lifecycleCallbacks.add(callback);
+    }
+
+    const report = (
+      node: ts.CallExpression | ts.NewExpression,
+      effects: ReadonlySet<RenderSideEffect>,
+      direct = false,
+    ): void => {
+      const owner = containingFunction(node);
+      if (!owner) return;
+      const managed = lifecycleCallbacks.has(owner);
+      if (
+        managed &&
+        direct &&
+        [...effects].every((effect) => taskCleansDirectEffect(owner, node, effect, context))
+      ) {
+        return;
+      }
+      if (!managed && !isRenderFunction(owner)) return;
+      const effectNames = [...effects].sort().join(", ");
+      diagnostics.push(
+        diagnostic(
+          context,
+          node.expression,
+          this,
+          managed
+            ? `This task starts ${effectNames} side effects without returning matching cleanup.`
+            : `${node.expression.getText()} starts unmanaged ${effectNames} side effects during render.`,
+          "Start the effect in task() and return cleanup that clears, disconnects, removes, closes, or unsubscribes it.",
+        ),
+      );
+    };
+
+    for (const site of graph.calls) {
+      const direct = renderSideEffect(site.node, context);
+      if (direct) {
+        report(site.node, new Set([direct]), true);
+        continue;
+      }
+      const wrapper = summary.forCall(site.node);
+      if (wrapper && wrapper.values.size > 0) report(site.node, wrapper.values);
+    }
+    for (const site of graph.constructions) {
+      const direct = renderSideEffect(site.node, context);
+      if (direct) report(site.node, new Set([direct]), true);
     }
     return diagnostics;
   },
@@ -837,7 +1301,11 @@ const preferForRule: AnalyzeRule = {
   },
 };
 
+const CONTAINS_JSX = new WeakMap<ts.Node, boolean>();
+
 function containsJsx(node: ts.Node): boolean {
+  const cached = CONTAINS_JSX.get(node);
+  if (cached !== undefined) return cached;
   let found = false;
   const walk = (candidate: ts.Node): void => {
     if (found) return;
@@ -848,6 +1316,7 @@ function containsJsx(node: ts.Node): boolean {
     ts.forEachChild(candidate, walk);
   };
   walk(node);
+  CONTAINS_JSX.set(node, found);
   return found;
 }
 
@@ -2244,6 +2713,7 @@ const parseErrorRule: AnalyzeRule = {
 export const ANALYZE_RULES: readonly AnalyzeRule[] = [
   parseErrorRule,
   stableRenderRule,
+  renderSideEffectRule,
   stateAccessRule,
   stateRenderWriteRule,
   resourceCancellationRule,
