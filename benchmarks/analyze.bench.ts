@@ -61,6 +61,11 @@ async function createWorkspace(
     include: ["src"],
   });
   await fs.mkdir(path.join(directory, "src"), { recursive: true });
+  await fs.mkdir(path.join(directory, ".askr", "client", "assets"), { recursive: true });
+  await fs.writeFile(
+    path.join(directory, ".askr", "client", "assets", "generated.js"),
+    "export function BundledPage() { const value = new Set(); return value.size; }\n",
+  );
   await Promise.all(
     Array.from({ length: sourceCount }, (_, index) =>
       fs.writeFile(

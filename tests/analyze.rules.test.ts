@@ -153,6 +153,37 @@ describe("analyzer rules", () => {
     expect(unstable.every((entry) => /transitively calls/.test(entry.message))).toBe(true);
   });
 
+  it("distinguishes unconditional wrappers with conditional render-owned internals", async () => {
+    const root = await fixture({
+      "src/data.ts": `
+        import { createQuery } from "@askrjs/askr/data";
+        export function createOptionalRows(enabled: boolean) {
+          if (enabled) {
+            return createQuery({ key: "rows", fetch: async () => [] });
+          }
+          return null;
+        }
+      `,
+      "src/page.tsx": `
+        import { createOptionalRows } from "./data";
+        export function Page(props: { enabled: boolean }) {
+          const rows = createOptionalRows(props.enabled);
+          return <main>{String(rows)}</main>;
+        }
+      `,
+    });
+
+    const found = await diagnostics(root);
+    expect(found.filter((entry) => entry.ruleId === "askr/stable-render-call")).toEqual([
+      expect.objectContaining({
+        file: "src/page.tsx",
+        line: 4,
+        message: expect.stringContaining("contains conditionally executed render-owned Askr APIs"),
+        remediation: expect.stringContaining("unconditional inside the wrapper"),
+      }),
+    ]);
+  });
+
   it("reports unmanaged render side effects through wrappers and requires task cleanup", async () => {
     const root = await fixture({
       "src/effects.ts": `

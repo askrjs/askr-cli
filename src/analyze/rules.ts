@@ -345,16 +345,23 @@ const stableRenderRule: AnalyzeRule = {
           ) {
             return;
           }
-          const concepts = [...summary.values].sort().join(", ");
-          diagnostics.push(
-            diagnostic(
-              context,
-              node.expression,
-              this,
-              `${node.expression.getText()}() is called conditionally and transitively calls render-owned Askr APIs (${concepts}).`,
-              "Call the wrapper unconditionally at the top level and branch on its result or inputs.",
-            ),
-          );
+          const conditionalCallSite = isControlFlowAncestor(node, owner);
+          const conditionalWrapperInternals = summary.unstableValues.size > 0;
+          const concepts = [
+            ...(conditionalWrapperInternals ? summary.unstableValues : summary.values),
+          ]
+            .sort()
+            .join(", ");
+          const message =
+            conditionalCallSite && conditionalWrapperInternals
+              ? `${node.expression.getText()}() is called conditionally and transitively contains conditionally executed render-owned Askr APIs (${concepts}).`
+              : conditionalCallSite
+                ? `${node.expression.getText()}() is called conditionally and transitively calls render-owned Askr APIs (${concepts}).`
+                : `${node.expression.getText()}() transitively contains conditionally executed render-owned Askr APIs (${concepts}).`;
+          const remediation = conditionalCallSite
+            ? "Call the wrapper unconditionally at the top level and branch on its result or inputs."
+            : "Make the render-owned call unconditional inside the wrapper and branch on its result or inputs.";
+          diagnostics.push(diagnostic(context, node.expression, this, message, remediation));
           return;
         }
         const owner = containingFunction(node);

@@ -146,8 +146,11 @@ Configure the analyzer in the workspace root `package.json`:
 ```
 
 Rule values are `error`, `warning`, `info`, or `off`. Exclusions are applied
-relative to each workspace. The analyzer always ignores dependency, VCS,
-coverage, generated, and common build-output directories by default.
+relative to each workspace and extend the built-in defaults. The analyzer
+always ignores dependency, VCS, coverage, generated, and common build-output
+directories by default, including `.askr/**`, `dist/**`, and `build/**`.
+TypeScript `include` entries do not re-enable those generated directories;
+analyze the original source that produced an artifact instead.
 
 ## CI
 
