@@ -1,7 +1,6 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runAnalysis } from "../src/analyze/runner";
 import { runCli } from "../src/bin/cli";
@@ -168,6 +167,34 @@ describe("guardrail commands", () => {
     ]);
   });
 
+  it("automatically validates a discovered database before project scripts", async () => {
+    const root = await fixture();
+    await fs.mkdir(path.join(root, "database"), { recursive: true });
+    await fs.writeFile(path.join(root, "database", "index.ts"), "export default {};\n");
+    const order: string[] = [];
+    const report = await runCheck(
+      { cwd: root, workspacePatterns: [] },
+      {
+        runDatabaseValidation: vi.fn(async () => {
+          order.push("database");
+          return { status: "passed" as const, exitCode: 0, stdout: "", stderr: "" };
+        }),
+        runScript: vi.fn(async (_executable, args) => {
+          order.push(String(args.at(-1)));
+          return { status: "passed" as const, exitCode: 0, stdout: "", stderr: "" };
+        }),
+      },
+    );
+
+    expect(report.status).toBe("passed");
+    expect(order).toEqual(["database", "lint", "typecheck", "test", "build"]);
+    expect(report.scripts[0]).toMatchObject({
+      name: "database",
+      command: "askr database validate",
+      status: "passed",
+    });
+  });
+
   it("does not run project scripts until blocking analysis findings are repaired", async () => {
     const root = await fixture({
       source: ['import { state } from "@askrjs/askr";', "export const count = state(0);", ""].join(
@@ -245,9 +272,9 @@ describe("guardrail commands", () => {
 
 describe("shipped template guardrails", () => {
   it("keeps every template analyzer-clean and wired to the unified check", async () => {
-    const templatesRoot = fileURLToPath(new URL("../templates/", import.meta.url));
+    const templatesRoot = new URL("../templates/", import.meta.url);
     for (const name of ["full-stack", "spa", "ssg", "ssr", "startkit"]) {
-      const root = path.join(templatesRoot, name);
+      const root = path.join(templatesRoot.pathname, name);
       const report = await runAnalysis({ cwd: root, workspacePatterns: [], check: true });
       const manifest = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8")) as {
         scripts?: Record<string, string>;
