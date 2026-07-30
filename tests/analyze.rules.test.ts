@@ -96,6 +96,25 @@ describe("analyzer rules", () => {
     });
   });
 
+  it("reports unstable onRouteChange calls", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { onRouteChange } from "@askrjs/askr/resources";
+        onRouteChange(() => {});
+        export function Page(props: { tracking: boolean }) {
+          if (props.tracking) onRouteChange(() => {});
+          return <main />;
+        }
+      `,
+    });
+
+    const found = await diagnostics(root);
+    expect(found.filter((entry) => entry.ruleId === "askr/stable-render-call")).toEqual([
+      expect.objectContaining({ line: 3, severity: "error" }),
+      expect.objectContaining({ line: 5, severity: "error" }),
+    ]);
+  });
+
   it("checks resource cancellation and stable dependencies while accepting forwarded signals", async () => {
     const root = await fixture({
       "src/page.tsx": `
