@@ -180,33 +180,6 @@ function runtimeLiteralText(node: ts.Node): string | null {
   return null;
 }
 
-const hardcodedThemeTokenRule: AnalyzeRule = {
-  id: "askr/no-hardcoded-theme-token",
-  category: "correctness",
-  severity: "warning",
-  description: "Runtime code must not name Askr theme tokens directly.",
-  analyze(context) {
-    if (context.workspace.name === "@askrjs/themes") return [];
-    const diagnostics: AnalyzeDiagnostic[] = [];
-    for (const sourceFile of context.sourceFiles) {
-      visit(sourceFile, (node) => {
-        const text = runtimeLiteralText(node);
-        if (text === null || !text.includes("--ak-")) return;
-        diagnostics.push(
-          diagnostic(
-            context,
-            node,
-            this,
-            "Runtime code names an Askr theme token directly; use a semantic class or data-* attribute instead.",
-            "Move the token mapping to theme CSS and select it through a semantic class or data-* attribute.",
-          ),
-        );
-      });
-    }
-    return diagnostics;
-  },
-};
-
 function containingFunction(node: ts.Node): ts.SignatureDeclaration | null {
   for (let current = node.parent; current; current = current.parent) {
     if (ts.isFunctionLike(current)) return current;
@@ -2852,26 +2825,40 @@ const hardcodedThemeTokenRule: AnalyzeRule = {
   id: "askr/no-hardcoded-theme-token",
   category: "correctness",
   severity: "warning",
-  description: "Runtime UI literals should use semantic theme tokens.",
+  description: "Runtime UI literals should use semantic theme styling.",
   analyze(context) {
-    if (["@askrjs/askr", "@askrjs/themes"].includes(packageName(context.workspace.manifest)))
-      return [];
+    const workspacePackage = packageName(context.workspace.manifest);
+    const ownsThemeTokens = workspacePackage === "@askrjs/themes";
+    const mayHardcodeColors = ["@askrjs/askr", "@askrjs/themes"].includes(workspacePackage);
     const diagnostics: AnalyzeDiagnostic[] = [];
     const color = /(?:#[0-9a-f]{3,8}\b|\brgba?\s*\(|\bhsla?\s*\()/i;
     for (const sourceFile of context.sourceFiles) {
-      if (/(?:^|[./_-])(?:test|spec)\.[cm]?[jt]sx?$/.test(sourceFile.fileName)) continue;
-      if (!color.test(sourceFile.text)) continue;
+      const checkColors =
+        !mayHardcodeColors &&
+        !/(?:^|[./_-])(?:test|spec)\.[cm]?[jt]sx?$/.test(sourceFile.fileName) &&
+        color.test(sourceFile.text);
+      const checkTokens = !ownsThemeTokens && sourceFile.text.includes("--ak-");
+      if (!checkColors && !checkTokens) continue;
       visit(sourceFile, (node) => {
-        if (
-          (ts.isStringLiteralLike(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
-          color.test(node.text)
-        ) {
+        const text = runtimeLiteralText(node);
+        if (text === null) return;
+        if (checkTokens && text.includes("--ak-")) {
           diagnostics.push(
             diagnostic(
               context,
               node,
               this,
-              `Runtime UI literal '${node.text}' hardcodes a color instead of a theme token.`,
+              "Runtime code names an Askr theme token directly; use a semantic class or data-* attribute instead.",
+              "Move the token mapping to theme CSS and select it through a semantic class or data-* attribute.",
+            ),
+          );
+        } else if (checkColors && color.test(text)) {
+          diagnostics.push(
+            diagnostic(
+              context,
+              node,
+              this,
+              `Runtime UI literal '${text}' hardcodes a color instead of a theme token.`,
               "Use a semantic prop, theme variable, or design-system class.",
             ),
           );
@@ -2997,7 +2984,6 @@ const testingContractRule: AnalyzeRule = {
 export const ANALYZE_RULES: readonly AnalyzeRule[] = [
   parseErrorRule,
   stableControlBoundaryRule,
-  hardcodedThemeTokenRule,
   stableRenderRule,
   renderScopeRequiredRule,
   exhaustiveDependenciesRule,
