@@ -227,6 +227,41 @@ describe("analyzer rules", () => {
     ).toBe(true);
   });
 
+  it("requires an awaited testing flush before the next assertion", async () => {
+    const root = await fixture({
+      "src/page.test.tsx": `
+        import { dispatch as fire, flush } from "@askrjs/askr/testing";
+        declare const button: EventTarget;
+        test("stale assertion", async () => {
+          fire(button, new Event("click"));
+          expect(button).toBeDefined();
+        });
+        test("unawaited flush", async () => {
+          fire(button, new Event("click"));
+          flush();
+          expect(button).toBeDefined();
+        });
+        test("committed assertion", async () => {
+          fire(button, new Event("click"));
+          await flush();
+          expect(button).toBeDefined();
+        });
+      `,
+      "src/unrelated.test.ts": `
+        function dispatch() {}
+        dispatch();
+        expect(true).toBe(true);
+      `,
+    });
+
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/testing-contract",
+    );
+    expect(found).toHaveLength(2);
+    expect(found.every((entry) => entry.file === "src/page.test.tsx")).toBe(true);
+    expect(found.every((entry) => entry.severity === "warning")).toBe(true);
+  });
+
   it("keeps dependency declaration graphs out of analysis programs", async () => {
     const root = await fixture({
       "src/page.ts": 'import type { Huge } from "huge-package"; export type Page = Huge;',

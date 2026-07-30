@@ -35,6 +35,8 @@ another package or local module is not treated as an Askr API.
 - `askr/stable-render-call` enforces stable top-level calls for state, derived
   values, selectors, resources, lifecycle operations, actions, queries, and
   mutations where the AST establishes a component render context.
+- `askr/testing-contract` requires an awaited `flush()` between testing
+  `dispatch()` calls and the next assertion in the same block.
 - `askr/state-access` reports state getters used without calling them and
   setters called without a value or updater.
 - `askr/state-render-write` reports state mutation during the owning component's

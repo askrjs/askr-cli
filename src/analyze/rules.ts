@@ -167,6 +167,24 @@ function visit(sourceFile: ts.SourceFile, callback: (node: ts.Node) => void): vo
   walk(sourceFile);
 }
 
+function statementContains(
+  statement: ts.Statement,
+  predicate: (node: ts.Node) => boolean,
+): boolean {
+  let found = false;
+  const walk = (node: ts.Node): void => {
+    if (found) return;
+    if (node !== statement && ts.isFunctionLike(node)) return;
+    if (predicate(node)) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(node, walk);
+  };
+  walk(statement);
+  return found;
+}
+
 function containingFunction(node: ts.Node): ts.SignatureDeclaration | null {
   for (let current = node.parent; current; current = current.parent) {
     if (ts.isFunctionLike(current)) return current;
@@ -254,6 +272,73 @@ const stableRenderRule: AnalyzeRule = {
               `Call ${name}() unconditionally at the top level and branch on its result.`,
             ),
           );
+        }
+      });
+    }
+    return diagnostics;
+  },
+};
+
+const testingContractRule: AnalyzeRule = {
+  id: "askr/testing-contract",
+  category: "correctness",
+  severity: "warning",
+  description: "Testing interactions must flush scheduled updates before assertions.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const sourceFile of context.sourceFiles) {
+      const importsTesting = sourceFile.statements.some(
+        (statement) =>
+          ts.isImportDeclaration(statement) &&
+          ts.isStringLiteral(statement.moduleSpecifier) &&
+          statement.moduleSpecifier.text === "@askrjs/askr/testing",
+      );
+      if (!importsTesting) continue;
+      const bindings = sourceBindings(sourceFile);
+      visit(sourceFile, (node) => {
+        if (!ts.isBlock(node)) return;
+        for (let index = 0; index < node.statements.length; index += 1) {
+          const statement = node.statements[index];
+          if (
+            !ts.isExpressionStatement(statement) ||
+            !ts.isCallExpression(statement.expression) ||
+            canonicalCallName(statement.expression.expression, bindings) !== "dispatch"
+          ) {
+            continue;
+          }
+          for (const next of node.statements.slice(index + 1)) {
+            const awaitedFlush = statementContains(
+              next,
+              (candidate) =>
+                ts.isAwaitExpression(candidate) &&
+                ts.isCallExpression(candidate.expression) &&
+                canonicalCallName(candidate.expression.expression, bindings) === "flush",
+            );
+            if (awaitedFlush) break;
+            const assertion = statementContains(next, (candidate) => {
+              if (!ts.isCallExpression(candidate)) return false;
+              const expression = candidate.expression;
+              if (ts.isIdentifier(expression)) {
+                return expression.text === "expect" || expression.text === "assert";
+              }
+              return (
+                ts.isPropertyAccessExpression(expression) &&
+                ts.isIdentifier(expression.expression) &&
+                expression.expression.text === "assert"
+              );
+            });
+            if (!assertion) continue;
+            diagnostics.push(
+              diagnostic(
+                context,
+                statement.expression,
+                this,
+                "dispatch() is followed by an assertion before awaited flush().",
+                "Await flush() after dispatch() and before reading updated state or DOM.",
+              ),
+            );
+            break;
+          }
         }
       });
     }
@@ -2156,6 +2241,7 @@ const parseErrorRule: AnalyzeRule = {
 export const ANALYZE_RULES: readonly AnalyzeRule[] = [
   parseErrorRule,
   stableRenderRule,
+  testingContractRule,
   stateAccessRule,
   stateRenderWriteRule,
   resourceCancellationRule,
