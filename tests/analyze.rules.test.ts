@@ -116,6 +116,41 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/stable-dependencies")).toHaveLength(1);
   });
 
+  it("reports task-based data loading into component state", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { state } from "@askrjs/askr";
+        import { task } from "@askrjs/askr/resources";
+        const [, setShared] = state(null);
+        export function Users() {
+          const [users, setUsers] = state(null);
+          task(async () => {
+            const response = await fetch("/api/users");
+            setUsers(await response.json());
+          });
+          task(async () => {
+            const response = await fetch("/api/audit");
+            console.log(await response.text());
+          });
+          task(async () => {
+            setUsers(await Promise.resolve([]));
+          });
+          task(async () => {
+            await fetch("/api/shared");
+            setShared([]);
+          });
+          return <div>{String(users())}</div>;
+        }
+      `,
+    });
+
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/no-effect-data-loading",
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ severity: "warning", file: "src/page.tsx" });
+  });
+
   it("checks For contracts, positional keys, and only reactive JSX map calls", async () => {
     const root = await fixture({
       "src/page.tsx": `

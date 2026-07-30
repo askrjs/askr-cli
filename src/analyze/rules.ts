@@ -300,6 +300,78 @@ function collectStateBindings(sourceFile: ts.SourceFile, bindings: SourceBinding
   return { getters, setters, owners };
 }
 
+const noEffectDataLoadingRule: AnalyzeRule = {
+  id: "askr/no-effect-data-loading",
+  category: "correctness",
+  severity: "warning",
+  description: "Async data loading belongs in resource() instead of task-driven state effects.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const sourceFile of context.sourceFiles) {
+      const bindings = sourceBindings(sourceFile);
+      const state = collectStateBindings(sourceFile, bindings);
+      visit(sourceFile, (node) => {
+        if (
+          !ts.isCallExpression(node) ||
+          canonicalCallName(node.expression, bindings) !== "task"
+        ) {
+          return;
+        }
+        const owner = containingFunction(node);
+        const callback = node.arguments[0];
+        if (
+          !owner ||
+          !callback ||
+          (!ts.isArrowFunction(callback) && !ts.isFunctionExpression(callback)) ||
+          !ts.getModifiers(callback)?.some(
+            (modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword,
+          )
+        ) {
+          return;
+        }
+        const ownedSetters = new Set(
+          [...state.setters].filter((setter) => state.owners.get(setter) === owner),
+        );
+        if (ownedSetters.size === 0) return;
+        let fetches = false;
+        let writesOwnedState = false;
+        const walk = (candidate: ts.Node): void => {
+          if (
+            candidate !== callback &&
+            (ts.isArrowFunction(candidate) || ts.isFunctionExpression(candidate))
+          ) {
+            return;
+          }
+          if (ts.isCallExpression(candidate)) {
+            if (ts.isIdentifier(candidate.expression) && candidate.expression.text === "fetch") {
+              fetches = true;
+            }
+            if (
+              ts.isIdentifier(candidate.expression) &&
+              ownedSetters.has(candidate.expression.text)
+            ) {
+              writesOwnedState = true;
+            }
+          }
+          if (!fetches || !writesOwnedState) ts.forEachChild(candidate, walk);
+        };
+        walk(callback);
+        if (!fetches || !writesOwnedState) return;
+        diagnostics.push(
+          diagnostic(
+            context,
+            node.expression,
+            this,
+            "task() loads data and writes it into component state like an effect.",
+            "Use resource() so loading has cancellation, pending state, error propagation, and stale-result guards.",
+          ),
+        );
+      });
+    }
+    return diagnostics;
+  },
+};
+
 function identifierIsReadAsValue(node: ts.Identifier): boolean {
   const parent = node.parent;
   if (ts.isCallExpression(parent) && parent.expression === node) return false;
@@ -2157,6 +2229,7 @@ export const ANALYZE_RULES: readonly AnalyzeRule[] = [
   parseErrorRule,
   stableRenderRule,
   stateAccessRule,
+  noEffectDataLoadingRule,
   stateRenderWriteRule,
   resourceCancellationRule,
   stableDependenciesRule,

@@ -39,6 +39,8 @@ another package or local module is not treated as an Askr API.
   setters called without a value or updater.
 - `askr/state-render-write` reports state mutation during the owning component's
   render while allowing updates in event callbacks.
+- `askr/no-effect-data-loading` reports async `task()` callbacks that fetch data
+  and write it into state owned by the same component.
 - `askr/resource-cancellation` and `askr/data-cancellation` report fetch-based
   resource, query, and mutation loaders that do not forward their cancellation
   signal.
