@@ -168,6 +168,34 @@ describe("guardrail commands", () => {
     ]);
   });
 
+  it("automatically validates a discovered database before project scripts", async () => {
+    const root = await fixture();
+    await fs.mkdir(path.join(root, "database"), { recursive: true });
+    await fs.writeFile(path.join(root, "database", "index.ts"), "export default {};\n");
+    const order: string[] = [];
+    const report = await runCheck(
+      { cwd: root, workspacePatterns: [] },
+      {
+        runDatabaseValidation: vi.fn(async () => {
+          order.push("database");
+          return { status: "passed" as const, exitCode: 0, stdout: "", stderr: "" };
+        }),
+        runScript: vi.fn(async (_executable, args) => {
+          order.push(String(args.at(-1)));
+          return { status: "passed" as const, exitCode: 0, stdout: "", stderr: "" };
+        }),
+      },
+    );
+
+    expect(report.status).toBe("passed");
+    expect(order).toEqual(["database", "lint", "typecheck", "test", "build"]);
+    expect(report.scripts[0]).toMatchObject({
+      name: "database",
+      command: "askr database validate",
+      status: "passed",
+    });
+  });
+
   it("does not run project scripts until blocking analysis findings are repaired", async () => {
     const root = await fixture({
       source: ['import { state } from "@askrjs/askr";', "export const count = state(0);", ""].join(

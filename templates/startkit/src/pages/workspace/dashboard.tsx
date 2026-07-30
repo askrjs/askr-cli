@@ -1,5 +1,4 @@
 import { state } from '@askrjs/askr';
-import { For } from '@askrjs/askr/control';
 import { resource } from '@askrjs/askr/resources';
 import { Button } from '@askrjs/ui/button';
 import {
@@ -62,21 +61,19 @@ export default function DashboardPage() {
       />
 
       <div class="stat-grid">
-        <For each={stats} by={(stat) => stat.key}>
-          {(stat) => {
-            const Icon =
-              iconByStatKey[stat.key as keyof typeof iconByStatKey] ??
-              BarChart3Icon;
-            return (
-              <StatCard
-                label={stat.label}
-                value={stat.value}
-                trend={stat.trend}
-                icon={Icon}
-              />
-            );
-          }}
-        </For>
+        {stats().map((stat) => {
+          const Icon =
+            iconByStatKey[stat.key as keyof typeof iconByStatKey] ??
+            BarChart3Icon;
+          return (
+            <StatCard
+              label={stat.label}
+              value={stat.value}
+              trend={stat.trend}
+              icon={Icon}
+            />
+          );
+        })}
       </div>
 
       <section class="panel stack-md">

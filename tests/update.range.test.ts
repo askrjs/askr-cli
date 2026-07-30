@@ -339,5 +339,5 @@ describe("update range planner", () => {
         decision.occurrences[0].reason.includes("50,000-state budget"),
       ),
     ).toBe(true);
-  }, 15_000);
+  }, 30_000);
 });

@@ -33,6 +33,25 @@ askr check
 `doctor` identifies environment, dependency, skills, and source drift without
 writing. `repair` applies safe mechanical fixes transactionally. `check`
 requires clean analysis before running lint, typecheck, tests, and build.
+If the project has `database/index.ts`, the same check also runs
+`askr database validate` through the installed `@askrjs/orm`.
+
+### Evolve a Postgres schema
+
+- `askr-agent-execution`
+- `askr-testing-determinism`
+
+```bash
+askr database validate
+askr database generate
+git diff -- database/migrations database/generated
+askr database migration plan --database app
+askr database migration apply --database app
+```
+
+Generation uses only the isolated scratch database and never changes the
+target. Applying shows the exact plan and requires confirmation unless `--yes`
+is supplied.
 
 ### Add a page or route
 
