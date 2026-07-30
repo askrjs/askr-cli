@@ -1935,6 +1935,59 @@ function isInsideTypeofGuard(node: ts.Identifier): boolean {
   return false;
 }
 
+function isSsrSourceFile(sourceFile: ts.SourceFile): boolean {
+  const normalized = sourceFile.fileName.split(path.sep).join("/");
+  const importsSsr = sourceFile.statements.some(
+    (statement) =>
+      ts.isImportDeclaration(statement) &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      /^@askrjs\/askr\/(?:ssr|ssg)$/.test(statement.moduleSpecifier.text),
+  );
+  return (
+    importsSsr ||
+    /(?:^|\/)(?:server|entry-server|ssr|ssg)[^/]*\.[cm]?[jt]sx?$/.test(normalized)
+  );
+}
+
+const ssrAsyncResourceRule: AnalyzeRule = {
+  id: "askr/ssr-async-resource",
+  category: "correctness",
+  severity: "error",
+  description: "SSR and SSG modules cannot start async resources during render.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const sourceFile of context.sourceFiles) {
+      if (!isSsrSourceFile(sourceFile)) continue;
+      const bindings = sourceBindings(sourceFile);
+      visit(sourceFile, (node) => {
+        if (
+          !ts.isCallExpression(node) ||
+          canonicalCallName(node.expression, bindings) !== "resource"
+        ) {
+          return;
+        }
+        const loader = node.arguments[0];
+        if (
+          (!loader || (!ts.isArrowFunction(loader) && !ts.isFunctionExpression(loader))) ||
+          !ts.getModifiers(loader)?.some((modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword)
+        ) {
+          return;
+        }
+        diagnostics.push(
+          diagnostic(
+            context,
+            loader,
+            this,
+            "Async resource loaders cannot run directly in an SSR or SSG render module.",
+            "Load data through a route loader, prefetchQuery, or an explicitly deferred render boundary.",
+          ),
+        );
+      });
+    }
+    return diagnostics;
+  },
+};
+
 const ssrGlobalsRule: AnalyzeRule = {
   id: "askr/ssr-browser-global",
   category: "correctness",
@@ -1944,19 +1997,7 @@ const ssrGlobalsRule: AnalyzeRule = {
     const diagnostics: AnalyzeDiagnostic[] = [];
     const globals = new Set(["window", "document", "localStorage", "sessionStorage", "navigator"]);
     for (const sourceFile of context.sourceFiles) {
-      const normalized = sourceFile.fileName.split(path.sep).join("/");
-      const importsSsr = sourceFile.statements.some(
-        (statement) =>
-          ts.isImportDeclaration(statement) &&
-          ts.isStringLiteral(statement.moduleSpecifier) &&
-          /^@askrjs\/askr\/(?:ssr|ssg)$/.test(statement.moduleSpecifier.text),
-      );
-      if (
-        !importsSsr &&
-        !/(?:^|\/)(?:server|entry-server|ssr|ssg)[^/]*\.[cm]?[jt]sx?$/.test(normalized)
-      ) {
-        continue;
-      }
+      if (!isSsrSourceFile(sourceFile)) continue;
       visit(sourceFile, (node) => {
         if (
           !ts.isIdentifier(node) ||
@@ -2178,6 +2219,7 @@ export const ANALYZE_RULES: readonly AnalyzeRule[] = [
   actionContractRule,
   actionPromiseRule,
   renderAllocationRule,
+  ssrAsyncResourceRule,
   ssrGlobalsRule,
   frameworkConfigRule,
 ];

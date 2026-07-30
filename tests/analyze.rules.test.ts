@@ -162,6 +162,41 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/ssr-browser-global")).toHaveLength(1);
   });
 
+  it("reports async resource loaders declared in SSR and SSG modules", async () => {
+    const root = await fixture({
+      "src/render.tsx": `
+        import { resource } from "@askrjs/askr/resources";
+        import { renderToString } from "@askrjs/askr/ssr";
+        export const html = renderToString(() => {
+          resource(async ({ signal }) => fetch("/api/users", { signal }), []);
+          resource(() => ({ users: [] }), []);
+          return <main />;
+        });
+      `,
+      "src/ssg-entry.tsx": `
+        import { resource } from "@askrjs/askr/resources";
+        export function Page() {
+          resource(async () => "loaded", []);
+          return <main />;
+        }
+      `,
+      "src/client.tsx": `
+        import { resource } from "@askrjs/askr/resources";
+        export function Page() {
+          resource(async () => "loaded", []);
+          return <main />;
+        }
+      `,
+    });
+
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/ssr-async-resource",
+    );
+    expect(found).toHaveLength(2);
+    expect(found.map((entry) => entry.file)).toEqual(["src/render.tsx", "src/ssg-entry.tsx"]);
+    expect(found.every((entry) => entry.severity === "error")).toBe(true);
+  });
+
   it("checks route registry ownership, route syntax, controls, and data cancellation", async () => {
     const root = await fixture({
       "src/routes.tsx": `

@@ -52,6 +52,8 @@ another package or local module is not treated as an Askr API.
 - `askr/route-path-syntax` enforces `{name}` route parameters.
 - `askr/boot-registry` requires an explicit registry and an observed Promise for
   `createSPA()` and `hydrateSPA()`.
+- `askr/ssr-async-resource` reports async `resource()` loaders declared directly
+  in SSR and SSG modules.
 - `askr/ssr-browser-global` reports unguarded browser globals in SSR and SSG
   modules.
 
