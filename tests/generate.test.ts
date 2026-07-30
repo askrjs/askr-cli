@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, readdir, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import ts from "typescript";
 import { runGenerateCli } from "../src/bin/generate";
@@ -322,7 +323,7 @@ describe("askr generate", () => {
     await expect(loadOpenApi(join(root, "openapi.yaml"))).rejects.toThrow(
       "escapes the specification directory",
     );
-    await writeRoot("file:///etc/passwd");
+    await writeRoot(pathToFileURL(join(parent, "outside.yaml")).href);
     await expect(loadOpenApi(join(root, "openapi.yaml"))).rejects.toThrow(
       "escapes the specification directory",
     );

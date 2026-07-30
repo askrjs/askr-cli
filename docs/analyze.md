@@ -1,4 +1,4 @@
-﻿# analyze
+# analyze
 
 `askr analyze` performs workspace-aware static checks for current Askr APIs.
 It uses the TypeScript compiler API with each selected workspace's
