@@ -32,6 +32,9 @@ another package or local module is not treated as an Askr API.
 
 - `askr/parse-error` reports malformed source before other results can be
   considered complete.
+- `askr/no-hardcoded-theme-token` reports `--ak-*` token names in runtime
+  JavaScript and TypeScript string, template, and JSX attribute literals. The
+  exact `@askrjs/themes` workspace is exempt because it owns those declarations.
 - `askr/stable-render-call` enforces stable top-level calls for state, derived
   values, selectors, resources, lifecycle operations, actions, queries, and
   mutations where the AST establishes a component render context.
