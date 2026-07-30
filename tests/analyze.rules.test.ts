@@ -193,6 +193,27 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/no-async-component")).toHaveLength(1);
   });
 
+  it("accepts self-closing Match branches and reports other Case children", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { Case, Match } from "@askrjs/askr";
+        export function Page() {
+          return <Case>
+            <Match when={false} />
+            <div>fallback</div>
+            <Match when={true}>ready</Match>
+          </Case>;
+        }
+      `,
+    });
+
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/control-contract",
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]?.message).toMatch(/may only contain direct <Match>/);
+  });
+
   it("reports state writes during render but accepts event-handler writes", async () => {
     const root = await fixture({
       "src/page.tsx": `

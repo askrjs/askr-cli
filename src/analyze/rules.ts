@@ -655,10 +655,12 @@ const controlContractRule: AnalyzeRule = {
             ) {
               continue;
             }
-            if (
-              ts.isJsxElement(child) &&
-              canonicalJsxName(child.openingElement.tagName, bindings) === "Match"
-            ) {
+            const childOpening = ts.isJsxElement(child)
+              ? child.openingElement
+              : ts.isJsxSelfClosingElement(child)
+                ? child
+                : null;
+            if (childOpening && canonicalJsxName(childOpening.tagName, bindings) === "Match") {
               continue;
             }
             diagnostics.push(
