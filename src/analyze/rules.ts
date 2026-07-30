@@ -644,11 +644,7 @@ const controlContractRule: AnalyzeRule = {
             );
           }
         }
-        if (
-          name === "Case" &&
-          ts.isJsxOpeningElement(node) &&
-          ts.isJsxElement(node.parent)
-        ) {
+        if (name === "Case" && ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent)) {
           for (const child of node.parent.children) {
             if (ts.isJsxText(child) && child.text.trim() === "") continue;
             if (
@@ -2212,7 +2208,9 @@ function isInsideNestedFunction(node: ts.Node, owner: ts.SignatureDeclaration): 
   return false;
 }
 
-function jsxExpression(attribute: ts.JsxAttribute | ts.JsxSpreadAttribute | undefined): ts.Expression | null {
+function jsxExpression(
+  attribute: ts.JsxAttribute | ts.JsxSpreadAttribute | undefined,
+): ts.Expression | null {
   if (
     !attribute ||
     !ts.isJsxAttribute(attribute) ||
@@ -2374,7 +2372,10 @@ const forRowClosureCaptureRule: AnalyzeRule = {
         }
       });
       visit(sourceFile, (node) => {
-        if (!ts.isJsxElement(node) || canonicalJsxName(node.openingElement.tagName, bindings) !== "For") {
+        if (
+          !ts.isJsxElement(node) ||
+          canonicalJsxName(node.openingElement.tagName, bindings) !== "For"
+        ) {
           return;
         }
         for (const child of node.children) {
@@ -2388,7 +2389,11 @@ const forRowClosureCaptureRule: AnalyzeRule = {
           const renderer = child.expression;
           const captured = new Set<string>();
           const walk = (candidate: ts.Node): void => {
-            for (let current = candidate.parent; current && current !== renderer; current = current.parent) {
+            for (
+              let current = candidate.parent;
+              current && current !== renderer;
+              current = current.parent
+            ) {
               if (ts.isJsxAttribute(current)) return;
             }
             if (
@@ -2401,7 +2406,10 @@ const forRowClosureCaptureRule: AnalyzeRule = {
             if (
               ts.isIdentifier(candidate) &&
               snapshots.has(candidate.text) &&
-              !(ts.isPropertyAccessExpression(candidate.parent) && candidate.parent.name === candidate)
+              !(
+                ts.isPropertyAccessExpression(candidate.parent) &&
+                candidate.parent.name === candidate
+              )
             ) {
               captured.add(candidate.text);
             }
@@ -2433,7 +2441,14 @@ const renderScopeRequiredRule: AnalyzeRule = {
   description: "Render-scoped APIs cannot be created in callbacks that execute outside rendering.",
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
-    const callbackCalls = new Set(["setTimeout", "setInterval", "queueMicrotask", "then", "catch", "finally"]);
+    const callbackCalls = new Set([
+      "setTimeout",
+      "setInterval",
+      "queueMicrotask",
+      "then",
+      "catch",
+      "finally",
+    ]);
     for (const sourceFile of context.sourceFiles) {
       const bindings = sourceBindings(sourceFile);
       if (!sourceFacts(sourceFile).calls.some((fact) => RENDER_SCOPED_CONCEPTS.has(fact.name))) {
@@ -2520,7 +2535,8 @@ const queryKeyContractRule: AnalyzeRule = {
         let expression: ts.Expression | undefined;
         if (name === "createQuery") {
           const options = call.arguments[0];
-          if (options && ts.isObjectLiteralExpression(options)) expression = optionExpression(options, "key");
+          if (options && ts.isObjectLiteralExpression(options))
+            expression = optionExpression(options, "key");
         } else if (name === "queryScope") {
           expression = call.arguments[0];
         } else {
@@ -2734,7 +2750,9 @@ const importSubpathRule: AnalyzeRule = {
   },
 };
 
-function literalJsxString(attribute: ts.JsxAttribute | ts.JsxSpreadAttribute | undefined): string | null {
+function literalJsxString(
+  attribute: ts.JsxAttribute | ts.JsxSpreadAttribute | undefined,
+): string | null {
   if (!attribute || !ts.isJsxAttribute(attribute) || !attribute.initializer) return null;
   if (ts.isStringLiteral(attribute.initializer)) return attribute.initializer.text;
   const expression = jsxExpression(attribute);
@@ -2760,9 +2778,13 @@ const linkContractRule: AnalyzeRule = {
         const to = attributes.get("to");
         const href = attributes.get("href");
         if (!to && !href) {
-          diagnostics.push(diagnostic(context, node.tagName, this, "<Link> requires a to or href destination."));
+          diagnostics.push(
+            diagnostic(context, node.tagName, this, "<Link> requires a to or href destination."),
+          );
         } else if (to && href) {
-          diagnostics.push(diagnostic(context, node.tagName, this, "<Link> cannot specify both to and href."));
+          diagnostics.push(
+            diagnostic(context, node.tagName, this, "<Link> cannot specify both to and href."),
+          );
         }
         const destination = literalJsxString(href ?? to);
         if (destination && unsafe.test(destination.trim())) {
@@ -2792,7 +2814,8 @@ const hardcodedThemeTokenRule: AnalyzeRule = {
   severity: "warning",
   description: "Runtime UI literals should use semantic theme tokens.",
   analyze(context) {
-    if (["@askrjs/askr", "@askrjs/themes"].includes(packageName(context.workspace.manifest))) return [];
+    if (["@askrjs/askr", "@askrjs/themes"].includes(packageName(context.workspace.manifest)))
+      return [];
     const diagnostics: AnalyzeDiagnostic[] = [];
     const color = /(?:#[0-9a-f]{3,8}\b|\brgba?\s*\(|\bhsla?\s*\()/i;
     for (const sourceFile of context.sourceFiles) {
@@ -2883,12 +2906,13 @@ const testingContractRule: AnalyzeRule = {
           ts.isStringLiteral(statement.moduleSpecifier) &&
           statement.moduleSpecifier.text.endsWith("@askrjs/askr/testing")
         ) {
-          canonicalDispatch = statement.importClause?.namedBindings &&
+          canonicalDispatch =
+            statement.importClause?.namedBindings &&
             ts.isNamedImports(statement.importClause.namedBindings)
-            ? statement.importClause.namedBindings.elements.some(
-                (element) => (element.propertyName?.text ?? element.name.text) === "dispatch",
-              )
-            : false;
+              ? statement.importClause.namedBindings.elements.some(
+                  (element) => (element.propertyName?.text ?? element.name.text) === "dispatch",
+                )
+              : false;
         }
       }
       if (!canonicalDispatch) continue;
