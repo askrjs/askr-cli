@@ -43,10 +43,11 @@ askr analyze --check             # Check Askr source without writing
 askr doctor                      # Diagnose project and environment health
 askr repair                      # Apply safe fixes and identify semantic work
 askr check                       # Run analysis, lint, types, tests, and build
+askr database validate           # Replay and byte-check generated database artifacts
+askr database migration plan     # Inspect target migration history
 askr skills install             # Install bundled Askr agent skills
 askr skills sync                # Update bundled Askr agent skills
 askr ssg --config <path> --output <dir> # Run static site generation
-askr verify-hydration                   # Verify SSG topology in a real browser
 askr outdated                   # Report available dependency updates
 askr update                     # Apply safe dependency manifest updates
 askr upgrade                    # Apply latest peer-compatible upgrades

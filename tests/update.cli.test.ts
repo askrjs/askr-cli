@@ -384,7 +384,6 @@ describe("update CLI", () => {
       "js-yaml",
       "minimatch",
       "npm-registry-fetch",
-      "playwright-core",
       "semver",
       "tsx",
       "typescript",
@@ -401,9 +400,8 @@ describe("update CLI", () => {
     const source = await fs.readFile(new URL("../src/bin/cli.ts", import.meta.url), "utf8");
 
     expect(source).toContain('await import("./update")');
-    expect(source).toContain('await import("./verify-hydration")');
     expect(source).not.toMatch(
-      /^import .* from "\.\/(?:add|analyze|create|generate|openapi|skills|ssg|update|verify-hydration)";/m,
+      /^import .* from "\.\/(?:add|analyze|create|generate|openapi|skills|ssg|update)";/m,
     );
   });
 });

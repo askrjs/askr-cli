@@ -1,4 +1,3 @@
-import { For } from '@askrjs/askr/control';
 import { Link } from '@askrjs/askr/router';
 import { Button } from '@askrjs/ui';
 import {
@@ -51,15 +50,13 @@ export default function Content() {
       />
 
       <CardGrid>
-        <For each={[...routeMap]} by={(route) => route.path}>
-          {(route) => (
-            <Card
-              eyebrow={route.path}
-              title={route.title}
-              description={route.note}
-            />
-          )}
-        </For>
+        {routeMap.map((route) => (
+          <Card
+            eyebrow={route.path}
+            title={route.title}
+            description={route.note}
+          />
+        ))}
       </CardGrid>
     </>
   );

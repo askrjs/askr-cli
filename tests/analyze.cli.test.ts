@@ -98,58 +98,6 @@ describe("analyze CLI", () => {
     expect(selected.diagnostics.map((entry) => entry.workspace)).toEqual(["b"]);
   });
 
-  it("excludes generated Askr client output even when tsconfig includes the workspace", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-analyze-generated-"));
-    roots.push(root);
-    await fs.mkdir(path.join(root, "src"), { recursive: true });
-    await fs.mkdir(path.join(root, ".askr", "client", "assets"), { recursive: true });
-    await fs.mkdir(path.join(root, "vendor"), { recursive: true });
-    await fs.writeFile(
-      path.join(root, "package.json"),
-      `${JSON.stringify(
-        {
-          name: "fixture",
-          askr: { analyze: { exclude: ["vendor/**"] } },
-          dependencies: { "@askrjs/askr": "^0.0.70" },
-        },
-        null,
-        2,
-      )}\n`,
-    );
-    await fs.writeFile(
-      path.join(root, "tsconfig.json"),
-      `${JSON.stringify(
-        {
-          compilerOptions: {
-            jsx: "react-jsx",
-            jsxImportSource: "@askrjs/askr",
-            module: "ESNext",
-            moduleResolution: "Bundler",
-          },
-          include: ["."],
-        },
-        null,
-        2,
-      )}\n`,
-    );
-    await fs.writeFile(
-      path.join(root, "src", "page.tsx"),
-      "export function Page() { return <main />; }\n",
-    );
-    const generatedAllocation =
-      "export function BundledPage() { const value = new Set(); return <main>{value.size}</main>; }\n";
-    await fs.writeFile(
-      path.join(root, ".askr", "client", "assets", "bundle.js"),
-      generatedAllocation,
-    );
-    await fs.writeFile(path.join(root, "vendor", "bundle.js"), generatedAllocation);
-
-    const report = await runAnalysis({ cwd: root, workspacePatterns: [], check: true });
-
-    expect(report.workspaces).toEqual([expect.objectContaining({ files: 1 })]);
-    expect(report.diagnostics).toEqual([]);
-  });
-
   it("emits deterministic JSON and a blocking exit code", async () => {
     const root = await workspaceFixture();
     const output = io();

@@ -7,13 +7,13 @@ export default defineConfig({
       analyze: "src/bin/analyze.ts",
       cli: "src/bin/cli.ts",
       create: "src/bin/create.ts",
+      database: "src/bin/database.ts",
       generate: "src/bin/generate.ts",
       openapi: "src/bin/openapi.ts",
       skills: "src/bin/skills.ts",
       ssg: "src/bin/ssg.ts",
       "ssg-config": "src/ssg.ts",
       update: "src/bin/update.ts",
-      "verify-hydration": "src/bin/verify-hydration.ts",
     },
     format: ["esm"],
     outDir: "dist",
@@ -24,7 +24,7 @@ export default defineConfig({
     sourcemap: false,
     copy: ["templates", "skills"],
     deps: {
-      neverBundle: [/^@askrjs\/askr(?:\/.*)?$/, "playwright-core", "tsx/esm/api"],
+      neverBundle: [/^@askrjs\/askr(?:\/.*)?$/, "tsx/esm/api"],
     },
   },
 });

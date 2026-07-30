@@ -14,8 +14,8 @@ The unified CLI for the Askr platform.
 - [Project guardrails](./guardrails.md) - Diagnose, repair, and validate a project
 - [generate](./generate.md) - Generate a typed client from an OpenAPI document
 - [openapi](./openapi.md) - Export deterministic OpenAPI YAML
+- [database](./database.md) - Validate, generate, and apply project-owned database history
 - [ssg](./ssg.md) - Atomically publish static routes and sitemap artifacts
-- [verify-hydration](./verify-hydration.md) - Compare static and hydrated SSG DOM topology
 - [update](./update.md) - Plan and apply manifest-only dependency updates
 - [Workflows](./workflows.md) - End-to-end CLI workflows
 

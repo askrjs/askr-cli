@@ -38,8 +38,8 @@ jobs:
         run: npm ci
 
       - name: Install Chromium
-        if: ${{ hashFiles('vitest.test.browser.config.ts', 'playwright.config.*', 'tests/verify-hydration.test.ts') != '' }}
-        run: npx playwright-core install chromium
+        if: ${{ hashFiles('vitest.test.browser.config.ts', 'playwright.config.*') != '' }}
+        run: npx playwright install chromium
 
       - name: Format check
         run: npm run fmt --if-present -- --check
@@ -52,8 +52,6 @@ jobs:
 
       - name: Test
         run: npm run test:coverage
-        env:
-          ASKR_BROWSER_CHANNEL: playwright
 
       - name: Type checks
         run: |

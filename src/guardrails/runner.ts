@@ -31,6 +31,7 @@ export interface GuardrailRuntime {
     args: readonly string[],
     cwd: string,
   ) => Promise<Omit<ScriptResult, "command" | "name">>;
+  readonly runDatabaseValidation?: (cwd: string) => Promise<Omit<ScriptResult, "command" | "name">>;
 }
 
 function summary(findings: readonly GuardrailFinding[]): GuardrailSummary {
@@ -310,13 +311,18 @@ export async function runCheck(
   const lockfiles = await existingLockfiles(project.root);
   const manager = managerCommand(lockfiles, rootWorkspace.manifest);
   const results: ScriptResult[] = [];
+  const hasDatabase = Boolean(
+    await fs.stat(path.join(project.root, "database", "index.ts")).catch(() => null),
+  );
+  const selectedChecks = [...(hasDatabase ? (["database"] as const) : []), ...selected];
 
   if (analysisHasBlockingFindings(analysis)) {
-    for (const name of selected) {
+    for (const name of selectedChecks) {
       results.push({
         name,
         status: "skipped",
-        command: `${manager.executable} run ${name}`,
+        command:
+          name === "database" ? "askr database validate" : `${manager.executable} run ${name}`,
         exitCode: null,
         stdout: "",
         stderr: "",
@@ -324,7 +330,32 @@ export async function runCheck(
       });
     }
   } else {
-    for (const [index, name] of selected.entries()) {
+    for (const [index, name] of selectedChecks.entries()) {
+      if (name === "database") {
+        const runDatabase =
+          runtime.runDatabaseValidation ?? (await import("../bin/database")).runDatabaseValidation;
+        const result = await runDatabase(project.root);
+        results.push({
+          name,
+          command: "askr database validate",
+          ...result,
+        });
+        if (result.status === "failed") {
+          for (const skipped of selectedChecks.slice(index + 1)) {
+            results.push({
+              name: skipped,
+              status: "skipped",
+              command: `${manager.executable} run ${skipped}`,
+              exitCode: null,
+              stdout: "",
+              stderr: "",
+              reason: "database validation failed",
+            });
+          }
+          break;
+        }
+        continue;
+      }
       const args = manager.args(name);
       const result = await (runtime.runScript ?? defaultRunScript)(
         manager.executable,
@@ -337,7 +368,7 @@ export async function runCheck(
         ...result,
       });
       if (result.status === "failed") {
-        for (const skipped of selected.slice(index + 1)) {
+        for (const skipped of selectedChecks.slice(index + 1)) {
           results.push({
             name: skipped,
             status: "skipped",

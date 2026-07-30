@@ -45,11 +45,12 @@ unless you opt out with `--no-skills`.
 - `askr doctor [--cwd <dir>] [--workspace <pattern>]... [--json]`
 - `askr repair [--cwd <dir>] [--workspace <pattern>]... [--json]`
 - `askr check [--cwd <dir>] [--workspace <pattern>]... [--json]`
+- `askr database validate|generate [--database <name>] [--json]`
+- `askr database migration create|status|plan|apply|resolve ...`
 - `askr skills list`
 - `askr skills install [--cwd <dir>] [--force]`
 - `askr skills sync [--cwd <dir>]`
 - `askr ssg --config <path> --output <dir> [--incremental]`
-- `askr verify-hydration [--output ./dist] [--route <path>]...`
 - `askr openapi [--entry ./src/api.ts] [--output ./openapi.yml] [--check]`
 - `askr outdated [packages...] [--workspace <glob>] [--tag <tag>] [--json]`
 - `askr update [packages...] [--workspace <glob>] [--tag <tag>] [--json]`
@@ -74,10 +75,8 @@ askr analyze --json --check
 
 All diagnostics include a stable rule ID and workspace-relative source
 location. The analyzer distinguishes canonical Askr imports from unrelated
-same-named functions and recommends `<For>` only when a `.map()` result is
-rendered directly as JSX children, so ordinary data transforms remain valid.
-It reports eager `<For>`/`<Show>`/`<Case>` controls behind changing ternaries
-while accepting conditionally mounted components with their own render scope.
+same-named functions and only recommends `<For>` for state-backed reactive JSX
+collections, so static transforms with `.map()` remain valid.
 
 By default it transactionally applies only mechanical route-parameter and
 plain-JSON JSX configuration fixes. `--check` is read-only for CI. Semantic
@@ -99,7 +98,17 @@ askr check
 and static-analysis inspection. `repair` transactionally applies only safe
 mechanical fixes and reports remaining semantic work. `check` requires clean
 analysis before running the project's declared lint, typecheck, test, and build
-scripts in order. Generated projects expose that final gate as `npm run check`.
+scripts in order. When `database/index.ts` exists, `check` first delegates
+database validation to the project's installed `@askrjs/orm` tooling.
+Generated projects expose that final gate as `npm run check`.
+
+## Database tooling
+
+`askr database ...` is a lazy front end. The CLI resolves
+`@askrjs/orm/tooling` from the target project and delegates the complete
+command, so schema generation and migration semantics always match the
+project's installed ORM version. See the
+[database command reference](./docs/database.md).
 
 See the [project guardrails reference](./docs/guardrails.md) for command and JSON
 contracts.
@@ -140,24 +149,6 @@ creates or updates `robots.txt` while preserving unrelated directives and tracks
 owned files so stale chunks and previous output paths are removed. Full and
 incremental builds publish through a sibling staging directory, so route output,
 metadata, assets, and sitemap artifacts change together or not at all.
-
-## Hydration verification
-
-`askr verify-hydration` builds SSG output, serves the generated route set, and
-loads every successful metadata route in a real headless browser both with and
-without JavaScript. It compares normalized tag-and-child topology under `#app`
-after hydration, so text, classes, and mutable ARIA state do not create noise
-while nodes migrating into the wrong sibling container fail with an actionable
-static-versus-hydrated path diff.
-
-```bash
-askr verify-hydration
-askr verify-hydration --route / --route /docs
-askr verify-hydration --no-build --output ./dist
-```
-
-See the [hydration verification reference](./docs/verify-hydration.md) for
-browser installation, timeout, route, and root-selector options.
 
 ## OpenAPI artifacts
 

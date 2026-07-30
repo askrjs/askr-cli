@@ -34,22 +34,9 @@ another package or local module is not treated as an Askr API.
   considered complete.
 - `askr/stable-render-call` enforces stable top-level calls for state, derived
   values, selectors, resources, lifecycle operations, actions, queries, and
-  mutations where the AST establishes a component render context. Local
-  wrapper summaries follow aliases, namespace imports, re-export barrels,
-  nested calls, and cycles, so conditionally calling a helper that transitively
-  claims a render slot is reported at the helper call. It also
-  reports eager control primitives such as `<For>`, `<Show>`, and `<Case>`
-  placed directly behind a non-constant ternary or logical expression, or
-  reached only after a conditional early return.
-  Conditionally mounted components are not reported because each component
-  owns a separate render scope.
-- `askr/render-side-effect` reports high-confidence platform timers, observers,
-  event listeners, and subscriptions started during component render, including
-  starts hidden behind local wrappers. A `task()` callback is accepted only
-  when its returned cleanup matches the timer handle, observer instance, or
-  listener tuple it started.
-- `askr/state-access` reports state getters used without calling them in JSX
-  expressions or direct returns, and setters called without a value or updater.
+  mutations where the AST establishes a component render context.
+- `askr/state-access` reports state getters used without calling them and
+  setters called without a value or updater.
 - `askr/state-render-write` reports state mutation during the owning component's
   render while allowing updates in event callbacks.
 - `askr/resource-cancellation` and `askr/data-cancellation` report fetch-based
@@ -70,9 +57,9 @@ another package or local module is not treated as an Askr API.
 
 ### Performance
 
-- `askr/prefer-for` reports `.map()` when its array result flows directly into
-  JSX children. Data transforms outside JSX, JSX attribute values, joined text,
-  and transforms passed to `<For each={...}>` remain valid.
+- `askr/prefer-for` reports JSX `.map()` only when its receiver is proven to be
+  an Askr state-backed reactive collection. Static array transforms remain
+  valid.
 - `askr/stable-key` reports index-returning `by` functions.
 - `askr/stable-dependencies` reports object, array, function, and constructor
   allocations in resource dependency arrays.
@@ -115,16 +102,12 @@ package declaration graphs are not loaded. Rules still distinguish canonical
 Askr imports from unrelated local functions, but analysis does not pay the cost
 of type-checking dependency declarations it never reports.
 
-`npm run bench:analyze` runs the analyzer's Vitest benchmark suite. Its cold
-full-analysis workloads cover 50 files, 250 files, five workspaces containing
-250 files, a 200-function cyclic wrapper graph reached through 12 re-export
-barrels, and the shipped startkit template. Hot rule workloads cover every
-registered diagnostic, cyclic summary propagation, and exact lifecycle cleanup
-matching. A coverage contract fails when a rule or benchmark is added without
-classification and an explicit budget. The enforced mean budgets are 100 ms,
-250 ms, 300 ms, 100 ms, 100 ms, 5 ms, 6 ms, and 5 ms for those workloads. The
-general `npm run bench` gate separately checks the installed CLI, including a
-cold startkit scan against a 1000 ms p95 budget.
+`npm run bench:analyze` runs the analyzer's Vitest benchmark suite. It covers a
+50-file workspace, a 250-file workspace, and five workspaces containing 250
+files in total. The benchmark reporter enforces mean-time budgets of 100 ms,
+250 ms, and 300 ms respectively. The general `npm run bench` gate also checks a
+cold installed-CLI scan of the 35-file startkit template against a 350 ms p95
+budget.
 
 ## Configuration
 
@@ -146,11 +129,8 @@ Configure the analyzer in the workspace root `package.json`:
 ```
 
 Rule values are `error`, `warning`, `info`, or `off`. Exclusions are applied
-relative to each workspace and extend the built-in defaults. The analyzer
-always ignores dependency, VCS, coverage, generated, and common build-output
-directories by default, including `.askr/**`, `dist/**`, and `build/**`.
-TypeScript `include` entries do not re-enable those generated directories;
-analyze the original source that produced an artifact instead.
+relative to each workspace. The analyzer always ignores dependency, VCS,
+coverage, generated, and common build-output directories by default.
 
 ## CI
 

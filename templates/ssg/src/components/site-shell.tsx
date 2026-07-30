@@ -1,4 +1,3 @@
-import { For } from '@askrjs/askr/control';
 import { Link } from '@askrjs/askr/router';
 import { Header } from '@askrjs/themes/components';
 import {
@@ -36,9 +35,9 @@ export function SiteHeader() {
             class="navbar-group"
             data-align="end"
           >
-            <For each={[...navItems]} by={(item) => item.href}>
-              {(item) => <NavLink href={item.href}>{item.label}</NavLink>}
-            </For>
+            {navItems.map((item) => (
+              <NavLink href={item.href}>{item.label}</NavLink>
+            ))}
           </Nav>
         </Box>
       </Container>
