@@ -448,7 +448,14 @@ async function fetchSource(uri: string, options: ResolvedLoadOptions): Promise<S
 
 async function readSource(uri: string, options: ResolvedLoadOptions): Promise<SourceDocument> {
   if (uri.startsWith("http://") || uri.startsWith("https://")) return fetchSource(uri, options);
-  const path = fileURLToPath(uri);
+  let path: string;
+  try {
+    path = fileURLToPath(uri);
+  } catch {
+    throw new GenerationError(
+      `Local OpenAPI reference escapes the specification directory: ${uri}`,
+    );
+  }
   const canonical = await realpath(path);
   if (!options.localRootDirectory) {
     throw new GenerationError(
