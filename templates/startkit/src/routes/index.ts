@@ -7,6 +7,8 @@ import { registerAuthRoutes } from './auth';
 import { registerPublicRoutes } from './public';
 import { registerWorkspaceRoutes } from './workspace';
 
+const NotFoundPage = lazy(() => import('../pages/not-found'));
+
 export function registerAppRoutes(): void {
   group({ layout: App }, () => {
     registerPublicRoutes();
@@ -19,7 +21,7 @@ export function registerAppRoutes(): void {
       registerWorkspaceRoutes();
     });
 
-    fallback(lazy(() => import('../pages/not-found')));
+    fallback(NotFoundPage);
   });
 }
 

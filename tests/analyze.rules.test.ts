@@ -96,6 +96,33 @@ describe("analyzer rules", () => {
     });
   });
 
+  it("requires lazy and defineScope identities to be declared at module scope", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { defineScope } from "@askrjs/askr";
+        import { lazy } from "@askrjs/askr/router";
+        const AppScope = defineScope("light");
+        const Settings = lazy(() => import("./settings"));
+        export function Page() {
+          const LocalScope = defineScope("dark");
+          const LocalSettings = lazy(() => import("./settings"));
+          return <LocalScope><LocalSettings /></LocalScope>;
+        }
+        export const makeScope = () => defineScope("nested");
+        void AppScope;
+        void Settings;
+      `,
+      "src/settings.tsx": "export default function Settings() { return <div />; }",
+    });
+
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/stable-module-identity",
+    );
+    expect(found).toHaveLength(3);
+    expect(found.every((entry) => entry.severity === "error")).toBe(true);
+    expect(found.every((entry) => /module scope/.test(entry.message))).toBe(true);
+  });
+
   it("checks resource cancellation and stable dependencies while accepting forwarded signals", async () => {
     const root = await fixture({
       "src/page.tsx": `

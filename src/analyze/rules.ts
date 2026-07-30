@@ -261,6 +261,34 @@ const stableRenderRule: AnalyzeRule = {
   },
 };
 
+const stableModuleIdentityRule: AnalyzeRule = {
+  id: "askr/stable-module-identity",
+  category: "correctness",
+  severity: "error",
+  description: "Module identity primitives must be declared outside functions.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const sourceFile of context.sourceFiles) {
+      const bindings = sourceBindings(sourceFile);
+      visit(sourceFile, (node) => {
+        if (!ts.isCallExpression(node) || !containingFunction(node)) return;
+        const name = canonicalCallName(node.expression, bindings);
+        if (name !== "lazy" && name !== "defineScope") return;
+        diagnostics.push(
+          diagnostic(
+            context,
+            node.expression,
+            this,
+            `${name}() creates stable identity and must be declared at module scope.`,
+            `Move the ${name}() declaration outside every function.`,
+          ),
+        );
+      });
+    }
+    return diagnostics;
+  },
+};
+
 interface StateBindings {
   readonly getters: Set<string>;
   readonly setters: Set<string>;
@@ -2156,6 +2184,7 @@ const parseErrorRule: AnalyzeRule = {
 export const ANALYZE_RULES: readonly AnalyzeRule[] = [
   parseErrorRule,
   stableRenderRule,
+  stableModuleIdentityRule,
   stateAccessRule,
   stateRenderWriteRule,
   resourceCancellationRule,
