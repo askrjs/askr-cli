@@ -19,7 +19,8 @@ async function writeJson(filePath: string, value: unknown): Promise<void> {
 
 function componentSource(index: number): string {
   return `
-    import { For, derive, resource, state } from "@askrjs/askr";
+    import { For, derive, state } from "@askrjs/askr";
+    import { resource } from "@askrjs/askr/resources";
 
     export function Page${index}() {
       const [items] = state([{ id: ${index}, label: "Item ${index}" }]);

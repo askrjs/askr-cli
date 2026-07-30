@@ -644,6 +644,34 @@ const controlContractRule: AnalyzeRule = {
             );
           }
         }
+        if (name === "Case" && ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent)) {
+          for (const child of node.parent.children) {
+            if (ts.isJsxText(child) && child.text.trim() === "") continue;
+            if (
+              ts.isJsxExpression(child) &&
+              (!child.expression ||
+                child.expression.kind === ts.SyntaxKind.NullKeyword ||
+                child.expression.kind === ts.SyntaxKind.FalseKeyword)
+            ) {
+              continue;
+            }
+            if (
+              ts.isJsxElement(child) &&
+              canonicalJsxName(child.openingElement.tagName, bindings) === "Match"
+            ) {
+              continue;
+            }
+            diagnostics.push(
+              diagnostic(
+                context,
+                child,
+                this,
+                "<Case> may only contain direct <Match> branches, null, false, or whitespace.",
+                "Move non-branch content into a <Match> child.",
+              ),
+            );
+          }
+        }
       });
     }
     return diagnostics;
@@ -1404,6 +1432,16 @@ const dataContractRule: AnalyzeRule = {
             diagnostics.push(
               diagnostic(context, key, this, "createQuery() key must be a string or key function."),
             );
+          } else if (ts.isObjectLiteralExpression(key) || ts.isArrayLiteralExpression(key)) {
+            diagnostics.push(
+              diagnostic(
+                context,
+                key,
+                this,
+                "createQuery() key must not be an object or array allocation.",
+                "Use a stable string or a key function that returns the runtime-supported key shape.",
+              ),
+            );
           }
           const fetcher = optionExpression(options, "fetch");
           if (!fetcher || isProvablyNonFunction(fetcher)) {
@@ -2153,9 +2191,778 @@ const parseErrorRule: AnalyzeRule = {
   },
 };
 
+function nearestComponent(node: ts.Node): ts.SignatureDeclaration | null {
+  for (let current = node.parent; current; current = current.parent) {
+    if (ts.isFunctionLike(current)) {
+      const name = functionName(current);
+      if ((name && /^[A-Z]/.test(name)) || containsJsx(current)) return current;
+    }
+  }
+  return null;
+}
+
+function isInsideNestedFunction(node: ts.Node, owner: ts.SignatureDeclaration): boolean {
+  for (let current = node.parent; current && current !== owner; current = current.parent) {
+    if (ts.isFunctionLike(current)) return true;
+  }
+  return false;
+}
+
+function jsxExpression(
+  attribute: ts.JsxAttribute | ts.JsxSpreadAttribute | undefined,
+): ts.Expression | null {
+  if (
+    !attribute ||
+    !ts.isJsxAttribute(attribute) ||
+    !attribute.initializer ||
+    !ts.isJsxExpression(attribute.initializer)
+  ) {
+    return null;
+  }
+  return attribute.initializer.expression ?? null;
+}
+
+const stableControlBoundaryRule: AnalyzeRule = {
+  id: "askr/stable-control-boundary",
+  category: "correctness",
+  severity: "error",
+  description: "Conditional control boundaries must not change identity between renders.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const sourceFile of context.sourceFiles) {
+      const bindings = sourceBindings(sourceFile);
+      const facts = sourceFacts(sourceFile);
+      if (
+        !facts.jsx.some((fact) => ["For", "Show", "Case"].includes(fact.name)) &&
+        !facts.calls.some((fact) => fact.name === "defineScope")
+      ) {
+        continue;
+      }
+      visit(sourceFile, (node) => {
+        let candidate: ts.Node | null = null;
+        if (
+          (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+          ["For", "Show", "Case"].includes(canonicalJsxName(node.tagName, bindings) ?? "")
+        ) {
+          candidate = node;
+        } else if (
+          ts.isCallExpression(node) &&
+          canonicalCallName(node.expression, bindings) === "defineScope"
+        ) {
+          candidate = node;
+        }
+        if (!candidate) return;
+        const owner = nearestComponent(candidate);
+        if (!owner || !isControlFlowAncestor(candidate, owner)) return;
+        diagnostics.push(
+          diagnostic(
+            context,
+            candidate,
+            this,
+            "An Askr control boundary is created conditionally, so its render identity is unstable.",
+            "Create the boundary unconditionally and put the condition in <Show>, <Match>, or its inputs.",
+          ),
+        );
+      });
+    }
+    return diagnostics;
+  },
+};
+
+function dependencyNames(array: ts.ArrayLiteralExpression): Set<string> {
+  const names = new Set<string>();
+  for (const element of array.elements) {
+    if (ts.isIdentifier(element)) names.add(element.text);
+    if (ts.isCallExpression(element) && ts.isIdentifier(element.expression)) {
+      names.add(element.expression.text);
+    }
+  }
+  return names;
+}
+
+const exhaustiveDependenciesRule: AnalyzeRule = {
+  id: "askr/exhaustive-dependencies",
+  category: "correctness",
+  severity: "warning",
+  description: "Resource and stream dependency arrays must list directly read reactive values.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const sourceFile of context.sourceFiles) {
+      const bindings = sourceBindings(sourceFile);
+      if (
+        !sourceFacts(sourceFile).calls.some(
+          (fact) => fact.name === "resource" || fact.name === "stream",
+        )
+      ) {
+        continue;
+      }
+      const reactive = collectStateBindings(sourceFile, bindings).getters;
+      for (const { node, name } of sourceFacts(sourceFile).calls) {
+        if (name !== "resource" && name !== "stream") continue;
+        const loader = node.arguments[0];
+        const deps =
+          name === "resource"
+            ? node.arguments[1]
+            : node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1])
+              ? optionExpression(node.arguments[1], "deps")
+              : node.arguments[1];
+        if (
+          !loader ||
+          (!ts.isArrowFunction(loader) && !ts.isFunctionExpression(loader)) ||
+          !deps ||
+          !ts.isArrayLiteralExpression(deps) ||
+          deps.elements.some(ts.isSpreadElement)
+        ) {
+          continue;
+        }
+        const declared = dependencyNames(deps);
+        const missing = new Set<string>();
+        const walk = (candidate: ts.Node): void => {
+          if (candidate !== loader && ts.isFunctionLike(candidate)) return;
+          if (
+            ts.isCallExpression(candidate) &&
+            ts.isIdentifier(candidate.expression) &&
+            reactive.has(candidate.expression.text) &&
+            !declared.has(candidate.expression.text)
+          ) {
+            missing.add(candidate.expression.text);
+          }
+          ts.forEachChild(candidate, walk);
+        };
+        walk(loader.body);
+        for (const name of [...missing].sort()) {
+          diagnostics.push(
+            diagnostic(
+              context,
+              loader,
+              this,
+              `${name}() is read by ${canonicalCallName(node.expression, bindings)}() but is missing from its dependency array.`,
+              `Add ${name}() to the literal dependency array.`,
+            ),
+          );
+        }
+      }
+    }
+    return diagnostics;
+  },
+};
+
+const forRowClosureCaptureRule: AnalyzeRule = {
+  id: "askr/for-row-closure-capture",
+  category: "correctness",
+  severity: "warning",
+  description: "For row renderers must not capture changing component reactive values.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const sourceFile of context.sourceFiles) {
+      const bindings = sourceBindings(sourceFile);
+      if (!sourceFacts(sourceFile).jsx.some((fact) => fact.name === "For")) continue;
+      const reactive = collectStateBindings(sourceFile, bindings).getters;
+      const snapshots = new Set<string>();
+      visit(sourceFile, (candidate) => {
+        if (
+          ts.isVariableDeclaration(candidate) &&
+          ts.isIdentifier(candidate.name) &&
+          candidate.initializer &&
+          ts.isCallExpression(candidate.initializer) &&
+          ts.isIdentifier(candidate.initializer.expression) &&
+          reactive.has(candidate.initializer.expression.text)
+        ) {
+          snapshots.add(candidate.name.text);
+        }
+      });
+      visit(sourceFile, (node) => {
+        if (
+          !ts.isJsxElement(node) ||
+          canonicalJsxName(node.openingElement.tagName, bindings) !== "For"
+        ) {
+          return;
+        }
+        for (const child of node.children) {
+          if (
+            !ts.isJsxExpression(child) ||
+            !child.expression ||
+            (!ts.isArrowFunction(child.expression) && !ts.isFunctionExpression(child.expression))
+          ) {
+            continue;
+          }
+          const renderer = child.expression;
+          const captured = new Set<string>();
+          const walk = (candidate: ts.Node): void => {
+            for (
+              let current = candidate.parent;
+              current && current !== renderer;
+              current = current.parent
+            ) {
+              if (ts.isJsxAttribute(current)) return;
+            }
+            if (
+              ts.isCallExpression(candidate) &&
+              ts.isIdentifier(candidate.expression) &&
+              reactive.has(candidate.expression.text)
+            ) {
+              captured.add(candidate.expression.text);
+            }
+            if (
+              ts.isIdentifier(candidate) &&
+              snapshots.has(candidate.text) &&
+              !(
+                ts.isPropertyAccessExpression(candidate.parent) &&
+                candidate.parent.name === candidate
+              )
+            ) {
+              captured.add(candidate.text);
+            }
+            ts.forEachChild(candidate, walk);
+          };
+          walk(renderer.body);
+          for (const name of [...captured].sort()) {
+            diagnostics.push(
+              diagnostic(
+                context,
+                renderer,
+                this,
+                `<For> row rendering captures reactive value '${name}' from its component closure.`,
+                "Read changing values through row data, a selector predicate, or a function-valued JSX prop.",
+              ),
+            );
+          }
+        }
+      });
+    }
+    return diagnostics;
+  },
+};
+
+const renderScopeRequiredRule: AnalyzeRule = {
+  id: "askr/render-scope-required",
+  category: "correctness",
+  severity: "error",
+  description: "Render-scoped APIs cannot be created in callbacks that execute outside rendering.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    const callbackCalls = new Set([
+      "setTimeout",
+      "setInterval",
+      "queueMicrotask",
+      "then",
+      "catch",
+      "finally",
+    ]);
+    for (const sourceFile of context.sourceFiles) {
+      const bindings = sourceBindings(sourceFile);
+      if (!sourceFacts(sourceFile).calls.some((fact) => RENDER_SCOPED_CONCEPTS.has(fact.name))) {
+        continue;
+      }
+      visit(sourceFile, (node) => {
+        if (!ts.isCallExpression(node)) return;
+        const name = canonicalCallName(node.expression, bindings);
+        if (!name || !RENDER_SCOPED_CONCEPTS.has(name) || name === "readScope") return;
+        for (let current = node.parent; current; current = current.parent) {
+          if (!ts.isFunctionLike(current)) continue;
+          const parent = current.parent;
+          const callbackOwner =
+            (ts.isCallExpression(parent) &&
+              ((ts.isIdentifier(parent.expression) && callbackCalls.has(parent.expression.text)) ||
+                (ts.isPropertyAccessExpression(parent.expression) &&
+                  callbackCalls.has(parent.expression.name.text)))) ||
+            (ts.isJsxExpression(parent) && ts.isJsxAttribute(parent.parent)) ||
+            (ts.isPropertyAssignment(parent) && parent.name.getText() === "body");
+          if (!callbackOwner) continue;
+          diagnostics.push(
+            diagnostic(
+              context,
+              node.expression,
+              this,
+              `${name}() is created in a callback that is statically outside component rendering.`,
+              `Create ${name}() at component render scope and use its value from the callback.`,
+            ),
+          );
+          return;
+        }
+      });
+    }
+    return diagnostics;
+  },
+};
+
+const stableModuleIdentityRule: AnalyzeRule = {
+  id: "askr/stable-module-identity",
+  category: "correctness",
+  severity: "error",
+  description: "Lazy modules and scopes must have stable identity across renders.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const sourceFile of context.sourceFiles) {
+      for (const { node, name } of sourceFacts(sourceFile).calls) {
+        if (name !== "lazy" && name !== "defineScope") continue;
+        const owner = nearestComponent(node);
+        if (!owner || isInsideNestedFunction(node, owner)) continue;
+        diagnostics.push(
+          diagnostic(
+            context,
+            node.expression,
+            this,
+            `${name}() is created during component rendering and receives a new identity each render.`,
+            `Move ${name}() to module scope.`,
+          ),
+        );
+      }
+    }
+    return diagnostics;
+  },
+};
+
+const queryKeyContractRule: AnalyzeRule = {
+  id: "askr/query-key-contract",
+  category: "correctness",
+  severity: "error",
+  description: "Query keys and scopes must be deterministic and serializable.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    const nondeterministic = new Set(["random", "now", "randomUUID"]);
+    for (const sourceFile of context.sourceFiles) {
+      const bindings = sourceBindings(sourceFile);
+      if (
+        !sourceFacts(sourceFile).calls.some(
+          (fact) => fact.name === "createQuery" || fact.name === "queryScope",
+        )
+      ) {
+        continue;
+      }
+      for (const call of sourceFacts(sourceFile).allCalls) {
+        const name = canonicalCallName(call.expression, bindings);
+        let expression: ts.Expression | undefined;
+        if (name === "createQuery") {
+          const options = call.arguments[0];
+          if (options && ts.isObjectLiteralExpression(options))
+            expression = optionExpression(options, "key");
+        } else if (name === "queryScope") {
+          expression = call.arguments[0];
+        } else {
+          continue;
+        }
+        if (!expression) continue;
+        let invalid: ts.Node | null = null;
+        const walk = (node: ts.Node): void => {
+          if (invalid) return;
+          if (
+            ts.isCallExpression(node) &&
+            ((ts.isPropertyAccessExpression(node.expression) &&
+              nondeterministic.has(node.expression.name.text)) ||
+              (ts.isIdentifier(node.expression) && node.expression.text === "Symbol"))
+          ) {
+            invalid = node;
+            return;
+          }
+          ts.forEachChild(node, walk);
+        };
+        walk(expression);
+        if (!invalid) continue;
+        diagnostics.push(
+          diagnostic(
+            context,
+            invalid,
+            this,
+            `${name}() contains a directly provable nondeterministic or Symbol key part.`,
+            "Use stable serializable primitives derived from route, props, or state.",
+          ),
+        );
+      }
+    }
+    return diagnostics;
+  },
+};
+
+const routeScopeStructureRule: AnalyzeRule = {
+  id: "askr/route-scope-structure",
+  category: "correctness",
+  severity: "error",
+  description: "Nested page route scopes must have one index and relative child routes.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const sourceFile of context.sourceFiles) {
+      const bindings = sourceBindings(sourceFile);
+      if (!sourceFacts(sourceFile).calls.some((fact) => fact.name === "page")) continue;
+      const inspectBody = (body: ts.ConciseBody): void => {
+        let indexes = 0;
+        const walk = (node: ts.Node): void => {
+          if (node !== body && ts.isFunctionLike(node)) return;
+          if (!ts.isCallExpression(node)) {
+            ts.forEachChild(node, walk);
+            return;
+          }
+          const name = canonicalCallName(node.expression, bindings);
+          if (name === "index") {
+            indexes += 1;
+            if (indexes > 1) {
+              diagnostics.push(
+                diagnostic(
+                  context,
+                  node.expression,
+                  this,
+                  "A page scope declares more than one index route.",
+                  "Keep exactly one index() declaration in a page scope.",
+                ),
+              );
+            }
+          }
+          if (name === "route") {
+            const routePath = node.arguments[0];
+            if (
+              routePath &&
+              ts.isStringLiteral(routePath) &&
+              routePath.text.startsWith("/") &&
+              routePath.text.length > 1
+            ) {
+              const replacement = routePath.text.replace(/^\/+/, "");
+              diagnostics.push(
+                diagnostic(
+                  context,
+                  routePath,
+                  this,
+                  `Child route '${routePath.text}' is absolute inside a page scope.`,
+                  `Use the relative child path '${replacement}'.`,
+                  {
+                    description: "Strip the leading slash from a proven child route",
+                    filePath: sourceFile.fileName,
+                    start: routePath.getStart(sourceFile),
+                    end: routePath.getEnd(),
+                    replacement: JSON.stringify(replacement),
+                  },
+                ),
+              );
+            }
+          }
+          ts.forEachChild(node, walk);
+        };
+        walk(body);
+      };
+      for (const { node, name } of sourceFacts(sourceFile).calls) {
+        if (name !== "page") continue;
+        const callback = node.arguments.find(
+          (argument): argument is ts.ArrowFunction | ts.FunctionExpression =>
+            ts.isArrowFunction(argument) || ts.isFunctionExpression(argument),
+        );
+        if (callback) inspectBody(callback.body);
+      }
+    }
+    return diagnostics;
+  },
+};
+
+const IMPORT_SUBPATHS: Readonly<Record<string, string>> = {
+  ActionForm: "actions",
+  action: "actions",
+  defineAction: "actions",
+  createSPA: "boot",
+  hydrateSPA: "boot",
+  createIsland: "boot",
+  createIslands: "boot",
+  createQuery: "data",
+  createMutation: "data",
+  invalidate: "data",
+  invalidateOnInterval: "data",
+  queryScope: "data",
+  route: "router",
+  page: "router",
+  index: "router",
+  group: "router",
+  fallback: "router",
+  lazy: "router",
+  createRouteRegistry: "router",
+  resource: "resources",
+  task: "resources",
+  timer: "resources",
+  stream: "resources",
+  on: "resources",
+  onRouteChange: "router",
+  renderToString: "ssr",
+  renderToStream: "ssr",
+  createStaticGen: "ssg",
+};
+
+const importSubpathRule: AnalyzeRule = {
+  id: "askr/import-subpath",
+  category: "configuration",
+  severity: "error",
+  description: "Askr APIs must be imported from their public owning subpath.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const sourceFile of context.sourceFiles) {
+      for (const statement of sourceFile.statements) {
+        if (
+          !ts.isImportDeclaration(statement) ||
+          !ts.isStringLiteral(statement.moduleSpecifier) ||
+          statement.moduleSpecifier.text !== "@askrjs/askr" ||
+          !statement.importClause?.namedBindings ||
+          !ts.isNamedImports(statement.importClause.namedBindings)
+        ) {
+          continue;
+        }
+        const elements = statement.importClause.namedBindings.elements;
+        const misplaced = elements.filter(
+          (element) => IMPORT_SUBPATHS[element.propertyName?.text ?? element.name.text],
+        );
+        if (misplaced.length === 0) continue;
+        const valid = elements.filter((element) => !misplaced.includes(element));
+        const groups = new Map<string, ts.ImportSpecifier[]>();
+        for (const element of misplaced) {
+          const imported = element.propertyName?.text ?? element.name.text;
+          const subpath = IMPORT_SUBPATHS[imported];
+          const list = groups.get(subpath) ?? [];
+          list.push(element);
+          groups.set(subpath, list);
+        }
+        const clauseType = statement.importClause.isTypeOnly ? "type " : "";
+        const lines: string[] = [];
+        if (valid.length > 0) {
+          lines.push(
+            `import ${clauseType}{ ${valid.map((entry) => entry.getText(sourceFile)).join(", ")} } from "@askrjs/askr";`,
+          );
+        }
+        for (const [subpath, entries] of [...groups].sort(([left], [right]) =>
+          left.localeCompare(right),
+        )) {
+          lines.push(
+            `import ${clauseType}{ ${entries.map((entry) => entry.getText(sourceFile)).join(", ")} } from "@askrjs/askr/${subpath}";`,
+          );
+        }
+        diagnostics.push(
+          diagnostic(
+            context,
+            misplaced[0],
+            this,
+            `Root import contains ${misplaced.length} API specifier${misplaced.length === 1 ? "" : "s"} owned by public subpaths.`,
+            "Import each API from its documented public subpath.",
+            {
+              description: "Split misplaced Askr root imports by public subpath",
+              filePath: sourceFile.fileName,
+              start: statement.getStart(sourceFile),
+              end: statement.getEnd(),
+              replacement: lines.join("\n"),
+            },
+          ),
+        );
+      }
+    }
+    return diagnostics;
+  },
+};
+
+function literalJsxString(
+  attribute: ts.JsxAttribute | ts.JsxSpreadAttribute | undefined,
+): string | null {
+  if (!attribute || !ts.isJsxAttribute(attribute) || !attribute.initializer) return null;
+  if (ts.isStringLiteral(attribute.initializer)) return attribute.initializer.text;
+  const expression = jsxExpression(attribute);
+  return expression && ts.isStringLiteralLike(expression) ? expression.text : null;
+}
+
+const linkContractRule: AnalyzeRule = {
+  id: "askr/link-contract",
+  category: "correctness",
+  severity: "error",
+  description: "Link destinations must be unambiguous and use runtime-safe schemes.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    const unsafe = /^(?:javascript|data|vbscript):/i;
+    for (const sourceFile of context.sourceFiles) {
+      const bindings = sourceBindings(sourceFile);
+      if (!sourceFacts(sourceFile).jsx.some((fact) => fact.name === "Link")) continue;
+      visit(sourceFile, (node) => {
+        if (!ts.isJsxOpeningElement(node) && !ts.isJsxSelfClosingElement(node)) return;
+        if (canonicalJsxName(node.tagName, bindings) !== "Link") return;
+        const attributes = jsxAttributes(node);
+        if ([...attributes.values()].some(ts.isJsxSpreadAttribute)) return;
+        const to = attributes.get("to");
+        const href = attributes.get("href");
+        if (!to && !href) {
+          diagnostics.push(
+            diagnostic(context, node.tagName, this, "<Link> requires a to or href destination."),
+          );
+        } else if (to && href) {
+          diagnostics.push(
+            diagnostic(context, node.tagName, this, "<Link> cannot specify both to and href."),
+          );
+        }
+        const destination = literalJsxString(href ?? to);
+        if (destination && unsafe.test(destination.trim())) {
+          diagnostics.push(
+            diagnostic(
+              context,
+              href ?? to ?? node.tagName,
+              this,
+              `<Link> uses the unsafe '${destination.split(":")[0]}:' URL scheme.`,
+              "Use http, https, mailto, tel, sms, a relative URL, or a route reference.",
+            ),
+          );
+        }
+      });
+    }
+    return diagnostics;
+  },
+};
+
+function packageName(manifest: Record<string, unknown>): string {
+  return typeof manifest.name === "string" ? manifest.name : "";
+}
+
+const hardcodedThemeTokenRule: AnalyzeRule = {
+  id: "askr/no-hardcoded-theme-token",
+  category: "correctness",
+  severity: "warning",
+  description: "Runtime UI literals should use semantic theme tokens.",
+  analyze(context) {
+    if (["@askrjs/askr", "@askrjs/themes"].includes(packageName(context.workspace.manifest)))
+      return [];
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    const color = /(?:#[0-9a-f]{3,8}\b|\brgba?\s*\(|\bhsla?\s*\()/i;
+    for (const sourceFile of context.sourceFiles) {
+      if (/(?:^|[./_-])(?:test|spec)\.[cm]?[jt]sx?$/.test(sourceFile.fileName)) continue;
+      if (!color.test(sourceFile.text)) continue;
+      visit(sourceFile, (node) => {
+        if (
+          (ts.isStringLiteralLike(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
+          color.test(node.text)
+        ) {
+          diagnostics.push(
+            diagnostic(
+              context,
+              node,
+              this,
+              `Runtime UI literal '${node.text}' hardcodes a color instead of a theme token.`,
+              "Use a semantic prop, theme variable, or design-system class.",
+            ),
+          );
+        }
+      });
+    }
+    return diagnostics;
+  },
+};
+
+const noEffectDataLoadingRule: AnalyzeRule = {
+  id: "askr/no-effect-data-loading",
+  category: "correctness",
+  severity: "warning",
+  description: "Fetch-to-state data loading should use resource rather than task effects.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const sourceFile of context.sourceFiles) {
+      const bindings = sourceBindings(sourceFile);
+      if (!sourceFacts(sourceFile).calls.some((fact) => fact.name === "task")) continue;
+      const state = collectStateBindings(sourceFile, bindings);
+      for (const { node, name } of sourceFacts(sourceFile).calls) {
+        if (name !== "task") continue;
+        const callback = node.arguments[0];
+        if (
+          !callback ||
+          (!ts.isArrowFunction(callback) && !ts.isFunctionExpression(callback)) ||
+          !/\bfetch\s*\(/.test(callback.body.getText())
+        ) {
+          continue;
+        }
+        let writesState = false;
+        const walk = (candidate: ts.Node): void => {
+          if (
+            ts.isCallExpression(candidate) &&
+            ts.isIdentifier(candidate.expression) &&
+            state.setters.has(candidate.expression.text)
+          ) {
+            writesState = true;
+          }
+          ts.forEachChild(candidate, walk);
+        };
+        walk(callback.body);
+        if (!writesState) continue;
+        diagnostics.push(
+          diagnostic(
+            context,
+            callback,
+            this,
+            "task() fetches data and writes it into same-component state.",
+            "Use resource() so cancellation, dependencies, loading, and errors are lifecycle-owned.",
+          ),
+        );
+      }
+    }
+    return diagnostics;
+  },
+};
+
+const testingContractRule: AnalyzeRule = {
+  id: "askr/testing-contract",
+  category: "correctness",
+  severity: "error",
+  description: "Canonical test dispatches must be synchronously flushed before assertions.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const sourceFile of context.sourceFiles) {
+      let canonicalDispatch = false;
+      for (const statement of sourceFile.statements) {
+        if (
+          ts.isImportDeclaration(statement) &&
+          ts.isStringLiteral(statement.moduleSpecifier) &&
+          statement.moduleSpecifier.text.endsWith("@askrjs/askr/testing")
+        ) {
+          canonicalDispatch =
+            statement.importClause?.namedBindings &&
+            ts.isNamedImports(statement.importClause.namedBindings)
+              ? statement.importClause.namedBindings.elements.some(
+                  (element) => (element.propertyName?.text ?? element.name.text) === "dispatch",
+                )
+              : false;
+        }
+      }
+      if (!canonicalDispatch) continue;
+      visit(sourceFile, (node) => {
+        if (!ts.isBlock(node)) return;
+        let pending: ts.CallExpression | null = null;
+        for (const statement of node.statements) {
+          const text = statement.getText();
+          let dispatch: ts.CallExpression | null = null;
+          const findDispatch = (candidate: ts.Node): void => {
+            if (
+              ts.isCallExpression(candidate) &&
+              ts.isIdentifier(candidate.expression) &&
+              candidate.expression.text === "dispatch"
+            ) {
+              dispatch = candidate;
+            }
+            ts.forEachChild(candidate, findDispatch);
+          };
+          findDispatch(statement);
+          if (dispatch) pending = dispatch;
+          if (pending && /(?:^|\.)(?:flush)\s*\(/.test(text)) pending = null;
+          if (pending && /\b(?:expect|assert)\s*\(/.test(text)) {
+            diagnostics.push(
+              diagnostic(
+                context,
+                pending,
+                this,
+                "dispatch() reaches an assertion without a synchronous flush().",
+                "Call flush() or result.flush() before the next assertion.",
+              ),
+            );
+            pending = null;
+          }
+        }
+      });
+    }
+    return diagnostics;
+  },
+};
+
 export const ANALYZE_RULES: readonly AnalyzeRule[] = [
   parseErrorRule,
+  stableControlBoundaryRule,
   stableRenderRule,
+  renderScopeRequiredRule,
+  exhaustiveDependenciesRule,
+  forRowClosureCaptureRule,
+  stableModuleIdentityRule,
+  queryKeyContractRule,
   stateAccessRule,
   stateRenderWriteRule,
   resourceCancellationRule,
@@ -2163,6 +2970,7 @@ export const ANALYZE_RULES: readonly AnalyzeRule[] = [
   lifecycleContractRule,
   streamContractRule,
   dataContractRule,
+  linkContractRule,
   invalidationContractRule,
   forContractRule,
   controlContractRule,
@@ -2171,6 +2979,7 @@ export const ANALYZE_RULES: readonly AnalyzeRule[] = [
   asyncComponentRule,
   routeRegistryRule,
   routePathRule,
+  routeScopeStructureRule,
   dataCancellationRule,
   bootRegistryRule,
   islandContractRule,
@@ -2178,8 +2987,12 @@ export const ANALYZE_RULES: readonly AnalyzeRule[] = [
   actionContractRule,
   actionPromiseRule,
   renderAllocationRule,
+  hardcodedThemeTokenRule,
+  noEffectDataLoadingRule,
+  testingContractRule,
   ssrGlobalsRule,
   frameworkConfigRule,
+  importSubpathRule,
 ];
 
 export function configuredSeverity(

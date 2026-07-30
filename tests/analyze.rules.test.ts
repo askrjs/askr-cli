@@ -412,4 +412,100 @@ describe("analyzer rules", () => {
     ]);
     expect(found.filter((entry) => newRules.has(entry.ruleId))).toEqual([]);
   });
+
+  it("covers the static-analysis backlog with conservative positive and negative cases", async () => {
+    const root = await fixture({
+      "src/backlog.tsx": `
+        import { Case, For, Match, Show, defineScope, state } from "@askrjs/askr";
+        import { createQuery, queryScope } from "@askrjs/askr/data";
+        import { Link, index, lazy, page, route } from "@askrjs/askr/router";
+        import { resource, task } from "@askrjs/askr/resources";
+        import { dispatch } from "@askrjs/askr/testing";
+        declare const expect: (value: unknown) => { toBe(value: unknown): void };
+        export function Page(props: { enabled: boolean }) {
+          const [count, setCount] = state(0);
+          const snapshot = count();
+          if (props.enabled) {
+            <Show when={true}>conditional</Show>;
+            defineScope();
+          }
+          resource(() => count(), []);
+          task(async () => setCount(await fetch("/api").then((value) => value.status)));
+          const Deferred = lazy(() => import("./deferred"));
+          setTimeout(() => resource(() => 1, []), 0);
+          return <main>
+            <Case>invalid<Match when={true}>ok</Match></Case>
+            <For each={[]} byIndex>{() => <span>{snapshot}</span>}</For>
+            <Link href="javascript:alert(1)" />
+            <Deferred />
+          </main>;
+        }
+        createQuery({ key: Math.random(), fetch: async () => ({}) });
+        createQuery({ key: {}, fetch: async () => ({}) });
+        queryScope(Symbol("scope"));
+        page("/users", () => {
+          index(() => null);
+          index(() => null);
+          route("/settings", () => null);
+        });
+        function testInteraction() {
+          dispatch(document.body, "click");
+          expect(true).toBe(true);
+        }
+      `,
+      "src/imports.ts": `
+        import { For, createQuery as query, resource, state as cell } from "@askrjs/askr";
+        void [For, query, resource, cell];
+      `,
+      "src/valid.tsx": `
+        import { For, state } from "@askrjs/askr";
+        import { Link, lazy } from "@askrjs/askr/router";
+        import { resource } from "@askrjs/askr/resources";
+        const Deferred = lazy(() => import("./deferred"));
+        export function Valid() {
+          const [count] = state(0);
+          resource(() => count(), [count()]);
+          return <><For each={[]} byIndex>{() => <span data-value={() => count()} />}</For>
+            <Link href="sms:+15551234567" /><Deferred /></>;
+        }
+      `,
+      "src/deferred.tsx": "export default function Deferred() { return <div />; }",
+    });
+
+    const found = await diagnostics(root);
+    const ids = new Set(found.map((entry) => entry.ruleId));
+    for (const id of [
+      "askr/stable-control-boundary",
+      "askr/exhaustive-dependencies",
+      "askr/for-row-closure-capture",
+      "askr/render-scope-required",
+      "askr/stable-module-identity",
+      "askr/route-scope-structure",
+      "askr/link-contract",
+      "askr/query-key-contract",
+      "askr/import-subpath",
+      "askr/no-effect-data-loading",
+      "askr/testing-contract",
+    ]) {
+      expect(ids, id).toContain(id);
+    }
+    expect(
+      found.filter(
+        (entry) =>
+          entry.file === "src/valid.tsx" &&
+          [
+            "askr/exhaustive-dependencies",
+            "askr/for-row-closure-capture",
+            "askr/link-contract",
+            "askr/stable-module-identity",
+          ].includes(entry.ruleId),
+      ),
+    ).toEqual([]);
+    expect(found.find((entry) => entry.ruleId === "askr/import-subpath")?.fix).toMatchObject({
+      safe: true,
+    });
+    expect(
+      found.find((entry) => entry.ruleId === "askr/route-scope-structure" && entry.fix)?.fix,
+    ).toMatchObject({ safe: true });
+  });
 });

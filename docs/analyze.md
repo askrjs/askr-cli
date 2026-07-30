@@ -35,6 +35,17 @@ another package or local module is not treated as an Askr API.
 - `askr/stable-render-call` enforces stable top-level calls for state, derived
   values, selectors, resources, lifecycle operations, actions, queries, and
   mutations where the AST establishes a component render context.
+- `askr/stable-control-boundary` reports `For`, `Show`, `Case`, and statically
+  resolved `defineScope()` boundaries created conditionally during rendering.
+- `askr/render-scope-required` reports render-owned primitives created in
+  statically non-render callbacks such as handlers, timers, Promise
+  continuations, and task bodies.
+- `askr/exhaustive-dependencies` compares direct same-component reactive reads
+  with literal `resource` and `stream` dependency arrays. Dynamic arrays,
+  spreads, and uninvoked nested functions are deliberately skipped.
+- `askr/for-row-closure-capture` reports direct reactive reads and one-hop
+  snapshots captured by a `For` row renderer. Function-valued JSX props remain
+  valid.
 - `askr/state-access` reports state getters used without calling them and
   setters called without a value or updater.
 - `askr/state-render-write` reports state mutation during the owning component's
@@ -45,11 +56,31 @@ another package or local module is not treated as an Askr API.
 - `askr/for-contract` requires `each`, an item renderer, and exactly one of
   `by` or `byIndex`.
 - `askr/control-contract` validates required `Show` and `Match` conditions and
-  direct `Case`/`Match` structure.
+  direct `Case`/`Match` structure; `Case` otherwise permits only null, false,
+  and whitespace children.
+- `askr/stable-module-identity` reports `lazy()` and `defineScope()` created
+  directly during a proven component render.
 - `askr/no-async-component` reports async JSX components.
 - `askr/route-registry` keeps route DSL calls inside a synchronous
   `createRouteRegistry()` definition.
 - `askr/route-path-syntax` enforces `{name}` route parameters.
+- `askr/route-scope-structure` reports duplicate page indexes and absolute
+  child routes. A proven child-route leading slash has a safe fix.
+- `askr/link-contract` requires one unambiguous destination and rejects the
+  runtime's unsafe URL schemes. Relative links plus `http`, `https`, `mailto`,
+  `tel`, and `sms` remain valid.
+- `askr/query-key-contract` reports directly provable nondeterministic and
+  Symbol query key/scope parts; dynamic values are left alone.
+- `askr/import-subpath` groups named root imports by their owning public Askr
+  subpath in one transactional fix per declaration while retaining aliases,
+  type modifiers, and valid root specifiers.
+- `askr/no-hardcoded-theme-token` reports runtime color literals outside tests
+  and the framework/theme owner packages.
+- `askr/no-effect-data-loading` reports direct fetch-to-component-state flows
+  in `task()` callbacks; arbitrary service-call inference is intentionally out
+  of scope.
+- `askr/testing-contract` requires a synchronous `flush()` or `result.flush()`
+  between canonical testing `dispatch()` and the next assertion in a block.
 - `askr/boot-registry` requires an explicit registry and an observed Promise for
   `createSPA()` and `hydrateSPA()`.
 - `askr/ssr-browser-global` reports unguarded browser globals in SSR and SSG
@@ -81,6 +112,8 @@ project's lint, tests, or build.
 Without `--check`, the command applies only fixes whose intent is mechanical:
 
 - convert route parameters such as `:id` to `{id}`;
+- strip the leading slash from a statically proven child route;
+- split misplaced named root imports into their documented public subpaths;
 - add the Askr JSX runtime to a plain-JSON `tsconfig.json`.
 
 All changed files are staged and replaced as one transaction. If any replacement

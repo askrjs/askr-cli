@@ -1,6 +1,6 @@
 export const ASKR_CONCEPTS = {
   reactive: ["state", "derive", "selector"] as const,
-  lifecycle: ["resource", "task", "timer", "stream", "on"] as const,
+  lifecycle: ["resource", "task", "timer", "stream", "on", "onRouteChange"] as const,
   data: [
     "createQuery",
     "createMutation",
