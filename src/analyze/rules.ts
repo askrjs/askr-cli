@@ -167,6 +167,46 @@ function visit(sourceFile: ts.SourceFile, callback: (node: ts.Node) => void): vo
   walk(sourceFile);
 }
 
+function runtimeLiteralText(node: ts.Node): string | null {
+  if (
+    ts.isStringLiteral(node) ||
+    ts.isNoSubstitutionTemplateLiteral(node) ||
+    ts.isTemplateHead(node) ||
+    ts.isTemplateMiddle(node) ||
+    ts.isTemplateTail(node)
+  ) {
+    return node.text;
+  }
+  return null;
+}
+
+const hardcodedThemeTokenRule: AnalyzeRule = {
+  id: "askr/no-hardcoded-theme-token",
+  category: "correctness",
+  severity: "warning",
+  description: "Runtime code must not name Askr theme tokens directly.",
+  analyze(context) {
+    if (context.workspace.name === "@askrjs/themes") return [];
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const sourceFile of context.sourceFiles) {
+      visit(sourceFile, (node) => {
+        const text = runtimeLiteralText(node);
+        if (text === null || !text.includes("--ak-")) return;
+        diagnostics.push(
+          diagnostic(
+            context,
+            node,
+            this,
+            "Runtime code names an Askr theme token directly; use a semantic class or data-* attribute instead.",
+            "Move the token mapping to theme CSS and select it through a semantic class or data-* attribute.",
+          ),
+        );
+      });
+    }
+    return diagnostics;
+  },
+};
+
 function containingFunction(node: ts.Node): ts.SignatureDeclaration | null {
   for (let current = node.parent; current; current = current.parent) {
     if (ts.isFunctionLike(current)) return current;
@@ -2957,6 +2997,7 @@ const testingContractRule: AnalyzeRule = {
 export const ANALYZE_RULES: readonly AnalyzeRule[] = [
   parseErrorRule,
   stableControlBoundaryRule,
+  hardcodedThemeTokenRule,
   stableRenderRule,
   renderScopeRequiredRule,
   exhaustiveDependenciesRule,
