@@ -253,6 +253,83 @@ describe("analyzer rules", () => {
     ).toEqual([]);
   });
 
+  it("reports hardcoded theme tokens in runtime literals and template segments", async () => {
+    const root = await fixture({
+      "src/theme.tsx": `
+        const value = "red";
+        const other = "blue";
+        const stringValue = "var(--ak-color-text)";
+        const templateValue = \`--ak-space-md\`;
+        const interpolated = \`--ak-before \${value} middle --ak-middle \${other} --ak-after\`;
+        export const view = <div data-token="--ak-color-surface" />;
+      `,
+      "src/extra.js": `export const token = "--ak-color-border";`,
+    });
+
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/no-hardcoded-theme-token",
+    );
+    expect(found).toHaveLength(7);
+    expect(found.every((entry) => entry.severity === "warning")).toBe(true);
+    expect(found.every((entry) => /semantic class|data-\*/.test(entry.message))).toBe(true);
+    expect(found.map((entry) => entry.file)).toEqual(
+      expect.arrayContaining(["src/theme.tsx", "src/extra.js"]),
+    );
+  });
+
+  it("ignores comments and nonliteral token flow", async () => {
+    const root = await fixture({
+      "src/theme.ts": `
+        // --ak-color-text belongs in CSS.
+        /* --ak-color-surface is also only a comment. */
+        declare function resolveToken(): string;
+        const tokenName = resolveToken();
+        document.body.style.setProperty(tokenName, "red");
+      `,
+    });
+
+    const found = await diagnostics(root);
+    expect(found.filter((entry) => entry.ruleId === "askr/no-hardcoded-theme-token")).toEqual([]);
+  });
+
+  it("honors exclusions and exempts only the exact theme owner workspace", async () => {
+    const excludedRoot = await fixture(
+      {
+        "src/page.ts": `export const token = "--ak-color-text";`,
+        "vendor/ignored.ts": `export const token = "--ak-color-surface";`,
+      },
+      {
+        manifest: {
+          name: "fixture",
+          askr: { analyze: { exclude: ["vendor/**"] } },
+        },
+      },
+    );
+    const ownerRoot = await fixture(
+      { "src/theme.ts": `export const token = "--ak-color-text";` },
+      { manifest: { name: "@askrjs/themes" } },
+    );
+    const similarlyNamedRoot = await fixture(
+      { "src/theme.ts": `export const token = "--ak-color-text";` },
+      { manifest: { name: "@askrjs/themes-app" } },
+    );
+
+    const excluded = (await diagnostics(excludedRoot)).filter(
+      (entry) => entry.ruleId === "askr/no-hardcoded-theme-token",
+    );
+    expect(excluded).toEqual([expect.objectContaining({ file: "src/page.ts" })]);
+    expect(
+      (await diagnostics(ownerRoot)).filter(
+        (entry) => entry.ruleId === "askr/no-hardcoded-theme-token",
+      ),
+    ).toEqual([]);
+    expect(
+      (await diagnostics(similarlyNamedRoot)).filter(
+        (entry) => entry.ruleId === "askr/no-hardcoded-theme-token",
+      ),
+    ).toEqual([expect.objectContaining({ file: "src/theme.ts" })]);
+  });
+
   it("honors exclusions and rule severity configuration", async () => {
     const root = await fixture(
       {
