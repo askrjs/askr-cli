@@ -10,7 +10,6 @@ export default function PageHeader(props: {
       class="page-header"
       align="center"
       justify="between"
-      gap="var(--ak-space-lg)"
       wrap="wrap"
     >
       <div class="page-header-copy">
