@@ -450,11 +450,13 @@ async function readSource(uri: string, options: ResolvedLoadOptions): Promise<So
   if (uri.startsWith("http://") || uri.startsWith("https://")) return fetchSource(uri, options);
   const path = fileURLToPath(uri);
   const canonical = await realpath(path);
-  if (
-    !options.localRootDirectory ||
-    (canonical !== options.localRootDirectory &&
-      !canonical.startsWith(`${options.localRootDirectory}/`))
-  )
+  if (!options.localRootDirectory) {
+    throw new GenerationError(
+      `Local OpenAPI reference escapes the specification directory: ${path}`,
+    );
+  }
+  const relativePath = relative(options.localRootDirectory, canonical);
+  if (relativePath.startsWith("..") || isAbsolute(relativePath))
     throw new GenerationError(
       `Local OpenAPI reference escapes the specification directory: ${path}`,
     );

@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runAnalysis } from "../src/analyze/runner";
 import { runCli } from "../src/bin/cli";
@@ -272,9 +273,9 @@ describe("guardrail commands", () => {
 
 describe("shipped template guardrails", () => {
   it("keeps every template analyzer-clean and wired to the unified check", async () => {
-    const templatesRoot = new URL("../templates/", import.meta.url);
+    const templatesRoot = fileURLToPath(new URL("../templates/", import.meta.url));
     for (const name of ["full-stack", "spa", "ssg", "ssr", "startkit"]) {
-      const root = path.join(templatesRoot.pathname, name);
+      const root = path.join(templatesRoot, name);
       const report = await runAnalysis({ cwd: root, workspacePatterns: [], check: true });
       const manifest = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8")) as {
         scripts?: Record<string, string>;
