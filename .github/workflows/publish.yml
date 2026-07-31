@@ -11,7 +11,7 @@ jobs:
 
   publish:
     needs: ci
-    uses: askrjs/actions/.github/workflows/publish-package.yml@cfbfac63066d778fa1fa99247f6af43515155e4f
+    uses: askrjs/actions/.github/workflows/publish-package.yml@1ecd3e84c32b3ff9bb85111baabbd31f79c459dd
     permissions:
       contents: write
       id-token: write
