@@ -3188,11 +3188,14 @@ function routeReferencePath(
     path.dirname(importDeclaration.getSourceFile().fileName),
     importDeclaration.moduleSpecifier.text,
   );
-  const sourceStem = (filePath: string): string => filePath.replace(/\.[cm]?[jt]sx?$/, "");
+  const sourceStem = (filePath: string): string => {
+    const stem = filePath.replace(/\\/g, "/").replace(/\.[cm]?[jt]sx?$/, "");
+    return process.platform === "win32" ? stem.toLowerCase() : stem;
+  };
   const target = context.sourceFiles.find((sourceFile) => {
     const stem = sourceStem(sourceFile.fileName);
     const expected = sourceStem(modulePath);
-    return stem === expected || stem === path.join(expected, "index");
+    return stem === expected || stem === `${expected}/index`;
   });
   if (!target) return null;
   const importedName = importSpecifier.propertyName?.text ?? importSpecifier.name.text;
