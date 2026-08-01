@@ -41,15 +41,17 @@
     "fmt": "vp fmt .",
     "lint": "vp lint src tests benchmarks vite.config.ts vitest.config.ts vitest.bench.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:changelog": "node scripts/verify-changelog.mjs",
+    "test:peer-floor": "node scripts/verify-peer-floor.mjs",
     "test:publint": "publint",
     "pack:check": "npm pack --ignore-scripts --dry-run --json",
     "test:templates": "node scripts/verify-packed-templates.mjs",
     "bench": "npm run build --silent && npm run bench:analyze && node --import tsx benchmarks/cli.mjs --gate",
     "bench:analyze": "vp test bench --run -c vitest.bench.config.ts",
     "bench:json": "npm run build --silent && node --import tsx benchmarks/cli.mjs --gate --json",
-    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run test:publint && npm run pack:check",
+    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run test:changelog && npm run build && npm run test:publint && npm run pack:check",
     "prepack": "npm run build",
-    "prepublishOnly": "npm run check && npm run test:templates"
+    "prepublishOnly": "npm run check && npm run test:templates && npm run test:peer-floor"
   },
   "dependencies": {
     "@npmcli/config": "^10.12.0",

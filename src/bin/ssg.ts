@@ -84,6 +84,15 @@ interface SsgDeps {
   }) => StaticGen;
 }
 
+interface RouteAdapter {
+  createRouteRegistry(definition: () => void): unknown;
+  route(
+    path: string,
+    component: (...args: unknown[]) => unknown,
+    options?: Record<string, unknown>,
+  ): unknown;
+}
+
 const helpText = `
 askr ssg - Static Site Generation for Askr
 
@@ -146,6 +155,54 @@ async function loadCreateStaticGen(): Promise<NonNullable<SsgDeps["createStaticG
     throw new Error("Failed to load createStaticGen from @askrjs/askr/ssg");
   }
   return mod.createStaticGen;
+}
+
+async function loadRouteAdapter(): Promise<RouteAdapter> {
+  const mod = (await import("@askrjs/askr/router")) as Partial<RouteAdapter>;
+  if (typeof mod.createRouteRegistry !== "function" || typeof mod.route !== "function") {
+    throw new Error("Failed to load route registry APIs from @askrjs/askr/router");
+  }
+  return mod as RouteAdapter;
+}
+
+function registryFromLegacyRoutes(routes: unknown[], adapter: RouteAdapter): unknown {
+  return adapter.createRouteRegistry(() => {
+    for (const [index, value] of routes.entries()) {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        throw new TypeError(`SSG route at index ${index} must be an object`);
+      }
+      const {
+        path: routePath,
+        handler,
+        component,
+        props,
+        params,
+        ...options
+      } = value as Record<string, unknown>;
+      const implementation = handler ?? component;
+      if (typeof routePath !== "string" || typeof implementation !== "function") {
+        throw new TypeError(
+          `SSG route at index ${index} must provide a string path and a handler or component function`,
+        );
+      }
+      const implementationFunction = implementation as (...args: unknown[]) => unknown;
+      const routeComponent =
+        props && typeof props === "object" && !Array.isArray(props)
+          ? (routeParams: unknown, context: unknown) =>
+              implementationFunction(
+                { ...(props as Record<string, unknown>), ...(routeParams as object) },
+                context,
+              )
+          : implementationFunction;
+      const routeOptions = {
+        ...options,
+        ...(params !== undefined && options.entries === undefined
+          ? { entries: () => [params] }
+          : {}),
+      };
+      adapter.route(routePath, routeComponent, routeOptions);
+    }
+  });
 }
 
 export function parseCliArgs(args: string[]): ParsedSsgArgs {
@@ -358,6 +415,13 @@ export async function runSsgCli(
         ? resolvedDeps.createStaticGen
         : await loadCreateStaticGen();
 
+    const routeSource =
+      hasRoutes && typeof resolvedDeps.createStaticGen !== "function"
+        ? { registry: registryFromLegacyRoutes(config.routes ?? [], await loadRouteAdapter()) }
+        : hasRoutes
+          ? { routes: config.routes }
+          : { registry: config.registry };
+
     cliStagingDir = await createSiblingStage(resolvedOutputDir, "askr-ssg");
     if (parsed.incremental && !parsed.forceFull && (await pathExists(resolvedOutputDir))) {
       await fs.cp(resolvedOutputDir, cliStagingDir, {
@@ -368,7 +432,7 @@ export async function runSsgCli(
     const generationOutputDir = cliStagingDir;
 
     const ssg = createStaticGen({
-      ...(hasRoutes ? { routes: config.routes } : { registry: config.registry }),
+      ...routeSource,
       outputDir: generationOutputDir,
       seed: config.seed,
       dataOverrides: config.dataOverrides,

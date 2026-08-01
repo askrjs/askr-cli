@@ -106,4 +106,25 @@ describe("generated SSG document inspection", () => {
       ),
     ).rejects.toThrow(/Sitemap URL mismatch.*\/guide\/.*\/wrong/);
   });
+
+  it("should compare root-relative overrides with document canonical URL semantics", async () => {
+    const outputDir = await outputDirectory();
+    await generateSitemap(
+      outputDir,
+      "https://example.com/docs/",
+      [
+        {
+          path: "/guide",
+          filePath: "guide/index.html",
+          status: "success",
+          canonical: "/guide/",
+        },
+      ],
+      { routes: { "/guide": { url: "/guide/" } } },
+    );
+
+    await expect(fs.readFile(path.join(outputDir, "sitemap.xml"), "utf8")).resolves.toContain(
+      "<loc>https://example.com/guide/</loc>",
+    );
+  });
 });

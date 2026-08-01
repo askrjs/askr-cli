@@ -425,9 +425,9 @@ export async function generateSitemap(
       ["sitemap.routes", exact?.url],
       ["sitemap.resolve", resolved?.url],
     ] as const) {
-      if (canonical && value && resolveLocation(value, baseUrl) !== canonical) {
+      if (canonical && value && resolveDocumentCanonical(value, baseUrl) !== canonical) {
         throw new Error(
-          `Sitemap URL mismatch for ${route.path}: rendered canonical ${canonical} disagrees with ${source} URL ${resolveLocation(value, baseUrl)}`,
+          `Sitemap URL mismatch for ${route.path}: rendered canonical ${canonical} disagrees with ${source} URL ${resolveDocumentCanonical(value, baseUrl)}`,
         );
       }
     }
