@@ -24,9 +24,9 @@ export default function AppHeader() {
   return (
     <header class="app-header">
       <Inline
+        class="app-header-content"
         align="center"
         justify="between"
-        gap="var(--ak-space-lg)"
         wrap="wrap"
       >
         <div class="breadcrumbs">

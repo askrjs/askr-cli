@@ -124,6 +124,16 @@
     max-inline-size: var(--starter-content-max-ch);
   }
 
+  .page-header,
+  .app-header-content,
+  .account-bulk-actions {
+    gap: var(--ak-space-lg);
+  }
+
+  .settings-example-actions {
+    gap: var(--ak-space-sm);
+  }
+
   .stat-card {
     display: grid;
     gap: var(--ak-space-sm);
