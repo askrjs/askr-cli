@@ -193,6 +193,172 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/no-async-component")).toHaveLength(1);
   });
 
+  it("should enforce the complete runtime route-path contract", async () => {
+    const root = await fixture({
+      "src/routes.tsx": `
+        import { createRouteRegistry, group, page, route } from "@askrjs/askr/router";
+        const View = () => <div />;
+        export const registry = createRouteRegistry(() => {
+          route("users/{id}", View);
+          route("/users//{id}", View);
+          route("/users/{id}suffix", View);
+          route("/users/{}", View);
+          route("/users/{*}", View);
+          route("/users/{**}", View);
+          route("/users/{*rest}/edit", View);
+          route("/users/{id}/posts/{id}", View);
+          page("", View, () => {});
+          page("/users/{userId}", View, () => {
+            route("posts/{postId}", View);
+            group({}, () => route("settings", View));
+          });
+          route("/*", View);
+          route("/files/{*path}", View);
+        });
+      `,
+    });
+
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/route-path-syntax",
+    );
+    expect(found).toHaveLength(9);
+    expect(found.map((entry) => entry.message)).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/must begin with/i),
+        expect.stringMatching(/consecutive slashes/i),
+        expect.stringMatching(/complete \{name\} interpolation/i),
+        expect.stringMatching(/parameter name cannot be empty/i),
+        expect.stringMatching(/splat parameter name cannot be empty/i),
+        expect.stringMatching(/named splat parameter name cannot be "\*"/i),
+        expect.stringMatching(/named splat parameters must be the final segment/i),
+        expect.stringMatching(/duplicate parameter name "id"/i),
+        expect.stringMatching(/page\(\).*non-empty path/i),
+      ]),
+    );
+    expect(found.filter((entry) => entry.fix)).toHaveLength(2);
+  });
+
+  it("should track page scope structure through groups and named route definitions", async () => {
+    const root = await fixture({
+      "src/routes.tsx": `
+        import { createRouteRegistry, group, index, page, route } from "@askrjs/askr/router";
+        const View = () => <div />;
+        const groupedChildren = () => {
+          index(View);
+          route("/absolute-child", View);
+          page("/nested", View, () => {});
+        };
+        const pageChildren = () => {
+          index(View);
+          group({}, groupedChildren);
+        };
+        export const invalid = createRouteRegistry(() => {
+          page("/users", View, pageChildren);
+        });
+        export const valid = createRouteRegistry(() => {
+          page("/projects", View, () => {
+            index(View);
+            group({}, () => route("settings", View));
+          });
+          page("/teams", View, () => index(View));
+        });
+      `,
+    });
+
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/route-scope-structure",
+    );
+    expect(found).toHaveLength(3);
+    expect(found.map((entry) => entry.message)).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/more than one index/i),
+        expect.stringMatching(/absolute inside a page scope/i),
+        expect.stringMatching(/page\(\) cannot be nested/i),
+      ]),
+    );
+    expect(found.find((entry) => /absolute/.test(entry.message))?.fix).toBeDefined();
+  });
+
+  it("should report render-required APIs at module scope and in non-render callbacks", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { ErrorBoundary, defineScope, getSignal, readScope } from "@askrjs/askr";
+        import { routeData } from "@askrjs/askr/router";
+        import { resource, task } from "@askrjs/askr/resources";
+        const Scope = defineScope("default");
+        readScope(Scope);
+        getSignal();
+        routeData();
+        ErrorBoundary({ fallback: null, children: null });
+        export function Page() {
+          readScope(Scope);
+          getSignal();
+          routeData();
+          ErrorBoundary({ fallback: null, children: null });
+          resource(() => readScope(Scope), []);
+          task(() => readScope(Scope));
+          setTimeout(() => getSignal(), 0);
+          queueMicrotask(() => routeData());
+          Promise.resolve().then(() => ErrorBoundary({ fallback: null, children: null }));
+          return <button onClick={() => {
+            readScope(Scope);
+            getSignal();
+            routeData();
+            ErrorBoundary({ fallback: null, children: null });
+          }}>Save</button>;
+        }
+      `,
+    });
+
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/render-scope-required",
+    );
+    expect(found).toHaveLength(12);
+    expect(found.map((entry) => entry.message).join("\n")).toMatch(/readScope/);
+    expect(found.map((entry) => entry.message).join("\n")).toMatch(/getSignal/);
+    expect(found.map((entry) => entry.message).join("\n")).toMatch(/routeData/);
+    expect(found.map((entry) => entry.message).join("\n")).toMatch(/ErrorBoundary/);
+  });
+
+  it("should report missing parameters in workspace route destinations", async () => {
+    const root = await fixture({
+      "src/routes.tsx": `
+        import { route } from "@askrjs/askr/router";
+        const View = () => <div />;
+        export const UserPost = route("/users/{id}/posts/{postId}", View);
+        export const Files = route("/files/{*path}", View);
+        export const About = route("/about", View);
+      `,
+      "src/page.tsx": `
+        import { Link, to } from "@askrjs/askr/router";
+        import { About, Files, UserPost } from "./routes";
+        declare const dynamicParams: { id: string; postId: string };
+        declare const extra: { postId: string };
+        export function Page() {
+          return <>
+            <Link to={to(UserPost, { id: "1" })} />
+            <Link to={to(Files, {})} />
+            <Link to={to(UserPost, { id: "1", postId: "2" })} />
+            <Link to={to(About, {})} />
+            <Link to={to(UserPost, dynamicParams)} />
+            <Link to={to(UserPost, { id: "1", ...extra })} />
+          </>;
+        }
+      `,
+    });
+
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/link-contract",
+    );
+    expect(found).toHaveLength(2);
+    expect(found.map((entry) => entry.message)).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/missing route parameter "postId"/i),
+        expect.stringMatching(/missing route parameter "path"/i),
+      ]),
+    );
+  });
+
   it("reports state writes during render but accepts event-handler writes", async () => {
     const root = await fixture({
       "src/page.tsx": `
@@ -253,7 +419,7 @@ describe("analyzer rules", () => {
     ).toEqual([]);
   });
 
-  it("reports hardcoded theme tokens in runtime literals and template segments", async () => {
+  it("should report hardcoded theme tokens in runtime literals and template segments", async () => {
     const root = await fixture({
       "src/theme.tsx": `
         const value = "red";
@@ -277,7 +443,7 @@ describe("analyzer rules", () => {
     );
   });
 
-  it("ignores comments and nonliteral token flow", async () => {
+  it("should ignore comments and nonliteral token flow", async () => {
     const root = await fixture({
       "src/theme.ts": `
         // --ak-color-text belongs in CSS.
@@ -292,7 +458,7 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/no-hardcoded-theme-token")).toEqual([]);
   });
 
-  it("honors exclusions and exempts only the exact theme owner workspace", async () => {
+  it("should honor exclusions and exempt only the exact theme owner workspace", async () => {
     const excludedRoot = await fixture(
       {
         "src/page.ts": `export const token = "--ak-color-text";`,

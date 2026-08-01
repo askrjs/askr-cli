@@ -42,7 +42,9 @@ another package or local module is not treated as an Askr API.
   resolved `defineScope()` boundaries created conditionally during rendering.
 - `askr/render-scope-required` reports render-owned primitives created in
   statically non-render callbacks such as handlers, timers, Promise
-  continuations, and task bodies.
+  continuations, and task bodies. It also reports module-scope or non-render
+  calls to `readScope()`, `getSignal()`, `routeData()`, and `ErrorBoundary()`;
+  `readScope()` remains valid in a `resource()` loader.
 - `askr/exhaustive-dependencies` compares direct same-component reactive reads
   with literal `resource` and `stream` dependency arrays. Dynamic arrays,
   spreads, and uninvoked nested functions are deliberately skipped.
@@ -66,12 +68,18 @@ another package or local module is not treated as an Askr API.
 - `askr/no-async-component` reports async JSX components.
 - `askr/route-registry` keeps route DSL calls inside a synchronous
   `createRouteRegistry()` definition.
-- `askr/route-path-syntax` enforces `{name}` route parameters.
-- `askr/route-scope-structure` reports duplicate page indexes and absolute
-  child routes. A proven child-route leading slash has a safe fix.
-- `askr/link-contract` requires one unambiguous destination and rejects the
-  runtime's unsafe URL schemes. Relative links plus `http`, `https`, `mailto`,
-  `tel`, and `sms` remain valid.
+- `askr/route-path-syntax` mirrors the runtime's static path validation,
+  including leading and duplicate slashes, complete `{name}` interpolation,
+  non-empty unique parameter names, final named splats, and non-empty page
+  paths.
+- `askr/route-scope-structure` follows named definitions and groups to report
+  nested pages, duplicate page indexes, and absolute child routes. A proven
+  child-route leading slash has a safe fix.
+- `askr/link-contract` requires one unambiguous destination, rejects the
+  runtime's unsafe URL schemes, and checks static `to(routeRef, { ... })`
+  parameter objects against workspace route declarations. Dynamic objects and
+  spreads are deliberately skipped. Relative links plus `http`, `https`,
+  `mailto`, `tel`, and `sms` remain valid.
 - `askr/query-key-contract` reports directly provable nondeterministic and
   Symbol query key/scope parts; dynamic values are left alone.
 - `askr/import-subpath` groups named root imports by their owning public Askr
@@ -115,6 +123,7 @@ project's lint, tests, or build.
 Without `--check`, the command applies only fixes whose intent is mechanical:
 
 - convert route parameters such as `:id` to `{id}`;
+- add a missing leading slash to a root route or collapse consecutive slashes;
 - strip the leading slash from a statically proven child route;
 - split misplaced named root imports into their documented public subpaths;
 - add the Askr JSX runtime to a plain-JSON `tsconfig.json`.

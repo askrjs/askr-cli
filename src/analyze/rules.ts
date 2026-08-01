@@ -843,6 +843,142 @@ function resolvedFunction(
   return null;
 }
 
+type RoutePageAnalysisScope = {
+  readonly pathPrefix: string | null;
+  indexCount: number;
+};
+
+type RouteDefinitionAnalysisScope = {
+  readonly page: RoutePageAnalysisScope | null;
+};
+
+type RouteDefinitionCallVisitor = (
+  call: ts.CallExpression,
+  name: string,
+  scope: RouteDefinitionAnalysisScope,
+) => void;
+
+function routeDefinitionCallback(
+  call: ts.CallExpression,
+  name: "group" | "page",
+  context: WorkspaceAnalysisContext,
+): ts.SignatureDeclaration | null {
+  const candidate = name === "group" ? call.arguments[1] : call.arguments.at(-1);
+  return resolvedFunction(candidate, context);
+}
+
+function normalizeRoutePrefix(pathname: string): string | null {
+  if (!pathname.startsWith("/")) return null;
+  if (pathname === "/") return pathname;
+  return pathname.replace(/\/+$/, "") || "/";
+}
+
+function analyzedPagePrefix(pathname: string): string | null {
+  if (!pathname) return null;
+  return normalizeRoutePrefix(pathname.startsWith("/") ? pathname : `/${pathname}`);
+}
+
+function joinAnalyzedRoutePath(prefix: string, pathname: string): string {
+  const child = pathname.replace(/^\/+|\/+$/g, "");
+  if (!child) return prefix;
+  return prefix === "/" ? `/${child}` : `${prefix}/${child}`;
+}
+
+function analyzedRoutePath(
+  call: ts.CallExpression,
+  name: string,
+  scope: RouteDefinitionAnalysisScope,
+): string | null {
+  if (name !== "route" && name !== "page") return null;
+  const literal = call.arguments[0];
+  if (!literal || !ts.isStringLiteral(literal)) return null;
+  if (name === "page") return scope.page ? null : analyzedPagePrefix(literal.text);
+  if (literal.text.startsWith("/")) return scope.page ? null : normalizeRoutePrefix(literal.text);
+  return scope.page?.pathPrefix ? joinAnalyzedRoutePath(scope.page.pathPrefix, literal.text) : null;
+}
+
+const ROUTE_DEFINITION_CALLS = new Set(["route", "page", "index", "group", "fallback"]);
+
+function walkRouteDefinition(
+  context: WorkspaceAnalysisContext,
+  definition: ts.SignatureDeclaration,
+  scope: RouteDefinitionAnalysisScope,
+  visitor: RouteDefinitionCallVisitor,
+  active = new Set<ts.SignatureDeclaration>(),
+): void {
+  if (active.has(definition)) return;
+  active.add(definition);
+  const bindings = sourceBindings(definition.getSourceFile());
+  const body =
+    ts.isArrowFunction(definition) ||
+    ts.isFunctionExpression(definition) ||
+    ts.isFunctionDeclaration(definition)
+      ? definition.body
+      : undefined;
+  if (body) {
+    const walkNode = (node: ts.Node): void => {
+      if (node !== body && ts.isFunctionLike(node)) return;
+      if (ts.isCallExpression(node)) {
+        const name = canonicalCallName(node.expression, bindings);
+        if (name && ROUTE_DEFINITION_CALLS.has(name)) {
+          visitor(node, name, scope);
+          if (name === "group") {
+            const callback = routeDefinitionCallback(node, "group", context);
+            if (callback) walkRouteDefinition(context, callback, scope, visitor, active);
+          } else if (name === "page" && !scope.page) {
+            const callback = routeDefinitionCallback(node, "page", context);
+            const pathname = node.arguments[0];
+            const pathPrefix =
+              pathname && ts.isStringLiteral(pathname) ? analyzedPagePrefix(pathname.text) : null;
+            if (callback) {
+              walkRouteDefinition(
+                context,
+                callback,
+                { page: { pathPrefix, indexCount: 0 } },
+                visitor,
+                active,
+              );
+            }
+          }
+          return;
+        }
+
+        const called = resolvedFunction(node.expression, context);
+        if (called) {
+          walkRouteDefinition(context, called, scope, visitor, active);
+          return;
+        }
+      }
+      ts.forEachChild(node, walkNode);
+    };
+    walkNode(body);
+  }
+  active.delete(definition);
+}
+
+function walkRouteDefinitions(
+  context: WorkspaceAnalysisContext,
+  visitor: RouteDefinitionCallVisitor,
+): void {
+  const entrypoints: ts.SignatureDeclaration[] = [];
+  for (const sourceFile of context.sourceFiles) {
+    const bindings = sourceBindings(sourceFile);
+    visit(sourceFile, (node) => {
+      if (
+        ts.isCallExpression(node) &&
+        canonicalCallName(node.expression, bindings) === "createRouteRegistry"
+      ) {
+        const definition = resolvedFunction(node.arguments[0], context);
+        if (definition) entrypoints.push(definition);
+      }
+    });
+  }
+
+  for (const definition of entrypoints) {
+    walkRouteDefinition(context, definition, { page: null }, visitor);
+  }
+}
+
 const asyncComponentRule: AnalyzeRule = {
   id: "askr/no-async-component",
   category: "correctness",
@@ -1001,36 +1137,189 @@ const routePathRule: AnalyzeRule = {
   id: "askr/route-path-syntax",
   category: "correctness",
   severity: "error",
-  description: "Askr route parameters use {name} segments.",
+  description: "Static route paths must satisfy the runtime authoring contract.",
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
-    const pathCalls = new Set(["route", "page"]);
-    for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
-      visit(sourceFile, (node) => {
-        if (!ts.isCallExpression(node)) return;
-        const name = canonicalCallName(node.expression, bindings);
-        const first = node.arguments[0];
-        if (!name || !pathCalls.has(name) || !first || !ts.isStringLiteral(first)) return;
-        if (!/:([^/{}]+)/.test(first.text)) return;
-        const replacement = first.text.replace(/:([^/{}]+)/g, "{$1}");
+    const seen = new Set<string>();
+    const inspect: RouteDefinitionCallVisitor = (call, name, scope) => {
+      if (name !== "route" && name !== "page") return;
+      const literal = call.arguments[0];
+      if (!literal || !ts.isStringLiteral(literal)) return;
+
+      const sourceFile = literal.getSourceFile();
+      const key = `${sourceFile.fileName}:${literal.getStart(sourceFile)}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      if (name === "page" && literal.text.length === 0) {
         diagnostics.push(
           diagnostic(
             context,
-            first,
+            literal,
             this,
-            `Route path '${first.text}' uses colon parameters instead of {name} segments.`,
+            "page() requires a non-empty path.",
+            "Pass a non-empty path to page().",
+          ),
+        );
+        return;
+      }
+
+      if (scope.page && name === "page") return;
+      if (scope.page && literal.text.startsWith("/")) return;
+
+      let pathname = literal.text;
+      if (!pathname.startsWith("/")) {
+        if (name === "route" && !scope.page) {
+          const replacement = `/${pathname}`;
+          diagnostics.push(
+            diagnostic(
+              context,
+              literal,
+              this,
+              `Route path '${pathname}' must begin with "/" outside a page scope.`,
+              `Use '${replacement}'.`,
+              {
+                description: "Add the required leading slash to the root route path",
+                filePath: sourceFile.fileName,
+                start: literal.getStart(sourceFile),
+                end: literal.getEnd(),
+                replacement: JSON.stringify(replacement),
+              },
+            ),
+          );
+          return;
+        }
+        pathname = scope.page?.pathPrefix
+          ? joinAnalyzedRoutePath(scope.page.pathPrefix, pathname)
+          : `/${pathname.replace(/^\/+/, "")}`;
+      }
+
+      if (/\/{2,}/.test(pathname)) {
+        const replacement = literal.text.replace(/\/{2,}/g, "/");
+        diagnostics.push(
+          diagnostic(
+            context,
+            literal,
+            this,
+            `Route path '${literal.text}' contains consecutive slashes.`,
             `Use '${replacement}'.`,
             {
-              description: "Convert colon route parameters to Askr {name} segments",
+              description: "Collapse consecutive slashes in the route path",
               filePath: sourceFile.fileName,
-              start: first.getStart(sourceFile),
-              end: first.getEnd(),
+              start: literal.getStart(sourceFile),
+              end: literal.getEnd(),
               replacement: JSON.stringify(replacement),
             },
           ),
         );
-      });
+        return;
+      }
+
+      const colonParameter = /:([^/{}]+)/;
+      if (colonParameter.test(pathname)) {
+        const replacement = literal.text.replace(/:([^/{}]+)/g, "{$1}");
+        diagnostics.push(
+          diagnostic(
+            context,
+            literal,
+            this,
+            `Route path '${literal.text}' uses colon parameters instead of {name} segments.`,
+            `Use '${replacement}'.`,
+            {
+              description: "Convert colon route parameters to Askr {name} segments",
+              filePath: sourceFile.fileName,
+              start: literal.getStart(sourceFile),
+              end: literal.getEnd(),
+              replacement: JSON.stringify(replacement),
+            },
+          ),
+        );
+        return;
+      }
+
+      const segments = pathname.split("/").filter(Boolean);
+      const seenParameters = new Set<string>();
+      for (let index = 0; index < segments.length; index += 1) {
+        const segment = segments[index];
+        if (segment === "*") continue;
+        const hasOpenBrace = segment.includes("{");
+        const hasCloseBrace = segment.includes("}");
+        if (!hasOpenBrace && !hasCloseBrace) continue;
+        if (!(segment.startsWith("{") && segment.endsWith("}"))) {
+          diagnostics.push(
+            diagnostic(
+              context,
+              literal,
+              this,
+              "Route parameter segments must use complete {name} interpolation.",
+              "Make the entire path segment a {name} or {*name} interpolation.",
+            ),
+          );
+          return;
+        }
+
+        const rawParameter = segment.slice(1, -1).trim();
+        const splat = rawParameter.startsWith("*");
+        const parameter = (splat ? rawParameter.slice(1) : rawParameter).trim();
+        if (!parameter) {
+          diagnostics.push(
+            diagnostic(
+              context,
+              literal,
+              this,
+              splat
+                ? "Route splat parameter name cannot be empty."
+                : "Route parameter name cannot be empty.",
+              "Give every route parameter a non-empty name.",
+            ),
+          );
+          return;
+        }
+        if (splat && parameter === "*") {
+          diagnostics.push(
+            diagnostic(
+              context,
+              literal,
+              this,
+              'Route named splat parameter name cannot be "*".',
+              "Use a descriptive named splat such as {*path}.",
+            ),
+          );
+          return;
+        }
+        if (splat && index !== segments.length - 1) {
+          diagnostics.push(
+            diagnostic(
+              context,
+              literal,
+              this,
+              "Route named splat parameters must be the final segment.",
+              "Move the named splat to the end of the route path.",
+            ),
+          );
+          return;
+        }
+        if (seenParameters.has(parameter)) {
+          diagnostics.push(
+            diagnostic(
+              context,
+              literal,
+              this,
+              `Route path cannot reuse duplicate parameter name "${parameter}".`,
+              "Use a unique name for each route parameter.",
+            ),
+          );
+          return;
+        }
+        seenParameters.add(parameter);
+      }
+    };
+    walkRouteDefinitions(context, inspect);
+    for (const sourceFile of context.sourceFiles) {
+      for (const { node, name } of sourceFacts(sourceFile).calls) {
+        if (name !== "route" && name !== "page") continue;
+        inspect(node, name, { page: null });
+      }
     }
     return diagnostics;
   },
@@ -2447,6 +2736,56 @@ const forRowClosureCaptureRule: AnalyzeRule = {
   },
 };
 
+const RENDER_REQUIRED_CONCEPTS = new Set(["readScope", "getSignal", "routeData", "ErrorBoundary"]);
+const NON_RENDER_SCHEDULERS = new Set([
+  "setTimeout",
+  "setInterval",
+  "queueMicrotask",
+  "requestAnimationFrame",
+]);
+const PROMISE_CONTINUATIONS = new Set(["then", "catch", "finally"]);
+
+function nonRenderCallbackOwner(
+  callback: ts.SignatureDeclaration,
+  bindings: SourceBindings,
+): boolean {
+  const parent = callback.parent;
+  if (ts.isJsxExpression(parent) && ts.isJsxAttribute(parent.parent)) {
+    const attribute = parent.parent;
+    return ts.isIdentifier(attribute.name) && /^on[A-Z]/.test(attribute.name.text);
+  }
+  if (ts.isCallExpression(parent) && parent.arguments.some((argument) => argument === callback)) {
+    const canonical = canonicalCallName(parent.expression, bindings);
+    if (canonical === "task") return true;
+    if (ts.isIdentifier(parent.expression)) {
+      return NON_RENDER_SCHEDULERS.has(parent.expression.text);
+    }
+    if (ts.isPropertyAccessExpression(parent.expression)) {
+      return PROMISE_CONTINUATIONS.has(parent.expression.name.text);
+    }
+  }
+  if (ts.isPropertyAssignment(parent) && parent.name.getText() === "body") {
+    const options = parent.parent;
+    const call = options.parent;
+    return (
+      ts.isObjectLiteralExpression(options) &&
+      ts.isCallExpression(call) &&
+      call.arguments.some((argument) => argument === options) &&
+      canonicalCallName(call.expression, bindings) === "task"
+    );
+  }
+  return false;
+}
+
+function isResourceLoader(callback: ts.SignatureDeclaration, bindings: SourceBindings): boolean {
+  const parent = callback.parent;
+  return (
+    ts.isCallExpression(parent) &&
+    parent.arguments[0] === callback &&
+    canonicalCallName(parent.expression, bindings) === "resource"
+  );
+}
+
 const renderScopeRequiredRule: AnalyzeRule = {
   id: "askr/render-scope-required",
   category: "correctness",
@@ -2454,44 +2793,53 @@ const renderScopeRequiredRule: AnalyzeRule = {
   description: "Render-scoped APIs cannot be created in callbacks that execute outside rendering.",
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
-    const callbackCalls = new Set([
-      "setTimeout",
-      "setInterval",
-      "queueMicrotask",
-      "then",
-      "catch",
-      "finally",
-    ]);
     for (const sourceFile of context.sourceFiles) {
       const bindings = sourceBindings(sourceFile);
-      if (!sourceFacts(sourceFile).calls.some((fact) => RENDER_SCOPED_CONCEPTS.has(fact.name))) {
+      if (
+        !sourceFacts(sourceFile).calls.some(
+          (fact) =>
+            RENDER_REQUIRED_CONCEPTS.has(fact.name) || RENDER_SCOPED_CONCEPTS.has(fact.name),
+        )
+      ) {
         continue;
       }
       visit(sourceFile, (node) => {
         if (!ts.isCallExpression(node)) return;
         const name = canonicalCallName(node.expression, bindings);
-        if (!name || !RENDER_SCOPED_CONCEPTS.has(name) || name === "readScope") return;
-        for (let current = node.parent; current; current = current.parent) {
-          if (!ts.isFunctionLike(current)) continue;
-          const parent = current.parent;
-          const callbackOwner =
-            (ts.isCallExpression(parent) &&
-              ((ts.isIdentifier(parent.expression) && callbackCalls.has(parent.expression.text)) ||
-                (ts.isPropertyAccessExpression(parent.expression) &&
-                  callbackCalls.has(parent.expression.name.text)))) ||
-            (ts.isJsxExpression(parent) && ts.isJsxAttribute(parent.parent)) ||
-            (ts.isPropertyAssignment(parent) && parent.name.getText() === "body");
-          if (!callbackOwner) continue;
+        if (!name || (!RENDER_REQUIRED_CONCEPTS.has(name) && !RENDER_SCOPED_CONCEPTS.has(name))) {
+          return;
+        }
+        const required = RENDER_REQUIRED_CONCEPTS.has(name);
+        const owner = containingFunction(node);
+        if (!owner) {
+          if (!required) return;
           diagnostics.push(
             diagnostic(
               context,
               node.expression,
               this,
-              `${name}() is created in a callback that is statically outside component rendering.`,
-              `Create ${name}() at component render scope and use its value from the callback.`,
+              `${name}() requires an active render scope and cannot be called at module scope.`,
+              `Move ${name}() into component rendering.`,
             ),
           );
           return;
+        }
+
+        for (let current: ts.Node | undefined = owner; current; current = current.parent) {
+          if (!ts.isFunctionLike(current)) continue;
+          if (nonRenderCallbackOwner(current, bindings)) {
+            diagnostics.push(
+              diagnostic(
+                context,
+                node.expression,
+                this,
+                `${name}() is called in a callback that is statically outside component rendering.`,
+                `Read ${name}() during component render and use its value from the callback.`,
+              ),
+            );
+            return;
+          }
+          if (name === "readScope" && isResourceLoader(current, bindings)) return;
         }
       });
     }
@@ -2594,70 +2942,86 @@ const routeScopeStructureRule: AnalyzeRule = {
   description: "Nested page route scopes must have one index and relative child routes.",
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
-    for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
-      if (!sourceFacts(sourceFile).calls.some((fact) => fact.name === "page")) continue;
-      const inspectBody = (body: ts.ConciseBody): void => {
-        let indexes = 0;
-        const walk = (node: ts.Node): void => {
-          if (node !== body && ts.isFunctionLike(node)) return;
-          if (!ts.isCallExpression(node)) {
-            ts.forEachChild(node, walk);
-            return;
-          }
-          const name = canonicalCallName(node.expression, bindings);
-          if (name === "index") {
-            indexes += 1;
-            if (indexes > 1) {
-              diagnostics.push(
-                diagnostic(
-                  context,
-                  node.expression,
-                  this,
-                  "A page scope declares more than one index route.",
-                  "Keep exactly one index() declaration in a page scope.",
-                ),
-              );
-            }
-          }
-          if (name === "route") {
-            const routePath = node.arguments[0];
-            if (
-              routePath &&
-              ts.isStringLiteral(routePath) &&
-              routePath.text.startsWith("/") &&
-              routePath.text.length > 1
-            ) {
-              const replacement = routePath.text.replace(/^\/+/, "");
-              diagnostics.push(
-                diagnostic(
-                  context,
-                  routePath,
-                  this,
-                  `Child route '${routePath.text}' is absolute inside a page scope.`,
-                  `Use the relative child path '${replacement}'.`,
-                  {
-                    description: "Strip the leading slash from a proven child route",
-                    filePath: sourceFile.fileName,
-                    start: routePath.getStart(sourceFile),
-                    end: routePath.getEnd(),
-                    replacement: JSON.stringify(replacement),
-                  },
-                ),
-              );
-            }
-          }
-          ts.forEachChild(node, walk);
-        };
-        walk(body);
-      };
-      for (const { node, name } of sourceFacts(sourceFile).calls) {
-        if (name !== "page") continue;
-        const callback = node.arguments.find(
-          (argument): argument is ts.ArrowFunction | ts.FunctionExpression =>
-            ts.isArrowFunction(argument) || ts.isFunctionExpression(argument),
+    const seen = new Set<string>();
+    const visitedCalls = new Set<ts.CallExpression>();
+    const reportOnce = (node: ts.Node, kind: string, create: () => AnalyzeDiagnostic): void => {
+      const sourceFile = node.getSourceFile();
+      const key = `${sourceFile.fileName}:${node.getStart(sourceFile)}:${kind}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      diagnostics.push(create());
+    };
+
+    const inspect: RouteDefinitionCallVisitor = (call, name, scope) => {
+      visitedCalls.add(call);
+      if (!scope.page) return;
+      if (name === "page") {
+        reportOnce(call, "nested-page", () =>
+          diagnostic(
+            context,
+            call.expression,
+            this,
+            "page() cannot be nested inside another page().",
+            "Use route() for child leaves or group() for inherited behavior in the page scope.",
+          ),
         );
-        if (callback) inspectBody(callback.body);
+        return;
+      }
+      if (name === "index") {
+        scope.page.indexCount += 1;
+        if (scope.page.indexCount > 1) {
+          reportOnce(call, "multiple-index", () =>
+            diagnostic(
+              context,
+              call.expression,
+              this,
+              "A page scope declares more than one index route.",
+              "Keep exactly one index() declaration in a page scope.",
+            ),
+          );
+        }
+        return;
+      }
+      if (name !== "route") return;
+      const routePath = call.arguments[0];
+      if (
+        !routePath ||
+        !ts.isStringLiteral(routePath) ||
+        !routePath.text.startsWith("/") ||
+        routePath.text.length <= 1
+      ) {
+        return;
+      }
+      const sourceFile = routePath.getSourceFile();
+      const replacement = routePath.text.replace(/^\/+/, "");
+      reportOnce(routePath, "absolute-child", () =>
+        diagnostic(
+          context,
+          routePath,
+          this,
+          `Child route '${routePath.text}' is absolute inside a page scope.`,
+          `Use the relative child path '${replacement}'.`,
+          {
+            description: "Strip the leading slash from a proven child route",
+            filePath: sourceFile.fileName,
+            start: routePath.getStart(sourceFile),
+            end: routePath.getEnd(),
+            replacement: JSON.stringify(replacement),
+          },
+        ),
+      );
+    };
+
+    walkRouteDefinitions(context, inspect);
+    for (const sourceFile of context.sourceFiles) {
+      for (const { node, name } of sourceFacts(sourceFile).calls) {
+        if (name !== "page" || visitedCalls.has(node)) continue;
+        const callback = routeDefinitionCallback(node, "page", context);
+        if (!callback) continue;
+        const literal = node.arguments[0];
+        const pathPrefix =
+          literal && ts.isStringLiteral(literal) ? analyzedPagePrefix(literal.text) : null;
+        walkRouteDefinition(context, callback, { page: { pathPrefix, indexCount: 0 } }, inspect);
       }
     }
     return diagnostics;
@@ -2772,6 +3136,123 @@ function literalJsxString(
   return expression && ts.isStringLiteralLike(expression) ? expression.text : null;
 }
 
+function unwrapStaticExpression(expression: ts.Expression): ts.Expression {
+  let current = expression;
+  while (
+    ts.isParenthesizedExpression(current) ||
+    ts.isAsExpression(current) ||
+    ts.isTypeAssertionExpression(current) ||
+    ts.isNonNullExpression(current) ||
+    ts.isSatisfiesExpression(current)
+  ) {
+    current = current.expression;
+  }
+  return current;
+}
+
+function routeReferencePath(
+  expression: ts.Expression,
+  context: WorkspaceAnalysisContext,
+  routePaths: ReadonlyMap<ts.CallExpression, string>,
+): string | null {
+  const candidate = unwrapStaticExpression(expression);
+  if (ts.isCallExpression(candidate)) return routePaths.get(candidate) ?? null;
+  if (!ts.isIdentifier(candidate) && !ts.isPropertyAccessExpression(candidate)) return null;
+  const symbolNode = ts.isPropertyAccessExpression(candidate) ? candidate.name : candidate;
+  const localSymbol = context.checker.getSymbolAtLocation(symbolNode);
+  let symbol = localSymbol;
+  if (symbol && (symbol.flags & ts.SymbolFlags.Alias) !== 0) {
+    symbol = context.checker.getAliasedSymbol(symbol);
+  }
+  const declaration = symbol?.valueDeclaration ?? symbol?.declarations?.[0];
+  if (declaration && ts.isVariableDeclaration(declaration) && declaration.initializer) {
+    const initializer = unwrapStaticExpression(declaration.initializer);
+    if (ts.isCallExpression(initializer)) return routePaths.get(initializer) ?? null;
+  }
+
+  if (!ts.isIdentifier(candidate)) return null;
+  const importSpecifier = localSymbol?.declarations?.find(ts.isImportSpecifier);
+  if (!importSpecifier) return null;
+  let importDeclaration: ts.Node = importSpecifier;
+  while (importDeclaration.parent && !ts.isImportDeclaration(importDeclaration)) {
+    importDeclaration = importDeclaration.parent;
+  }
+  if (
+    !ts.isImportDeclaration(importDeclaration) ||
+    !ts.isStringLiteral(importDeclaration.moduleSpecifier) ||
+    !importDeclaration.moduleSpecifier.text.startsWith(".")
+  ) {
+    return null;
+  }
+  const modulePath = path.resolve(
+    path.dirname(importDeclaration.getSourceFile().fileName),
+    importDeclaration.moduleSpecifier.text,
+  );
+  const sourceStem = (filePath: string): string => filePath.replace(/\.[cm]?[jt]sx?$/, "");
+  const target = context.sourceFiles.find((sourceFile) => {
+    const stem = sourceStem(sourceFile.fileName);
+    const expected = sourceStem(modulePath);
+    return stem === expected || stem === path.join(expected, "index");
+  });
+  if (!target) return null;
+  const importedName = importSpecifier.propertyName?.text ?? importSpecifier.name.text;
+  let pathname: string | null = null;
+  visit(target, (node) => {
+    if (
+      pathname !== null ||
+      !ts.isVariableDeclaration(node) ||
+      !ts.isIdentifier(node.name) ||
+      node.name.text !== importedName ||
+      !node.initializer ||
+      containingFunction(node)
+    ) {
+      return;
+    }
+    const initializer = unwrapStaticExpression(node.initializer);
+    if (ts.isCallExpression(initializer)) pathname = routePaths.get(initializer) ?? null;
+  });
+  return pathname;
+}
+
+function staticObjectKeys(object: ts.ObjectLiteralExpression): Set<string> | null {
+  const keys = new Set<string>();
+  for (const property of object.properties) {
+    if (ts.isSpreadAssignment(property)) return null;
+    if (
+      !ts.isPropertyAssignment(property) &&
+      !ts.isShorthandPropertyAssignment(property) &&
+      !ts.isMethodDeclaration(property)
+    ) {
+      return null;
+    }
+    if (ts.isComputedPropertyName(property.name)) return null;
+    if (
+      !ts.isIdentifier(property.name) &&
+      !ts.isStringLiteralLike(property.name) &&
+      !ts.isNumericLiteral(property.name)
+    ) {
+      return null;
+    }
+    keys.add(property.name.text);
+  }
+  return keys;
+}
+
+function routeParameterNames(pathname: string): string[] {
+  const names = new Set<string>();
+  for (const segment of pathname.split("/")) {
+    if (segment === "*") {
+      names.add("*");
+      continue;
+    }
+    if (!segment.startsWith("{") || !segment.endsWith("}")) continue;
+    const raw = segment.slice(1, -1).trim();
+    const name = (raw.startsWith("*") ? raw.slice(1) : raw).trim();
+    if (name) names.add(name);
+  }
+  return [...names];
+}
+
 const linkContractRule: AnalyzeRule = {
   id: "askr/link-contract",
   category: "correctness",
@@ -2780,6 +3261,25 @@ const linkContractRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     const unsafe = /^(?:javascript|data|vbscript):/i;
+    const routePaths = new Map<ts.CallExpression, string>();
+    for (const sourceFile of context.sourceFiles) {
+      for (const { node, name } of sourceFacts(sourceFile).calls) {
+        if (name !== "route" && name !== "page") continue;
+        const literal = node.arguments[0];
+        if (!literal || !ts.isStringLiteral(literal)) continue;
+        const pathname = literal.text.startsWith("/")
+          ? normalizeRoutePrefix(literal.text)
+          : name === "page"
+            ? analyzedPagePrefix(literal.text)
+            : null;
+        if (pathname) routePaths.set(node, pathname);
+      }
+    }
+    walkRouteDefinitions(context, (call, name, scope) => {
+      const pathname = analyzedRoutePath(call, name, scope);
+      if (pathname) routePaths.set(call, pathname);
+    });
+
     for (const sourceFile of context.sourceFiles) {
       const bindings = sourceBindings(sourceFile);
       if (!sourceFacts(sourceFile).jsx.some((fact) => fact.name === "Link")) continue;
@@ -2808,6 +3308,33 @@ const linkContractRule: AnalyzeRule = {
               this,
               `<Link> uses the unsafe '${destination.split(":")[0]}:' URL scheme.`,
               "Use http, https, mailto, tel, sms, a relative URL, or a route reference.",
+            ),
+          );
+        }
+        const rawToExpression = jsxExpression(to);
+        if (!rawToExpression) return;
+        const toExpression = unwrapStaticExpression(rawToExpression);
+        if (!ts.isCallExpression(toExpression)) return;
+        if (canonicalCallName(toExpression.expression, bindings) !== "to") return;
+        const rawParams = toExpression.arguments[1];
+        if (!rawParams) return;
+        const params = unwrapStaticExpression(rawParams);
+        if (!ts.isObjectLiteralExpression(params)) return;
+        const keys = staticObjectKeys(params);
+        if (!keys) return;
+        const routeExpression = toExpression.arguments[0];
+        if (!routeExpression) return;
+        const pathname = routeReferencePath(routeExpression, context, routePaths);
+        if (!pathname) return;
+        for (const parameter of routeParameterNames(pathname)) {
+          if (keys.has(parameter)) continue;
+          diagnostics.push(
+            diagnostic(
+              context,
+              params,
+              this,
+              `Link destination is missing route parameter "${parameter}".`,
+              `Pass '${parameter}' in the static to() parameter object.`,
             ),
           );
         }

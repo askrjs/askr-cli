@@ -19,6 +19,7 @@
 ### Task 1: Detect hardcoded theme-token literals
 
 **Files:**
+
 - Modify: `tests/analyze.rules.test.ts` in the `describe("analyzer rules")` block
 - Modify: `src/analyze/rules.ts` near the shared `visit` helper and before `frameworkConfigRule`
 
@@ -159,6 +160,7 @@ rtk git commit -m "feat(analyze): report hardcoded theme tokens"
 ### Task 2: Respect configured exclusions and the token-owner workspace
 
 **Files:**
+
 - Modify: `tests/analyze.rules.test.ts` in the `describe("analyzer rules")` block
 - Modify: `src/analyze/rules.ts` in `hardcodedThemeTokenRule.analyze`
 
@@ -190,9 +192,7 @@ it("honors theme-token exclusions and exempts only the exact theme owner", async
   );
 
   const ruleFindings = async (root: string) =>
-    (await diagnostics(root)).filter(
-      (entry) => entry.ruleId === "askr/no-hardcoded-theme-token",
-    );
+    (await diagnostics(root)).filter((entry) => entry.ruleId === "askr/no-hardcoded-theme-token");
 
   await expect(ruleFindings(excludedRoot)).resolves.toEqual([
     expect.objectContaining({ file: "src/app.ts" }),
@@ -262,6 +262,7 @@ rtk git commit -m "test(analyze): cover theme token rule boundaries"
 ### Task 3: Document and verify the complete rule
 
 **Files:**
+
 - Modify: `docs/analyze.md` under `### Correctness`
 
 - [ ] **Step 1: Add the rule to the public analyzer catalog**
