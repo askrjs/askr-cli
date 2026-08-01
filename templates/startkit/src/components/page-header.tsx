@@ -6,13 +6,7 @@ export default function PageHeader(props: {
   actions?: unknown;
 }) {
   return (
-    <Inline
-      class="page-header"
-      align="center"
-      justify="between"
-      gap="var(--ak-space-lg)"
-      wrap="wrap"
-    >
+    <Inline class="page-header" align="center" justify="between" wrap="wrap">
       <div class="page-header-copy">
         <h1>{props.title}</h1>
         <p>{props.description}</p>

@@ -127,6 +127,13 @@ code {
   margin-bottom: var(--ak-space-md);
 }
 
+.showcase-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--ak-space-md);
+  margin-bottom: var(--ak-space-md);
+}
+
 /* Hero buttons */
 .hero-actions {
   display: flex;
