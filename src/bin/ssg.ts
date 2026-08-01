@@ -9,6 +9,12 @@ import { register } from "tsx/esm/api";
 import { isDirectExecution } from "./is-direct-execution";
 import { generateSitemap, removeGeneratedSitemap, type SitemapConfig } from "../ssg/sitemap";
 import { createSiblingStage, publishStagedDirectory } from "../directory-swap";
+import { inspectSsgDocuments } from "../ssg/documents";
+import {
+  removeSsgOutputReport,
+  writeSsgOutputReport,
+  type SsgOutputReportConfig,
+} from "../ssg/output-report";
 
 type CliIo = Pick<Console, "error" | "log">;
 
@@ -34,6 +40,7 @@ interface LoadedConfig {
   assets?: unknown[];
   siteUrl?: string;
   sitemap?: SitemapConfig | false;
+  outputReport?: SsgOutputReportConfig | false;
 }
 
 interface RouteResult {
@@ -227,6 +234,7 @@ function printSummary(
   durationSeconds: string,
   result: GenerateResult,
   sitemapPath?: string,
+  reportPath?: string,
 ): void {
   io.log("");
   io.log(`Generation complete in ${durationSeconds}s`);
@@ -240,6 +248,7 @@ function printSummary(
   io.log(`   Output:    ${outputDir}`);
   io.log(`   Metadata:  ${outputDir}/metadata.json`);
   if (sitemapPath) io.log(`   Sitemap:   ${sitemapPath}`);
+  if (reportPath) io.log(`   Report:    ${reportPath}`);
   io.log("");
 }
 
@@ -321,6 +330,7 @@ export async function runSsgCli(
       assets?: unknown[];
       siteUrl?: string;
       sitemap?: SitemapConfig | false;
+      outputReport?: SsgOutputReportConfig | false;
     };
     const candidate = configModule.default ?? configModule.staticConfig ?? configModule;
     const hasRoutes = Array.isArray(candidate.routes);
@@ -370,12 +380,39 @@ export async function runSsgCli(
 
     const startTime = resolvedDeps.now();
     const result = await ssg.generate(toGenerateOptions(parsed));
+    const inspections =
+      result.failed === 0
+        ? await inspectSsgDocuments(generationOutputDir, result.routes)
+        : new Map();
+    const inspectedRoutes = result.routes.map((route) => ({
+      ...route,
+      ...(inspections.get(route.path)?.canonical
+        ? { canonical: inspections.get(route.path)?.canonical }
+        : {}),
+    }));
     const sitemapPath =
       result.failed === 0 && config.sitemap !== false && config.siteUrl
-        ? await generateSitemap(generationOutputDir, config.siteUrl, result.routes, config.sitemap)
+        ? await generateSitemap(
+            generationOutputDir,
+            config.siteUrl,
+            inspectedRoutes,
+            config.sitemap,
+          )
         : undefined;
     if (result.failed === 0 && config.sitemap === false) {
       await removeGeneratedSitemap(generationOutputDir);
+    }
+    const reportPath =
+      result.failed === 0 && config.outputReport !== false
+        ? await writeSsgOutputReport(
+            generationOutputDir,
+            result.routes,
+            inspections,
+            config.outputReport,
+          )
+        : undefined;
+    if (result.failed === 0 && config.outputReport === false) {
+      await removeSsgOutputReport(generationOutputDir);
     }
     if (result.failed === 0 && cliStagingDir) {
       await publishStagedDirectory(cliStagingDir, resolvedOutputDir);
@@ -390,6 +427,9 @@ export async function runSsgCli(
       result,
       sitemapPath
         ? path.join(resolvedOutputDir, path.relative(generationOutputDir, sitemapPath))
+        : undefined,
+      reportPath
+        ? path.join(resolvedOutputDir, path.relative(generationOutputDir, reportPath))
         : undefined,
     );
 

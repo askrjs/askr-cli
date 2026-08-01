@@ -384,6 +384,7 @@ describe("update CLI", () => {
       "js-yaml",
       "minimatch",
       "npm-registry-fetch",
+      "parse5",
       "semver",
       "tsx",
       "typescript",
