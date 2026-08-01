@@ -359,6 +359,28 @@ describe("analyzer rules", () => {
     );
   });
 
+  it("should ignore unnamed wildcard routes when validating static destinations", async () => {
+    const root = await fixture({
+      "src/routes.tsx": `
+        import { route } from "@askrjs/askr/router";
+        const View = () => <div />;
+        export const Files = route("/files/*", View);
+      `,
+      "src/page.tsx": `
+        import { Link, to } from "@askrjs/askr/router";
+        import { Files } from "./routes";
+        export function Page() {
+          return <Link to={to(Files, {})} />;
+        }
+      `,
+    });
+
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/link-contract",
+    );
+    expect(found).toHaveLength(0);
+  });
+
   it("reports state writes during render but accepts event-handler writes", async () => {
     const root = await fixture({
       "src/page.tsx": `

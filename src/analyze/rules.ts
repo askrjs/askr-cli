@@ -3244,10 +3244,6 @@ function staticObjectKeys(object: ts.ObjectLiteralExpression): Set<string> | nul
 function routeParameterNames(pathname: string): string[] {
   const names = new Set<string>();
   for (const segment of pathname.split("/")) {
-    if (segment === "*") {
-      names.add("*");
-      continue;
-    }
     if (!segment.startsWith("{") || !segment.endsWith("}")) continue;
     const raw = segment.slice(1, -1).trim();
     const name = (raw.startsWith("*") ? raw.slice(1) : raw).trim();
