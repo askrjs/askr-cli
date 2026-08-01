@@ -126,6 +126,9 @@ function positiveCount(value: number | undefined, fallback: number, label: strin
 
 function validateByteBudget(budget: SsgByteBudget | undefined, label: string): void {
   for (const [measurement, limit] of Object.entries(budget ?? {})) {
+    if (measurement !== "raw" && measurement !== "gzip") {
+      throw new Error(`${label}.${measurement} is not supported; use raw or gzip`);
+    }
     if (!Number.isSafeInteger(limit) || Number(limit) < 0) {
       throw new Error(`${label}.${measurement} must be a non-negative integer byte limit`);
     }

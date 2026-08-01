@@ -132,4 +132,15 @@ describe("SSG output report", () => {
     );
     await expect(fs.access(path.join(outputDir, ".askr/ssg-output.json"))).rejects.toThrow();
   });
+
+  it("should reject unknown budget measurements", async () => {
+    const { outputDir, routes } = await fixture();
+    const inspections = await inspectSsgDocuments(outputDir, routes);
+
+    await expect(
+      writeSsgOutputReport(outputDir, routes, inspections, {
+        budgets: { routes: { graaw: 1 } as never },
+      }),
+    ).rejects.toThrow(/routes\.graaw is not supported; use raw or gzip/);
+  });
 });
