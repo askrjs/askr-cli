@@ -125,18 +125,22 @@ function resolveLocation(value: string, siteUrl: URL): string {
   return resolved.href;
 }
 
-function resolveDocumentCanonical(value: string, siteUrl: URL): string {
+function resolveDocumentCanonical(
+  value: string,
+  siteUrl: URL,
+  label = "rendered canonical",
+): string {
   let resolved: URL;
   try {
     resolved = new URL(value, siteUrl);
   } catch {
-    throw new Error(`Invalid rendered canonical URL: ${value}`);
+    throw new Error(`Invalid ${label} URL: ${value}`);
   }
   if (resolved.protocol !== "http:" && resolved.protocol !== "https:") {
-    throw new Error(`Rendered canonical URLs must use HTTP or HTTPS: ${value}`);
+    throw new Error(`${label} URLs must use HTTP or HTTPS: ${value}`);
   }
   if (resolved.hash) {
-    throw new Error(`Rendered canonical URLs must not contain fragments: ${value}`);
+    throw new Error(`${label} URLs must not contain fragments: ${value}`);
   }
   return resolved.href;
 }
@@ -425,9 +429,12 @@ export async function generateSitemap(
       ["sitemap.routes", exact?.url],
       ["sitemap.resolve", resolved?.url],
     ] as const) {
-      if (canonical && value && resolveDocumentCanonical(value, baseUrl) !== canonical) {
+      const explicitUrl = value
+        ? resolveDocumentCanonical(value, baseUrl, `${source} override`)
+        : undefined;
+      if (canonical && explicitUrl && explicitUrl !== canonical) {
         throw new Error(
-          `Sitemap URL mismatch for ${route.path}: rendered canonical ${canonical} disagrees with ${source} URL ${resolveDocumentCanonical(value, baseUrl)}`,
+          `Sitemap URL mismatch for ${route.path}: rendered canonical ${canonical} disagrees with ${source} URL ${explicitUrl}`,
         );
       }
     }

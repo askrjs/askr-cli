@@ -91,6 +91,24 @@ describe("SSG output report", () => {
     expect(await fs.readFile(destination, "utf8")).toBe(first);
   });
 
+  it("should resolve relative initial assets from portable document paths", async () => {
+    const { outputDir, routes } = await fixture();
+    await fs.writeFile(
+      path.join(outputDir, "guide/index.html"),
+      '<link rel="stylesheet" href="../assets/app.css">' +
+        '<script type="module" src="../assets/app.js"></script>',
+    );
+    const inspections = await inspectSsgDocuments(outputDir, routes);
+    const guide = inspections.get("/guide")!;
+    inspections.set("/guide", { ...guide, filePath: "guide\\index.html" });
+
+    const destination = await writeSsgOutputReport(outputDir, routes, inspections);
+    const report = JSON.parse(await fs.readFile(destination, "utf8"));
+
+    expect(report.routes[1].initial.javascript[0].path).toBe("assets/app.js");
+    expect(report.routes[1].initial.css[0].path).toBe("assets/app.css");
+  });
+
   it("should list every configured budget violation and withhold the report", async () => {
     const { outputDir, routes } = await fixture();
     const inspections = await inspectSsgDocuments(outputDir, routes);

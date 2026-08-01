@@ -127,4 +127,22 @@ describe("generated SSG document inspection", () => {
       "<loc>https://example.com/guide/</loc>",
     );
   });
+
+  it("should identify an invalid sitemap override in canonical diagnostics", async () => {
+    await expect(
+      generateSitemap(
+        await outputDirectory(),
+        "https://example.com",
+        [
+          {
+            path: "/guide",
+            filePath: "guide/index.html",
+            status: "success",
+            canonical: "/guide/",
+          },
+        ],
+        { routes: { "/guide": { url: "http://[" } } },
+      ),
+    ).rejects.toThrow(/Invalid sitemap\.routes override URL/);
+  });
 });

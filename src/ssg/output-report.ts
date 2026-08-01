@@ -99,7 +99,11 @@ export async function removeSsgOutputReport(outputDir: string): Promise<void> {
 function localReference(reference: string, documentPath: string): string | undefined {
   let resolved: URL;
   try {
-    const base = new URL(path.posix.dirname(`/${documentPath}`) + "/", "https://askr.invalid");
+    const portableDocumentPath = documentPath.replaceAll("\\", "/");
+    const base = new URL(
+      path.posix.dirname(`/${portableDocumentPath}`) + "/",
+      "https://askr.invalid",
+    );
     resolved = new URL(reference, base);
   } catch {
     return undefined;
