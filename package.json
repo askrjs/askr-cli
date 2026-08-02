@@ -1,6 +1,6 @@
 {
   "name": "@askrjs/cli",
-  "version": "0.0.17",
+  "version": "0.0.20",
   "description": "Unified CLI for the Askr platform",
   "homepage": "https://github.com/askrjs/askr-cli#readme",
   "bugs": {
@@ -41,21 +41,24 @@
     "fmt": "vp fmt .",
     "lint": "vp lint src tests benchmarks vite.config.ts vitest.config.ts vitest.bench.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:changelog": "node scripts/verify-changelog.mjs",
+    "test:peer-floor": "node scripts/verify-peer-floor.mjs",
     "test:publint": "publint",
     "pack:check": "npm pack --ignore-scripts --dry-run --json",
     "test:templates": "node scripts/verify-packed-templates.mjs",
     "bench": "npm run build --silent && npm run bench:analyze && node --import tsx benchmarks/cli.mjs --gate",
     "bench:analyze": "vp test bench --run -c vitest.bench.config.ts",
     "bench:json": "npm run build --silent && node --import tsx benchmarks/cli.mjs --gate --json",
-    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run test:publint && npm run pack:check",
+    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run test:changelog && npm run build && npm run test:publint && npm run pack:check",
     "prepack": "npm run build",
-    "prepublishOnly": "npm run check && npm run test:templates"
+    "prepublishOnly": "npm run check && npm run test:templates && npm run test:peer-floor"
   },
   "dependencies": {
-    "@npmcli/config": "^10.12.0",
+    "@npmcli/config": "^11.0.1",
     "js-yaml": "^5.2.2",
     "minimatch": "^10.2.6",
-    "npm-registry-fetch": "^19.1.1",
+    "npm-registry-fetch": "^20.0.1",
+    "parse5": "^8.0.1",
     "semver": "^7.8.5",
     "tsx": "^4.23.1",
     "typescript": "^6.0.3"
@@ -73,7 +76,7 @@
     "@types/semver": "^7.7.1",
     "@vitest/coverage-v8": "^4.1.10",
     "publint": "^0.3.21",
-    "vite-plus": "^0.2.4",
+    "vite-plus": "0.2.6",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
