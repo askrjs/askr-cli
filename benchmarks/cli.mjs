@@ -58,13 +58,19 @@ function solverSample() {
   const packuments = new Map(
     occurrences.map(({ package: name }) => [name, { "dist-tags": { latest: "1.7.0" }, versions }]),
   );
+  const solvesPerSample = 5;
   const samples = [];
   for (let index = 0; index < 12; index += 1) {
+    // Average a small batch so a single hosted-runner scheduling or GC pause
+    // cannot masquerade as a solver regression. The reported value remains
+    // wall-clock milliseconds per 100-package solve with the same 50 ms budget.
     const started = performance.now();
-    const result = planUpdates({ occurrences, packuments, mode: "upgrade" });
-    if (result.summary.packages !== 100)
-      throw new Error("synthetic peer solver returned an incomplete plan");
-    if (index >= 2) samples.push(performance.now() - started);
+    for (let solve = 0; solve < solvesPerSample; solve += 1) {
+      const result = planUpdates({ occurrences, packuments, mode: "upgrade" });
+      if (result.summary.packages !== 100)
+        throw new Error("synthetic peer solver returned an incomplete plan");
+    }
+    if (index >= 2) samples.push((performance.now() - started) / solvesPerSample);
   }
   return samples;
 }
