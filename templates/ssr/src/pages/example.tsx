@@ -92,7 +92,7 @@ export default function Example() {
         <p class="text-muted">
           Reactive state driving UI updates in real time.
         </p>
-        <div style="display: flex; align-items: center; gap: var(--ak-space-md); margin-bottom: var(--ak-space-md);">
+        <div class="showcase-controls">
           <Toggle pressed={bold()} onPress={() => setBold((b) => !b)}>
             Bold
           </Toggle>
