@@ -62,7 +62,12 @@ export interface SsgOutputReport {
 }
 
 const REPORT_PATH = ".askr/ssg-output.json";
-const INTERNAL_OUTPUTS = new Set(["metadata.json", ".askr/sitemap-manifest.json", REPORT_PATH]);
+const INTERNAL_OUTPUTS = new Set([
+  "metadata.json",
+  ".askr/sitemap-manifest.json",
+  ".askr/ssg-manifest.json",
+  REPORT_PATH,
+]);
 
 function outputType(filePath: string): SsgOutputAsset["type"] {
   const extension = path.extname(filePath).toLowerCase();
@@ -100,8 +105,9 @@ function localReference(reference: string, documentPath: string): string | undef
   let resolved: URL;
   try {
     const portableDocumentPath = documentPath.replaceAll("\\", "/");
+    const directory = path.posix.dirname(`/${portableDocumentPath}`);
     const base = new URL(
-      path.posix.dirname(`/${portableDocumentPath}`) + "/",
+      directory.endsWith("/") ? directory : `${directory}/`,
       "https://askr.invalid",
     );
     resolved = new URL(reference, base);
