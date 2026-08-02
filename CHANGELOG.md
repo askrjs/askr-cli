@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.20] - 2026-08-02
+
+### Changed
+
+- Update `vite-plus` to 0.2.6 after passing the complete cross-platform, template, packaging, and performance gates.
+- Update `npm-registry-fetch` to 20.0.1 and `@npmcli/config` to 11.0.1 after isolated major-version verification.
+
 ## [0.0.19] - 2026-08-02
 
 ### Fixed
@@ -41,7 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Make database tooling work consistently across supported operating systems.
 
-[Unreleased]: https://github.com/askrjs/askr-cli/compare/v0.0.19...HEAD
+[Unreleased]: https://github.com/askrjs/askr-cli/compare/v0.0.20...HEAD
+[0.0.20]: https://github.com/askrjs/askr-cli/compare/v0.0.19...v0.0.20
 [0.0.19]: https://github.com/askrjs/askr-cli/compare/v0.0.18...v0.0.19
 [0.0.18]: https://github.com/askrjs/askr-cli/compare/v0.0.17...v0.0.18
 [0.0.17]: https://github.com/askrjs/askr-cli/compare/v0.0.16...v0.0.17
