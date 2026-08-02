@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update `vite-plus` to 0.2.6 after passing the complete cross-platform, template, packaging, and performance gates.
 - Update `npm-registry-fetch` to 20.0.1 and `@npmcli/config` to 11.0.1 after isolated major-version verification.
+- Measure the peer-solver benchmark as batched per-operation wall-clock time so isolated hosted-runner scheduling or garbage-collection pauses cannot create false regressions.
 
 ## [0.0.19] - 2026-08-02
 
