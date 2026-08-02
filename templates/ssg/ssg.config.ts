@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { DocumentRenderArgs } from '@askrjs/askr/ssg';
+import { withThemeStyles } from '@askrjs/themes/ssr';
 import { pageRegistry } from './src/routes';
 
 export const outputDir = './dist';
@@ -31,7 +32,8 @@ export const staticConfig = {
       '/preview': false,
     },
   },
-  document: renderDocument,
+  document: withThemeStyles(renderDocument),
+  styleRegistrationValidation: 'error' as const,
   assets: [
     {
       from: resolve(process.cwd(), '.askr/client/assets'),

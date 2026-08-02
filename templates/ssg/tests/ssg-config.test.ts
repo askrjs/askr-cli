@@ -9,5 +9,6 @@ describe('SSG config', () => {
     expect(staticConfig.registry.routes).toHaveLength(4);
     expect(staticConfig.siteUrl).toBe('https://example.com');
     expect(staticConfig.sitemap.routes['/preview']).toBe(false);
+    expect(staticConfig.styleRegistrationValidation).toBe('error');
   });
 });
