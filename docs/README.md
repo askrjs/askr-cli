@@ -18,6 +18,7 @@ The unified CLI for the Askr platform.
 - [ssg](./ssg.md) - Atomically publish static routes and sitemap artifacts
 - [update](./update.md) - Plan and apply manifest-only dependency updates
 - [Workflows](./workflows.md) - End-to-end CLI workflows
+- [Releasing](./releasing.md) - Changelog, verification, and trusted-publishing checklist
 
 ## Quick start
 

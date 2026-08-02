@@ -203,8 +203,9 @@ npm run build
 askr ssg --config ./ssg.config.ts --output ./dist/static
 ```
 
-The config must provide the canonical `siteUrl`; the CLI generates
-`sitemap.xml` alongside the route HTML and build metadata. Configure per-route
+The config must provide the canonical `siteUrl`; the CLI aligns `sitemap.xml`
+with rendered canonical links and writes `.askr/ssg-output.json` alongside the
+route HTML and build metadata. Configure per-route
 SEO fields or exclusions through `sitemap.routes`, and use `sitemap: false`
 only when the deployment intentionally has no sitemap.
 

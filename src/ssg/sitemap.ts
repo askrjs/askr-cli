@@ -26,6 +26,8 @@ export interface SitemapRouteContext {
   path: string;
   filePath: string;
   status: string;
+  /** Resolved rendered canonical URL, when the document declares one. */
+  canonical?: string;
 }
 
 export interface SitemapConfig {
@@ -120,6 +122,26 @@ function resolveLocation(value: string, siteUrl: URL): string {
     throw new Error(`Sitemap URLs must use HTTP or HTTPS: ${value}`);
   }
   if (resolved.hash) throw new Error(`Sitemap URLs must not contain fragments: ${value}`);
+  return resolved.href;
+}
+
+function resolveDocumentCanonical(
+  value: string,
+  siteUrl: URL,
+  label = "rendered canonical",
+): string {
+  let resolved: URL;
+  try {
+    resolved = new URL(value, siteUrl);
+  } catch {
+    throw new Error(`Invalid ${label} URL: ${value}`);
+  }
+  if (resolved.protocol !== "http:" && resolved.protocol !== "https:") {
+    throw new Error(`${label} URLs must use HTTP or HTTPS: ${value}`);
+  }
+  if (resolved.hash) {
+    throw new Error(`${label} URLs must not contain fragments: ${value}`);
+  }
   return resolved.href;
 }
 
@@ -394,9 +416,28 @@ export async function generateSitemap(
   const resolvedRoutes = await mapConcurrent(includedRoutes, resolverConcurrency, async (route) => {
     const exact = config.routes?.[route.path];
     if (exact === false) return undefined;
-    const resolved = await config.resolve?.(route);
+    const canonical = route.canonical
+      ? resolveDocumentCanonical(route.canonical, baseUrl)
+      : undefined;
+    const resolved = await config.resolve?.({
+      ...route,
+      ...(canonical ? { canonical } : {}),
+    });
     if (resolved === false) return undefined;
     const merged = { ...config.defaults, ...exact, ...resolved };
+    for (const [source, value] of [
+      ["sitemap.routes", exact?.url],
+      ["sitemap.resolve", resolved?.url],
+    ] as const) {
+      const explicitUrl = value
+        ? resolveDocumentCanonical(value, baseUrl, `${source} override`)
+        : undefined;
+      if (canonical && explicitUrl && explicitUrl !== canonical) {
+        throw new Error(
+          `Sitemap URL mismatch for ${route.path}: rendered canonical ${canonical} disagrees with ${source} URL ${explicitUrl}`,
+        );
+      }
+    }
     const alternates: GeneratedRoute["alternates"] = [];
     for (const [language, location] of Object.entries(merged.alternates ?? {}).sort(([a], [b]) =>
       a.localeCompare(b),
@@ -408,7 +449,7 @@ export async function generateSitemap(
     }
 
     return {
-      location: resolveLocation(merged.url ?? route.path, baseUrl),
+      location: canonical ?? resolveLocation(merged.url ?? route.path, baseUrl),
       ...(merged.lastModified !== undefined
         ? { lastModified: formatLastModified(merged.lastModified) }
         : {}),

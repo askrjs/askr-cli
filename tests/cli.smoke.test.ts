@@ -903,6 +903,7 @@ test("runSsgCli preserves live output when sitemap metadata fails", async () => 
         createStaticGen: ({ outputDir }) => ({
           async generate() {
             await fs.writeFile(path.join(outputDir, "new.txt"), "new");
+            await fs.writeFile(path.join(outputDir, "index.html"), "<main>new</main>");
             return {
               mode: "incremental",
               successful: 1,
@@ -975,18 +976,22 @@ test("runSsgCli loads TypeScript configs without an external loader", async () =
     'const routes: Array<{ path: string }> = [{ path: "/" }]; export const siteUrl = "https://example.com"; export { routes };\n',
     "utf8",
   );
-  const generate = async () => ({
-    mode: "full",
-    successful: 1,
-    totalRoutes: 1,
-    failed: 0,
-    rebuilt: 1,
-    skipped: 0,
-    removed: 0,
-    cacheHits: 0,
-    routes: [{ path: "/", filePath: "index.html", status: "success" }],
+  const createStaticGen = ({ outputDir }: { outputDir: string }) => ({
+    generate: async () => {
+      await fs.writeFile(path.join(outputDir, "index.html"), "<main>ready</main>");
+      return {
+        mode: "full",
+        successful: 1,
+        totalRoutes: 1,
+        failed: 0,
+        rebuilt: 1,
+        skipped: 0,
+        removed: 0,
+        cacheHits: 0,
+        routes: [{ path: "/", filePath: "index.html", status: "success" }],
+      };
+    },
   });
-  const createStaticGen = () => ({ generate });
   const { io, errors } = createIo();
 
   try {
@@ -1086,7 +1091,12 @@ test("runSsgCli forwards complete registry-based static config", async () => {
         }),
         createStaticGen: (options) => {
           received = options;
-          return { generate };
+          return {
+            generate: async () => {
+              await fs.writeFile(path.join(options.outputDir, "index.html"), "<main>ready</main>");
+              return generate();
+            },
+          };
         },
       },
       io,
@@ -1157,6 +1167,191 @@ test("runSsgCli preserves the previous full output when sitemap generation fails
     expect(errors.join("\n")).toContain("metadata unavailable");
     await expect(fs.readFile(path.join(outputDir, "index.html"), "utf8")).resolves.toBe("previous");
     await expect(fs.access(path.join(outputDir, "sitemap.xml"))).rejects.toThrow();
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runSsgCli writes the default report before publishing staged output", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-output-report-"));
+  const outputDir = path.join(tempRoot, "dist");
+  const { io, errors } = createIo();
+
+  try {
+    const code = await runSsgCli(
+      ["--config", "ssg.config.ts", "--output", outputDir],
+      {
+        cwd: () => tempRoot,
+        existsSync: () => true,
+        importConfig: async () => ({ routes: [{ path: "/" }], sitemap: false }),
+        createStaticGen: (options) => ({
+          generate: async () => {
+            await fs.mkdir(options.outputDir, { recursive: true });
+            await fs.writeFile(path.join(options.outputDir, "index.html"), "<main>reported</main>");
+            return {
+              mode: "full",
+              successful: 1,
+              totalRoutes: 1,
+              failed: 0,
+              rebuilt: 1,
+              skipped: 0,
+              removed: 0,
+              cacheHits: 0,
+              routes: [{ path: "/", filePath: "index.html", status: "success" }],
+            };
+          },
+        }),
+      },
+      io,
+    );
+
+    expect(code).toBe(0);
+    expect(errors).toHaveLength(0);
+    const report = JSON.parse(
+      await fs.readFile(path.join(outputDir, ".askr/ssg-output.json"), "utf8"),
+    );
+    expect(report.routes[0]).toMatchObject({ route: "/", filePath: "index.html" });
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runSsgCli preserves live output when an output budget fails", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-output-budget-"));
+  const outputDir = path.join(tempRoot, "dist");
+  await fs.mkdir(outputDir);
+  await fs.writeFile(path.join(outputDir, "index.html"), "previous");
+  const { io, errors } = createIo();
+
+  try {
+    const code = await runSsgCli(
+      ["--config", "ssg.config.ts", "--output", outputDir],
+      {
+        cwd: () => tempRoot,
+        existsSync: () => true,
+        importConfig: async () => ({
+          routes: [{ path: "/" }],
+          sitemap: false,
+          outputReport: { budgets: { routes: { raw: 1 } } },
+        }),
+        createStaticGen: (options) => ({
+          generate: async () => {
+            await fs.mkdir(options.outputDir, { recursive: true });
+            await fs.writeFile(path.join(options.outputDir, "index.html"), "<main>next</main>");
+            return {
+              mode: "full",
+              successful: 1,
+              totalRoutes: 1,
+              failed: 0,
+              rebuilt: 1,
+              skipped: 0,
+              removed: 0,
+              cacheHits: 0,
+              routes: [{ path: "/", filePath: "index.html", status: "success" }],
+            };
+          },
+        }),
+      },
+      io,
+    );
+
+    expect(code).toBe(1);
+    expect(errors.join("\n")).toContain("route / HTML raw");
+    await expect(fs.readFile(path.join(outputDir, "index.html"), "utf8")).resolves.toBe("previous");
+    await expect(fs.access(path.join(outputDir, ".askr/ssg-output.json"))).rejects.toThrow();
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runSsgCli reports the complete staged result for incremental builds", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-output-incremental-"));
+  const outputDir = path.join(tempRoot, "dist");
+  await fs.mkdir(path.join(outputDir, "old"), { recursive: true });
+  await fs.mkdir(path.join(outputDir, "assets"), { recursive: true });
+  await fs.writeFile(path.join(outputDir, "old/index.html"), "<main>retained</main>");
+  await fs.writeFile(path.join(outputDir, "assets/retained.js"), "export const retained = true;");
+
+  try {
+    const code = await runSsgCli(
+      ["--config", "ssg.config.ts", "--output", outputDir, "--incremental"],
+      {
+        cwd: () => tempRoot,
+        existsSync: () => true,
+        importConfig: async () => ({ routes: [{ path: "/" }], sitemap: false }),
+        createStaticGen: (options) => ({
+          generate: async () => {
+            await fs.writeFile(path.join(options.outputDir, "index.html"), "<main>new</main>");
+            return {
+              mode: "incremental",
+              successful: 2,
+              totalRoutes: 2,
+              failed: 0,
+              rebuilt: 1,
+              skipped: 1,
+              removed: 0,
+              cacheHits: 0,
+              routes: [
+                { path: "/", filePath: "index.html", status: "success" },
+                { path: "/old", filePath: "old/index.html", status: "skipped" },
+              ],
+            };
+          },
+        }),
+      },
+      createIo().io,
+    );
+
+    expect(code).toBe(0);
+    const report = JSON.parse(
+      await fs.readFile(path.join(outputDir, ".askr/ssg-output.json"), "utf8"),
+    );
+    expect(report.routes.map((route: { route: string }) => route.route)).toEqual(["/", "/old"]);
+    expect(report.assets.map((asset: { path: string }) => asset.path)).toContain(
+      "assets/retained.js",
+    );
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runSsgCli removes a retained output report when reporting is disabled", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-output-disabled-"));
+  const outputDir = path.join(tempRoot, "dist");
+  await fs.mkdir(path.join(outputDir, ".askr"), { recursive: true });
+  await fs.writeFile(path.join(outputDir, "index.html"), "<main>retained</main>");
+  await fs.writeFile(path.join(outputDir, ".askr/ssg-output.json"), "stale");
+
+  try {
+    const code = await runSsgCli(
+      ["--config", "ssg.config.ts", "--output", outputDir, "--incremental"],
+      {
+        cwd: () => tempRoot,
+        existsSync: () => true,
+        importConfig: async () => ({
+          routes: [{ path: "/" }],
+          sitemap: false,
+          outputReport: false,
+        }),
+        createStaticGen: () => ({
+          generate: async () => ({
+            mode: "incremental",
+            successful: 1,
+            totalRoutes: 1,
+            failed: 0,
+            rebuilt: 0,
+            skipped: 1,
+            removed: 0,
+            cacheHits: 0,
+            routes: [{ path: "/", filePath: "index.html", status: "skipped" }],
+          }),
+        }),
+      },
+      createIo().io,
+    );
+
+    expect(code).toBe(0);
+    await expect(fs.access(path.join(outputDir, ".askr/ssg-output.json"))).rejects.toThrow();
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }

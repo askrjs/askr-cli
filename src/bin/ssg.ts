@@ -9,6 +9,12 @@ import { register } from "tsx/esm/api";
 import { isDirectExecution } from "./is-direct-execution";
 import { generateSitemap, removeGeneratedSitemap, type SitemapConfig } from "../ssg/sitemap";
 import { createSiblingStage, publishStagedDirectory } from "../directory-swap";
+import { inspectSsgDocuments } from "../ssg/documents";
+import {
+  removeSsgOutputReport,
+  writeSsgOutputReport,
+  type SsgOutputReportConfig,
+} from "../ssg/output-report";
 
 type CliIo = Pick<Console, "error" | "log">;
 
@@ -34,6 +40,7 @@ interface LoadedConfig {
   assets?: unknown[];
   siteUrl?: string;
   sitemap?: SitemapConfig | false;
+  outputReport?: SsgOutputReportConfig | false;
 }
 
 interface RouteResult {
@@ -75,6 +82,15 @@ interface SsgDeps {
     document?: unknown;
     assets?: unknown[];
   }) => StaticGen;
+}
+
+interface RouteAdapter {
+  createRouteRegistry(definition: () => void): unknown;
+  route(
+    path: string,
+    component: (...args: unknown[]) => unknown,
+    options?: Record<string, unknown>,
+  ): unknown;
 }
 
 const helpText = `
@@ -139,6 +155,54 @@ async function loadCreateStaticGen(): Promise<NonNullable<SsgDeps["createStaticG
     throw new Error("Failed to load createStaticGen from @askrjs/askr/ssg");
   }
   return mod.createStaticGen;
+}
+
+async function loadRouteAdapter(): Promise<RouteAdapter> {
+  const mod = (await import("@askrjs/askr/router")) as Partial<RouteAdapter>;
+  if (typeof mod.createRouteRegistry !== "function" || typeof mod.route !== "function") {
+    throw new Error("Failed to load route registry APIs from @askrjs/askr/router");
+  }
+  return mod as RouteAdapter;
+}
+
+function registryFromLegacyRoutes(routes: unknown[], adapter: RouteAdapter): unknown {
+  return adapter.createRouteRegistry(() => {
+    for (const [index, value] of routes.entries()) {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        throw new TypeError(`SSG route at index ${index} must be an object`);
+      }
+      const {
+        path: routePath,
+        handler,
+        component,
+        props,
+        params,
+        ...options
+      } = value as Record<string, unknown>;
+      const implementation = handler ?? component;
+      if (typeof routePath !== "string" || typeof implementation !== "function") {
+        throw new TypeError(
+          `SSG route at index ${index} must provide a string path and a handler or component function`,
+        );
+      }
+      const implementationFunction = implementation as (...args: unknown[]) => unknown;
+      const routeComponent =
+        props && typeof props === "object" && !Array.isArray(props)
+          ? (routeParams: unknown, context: unknown) =>
+              implementationFunction(
+                { ...(props as Record<string, unknown>), ...(routeParams as object) },
+                context,
+              )
+          : implementationFunction;
+      const routeOptions = {
+        ...options,
+        ...(params !== undefined && options.entries === undefined
+          ? { entries: () => [params] }
+          : {}),
+      };
+      adapter.route(routePath, routeComponent, routeOptions);
+    }
+  });
 }
 
 export function parseCliArgs(args: string[]): ParsedSsgArgs {
@@ -227,6 +291,7 @@ function printSummary(
   durationSeconds: string,
   result: GenerateResult,
   sitemapPath?: string,
+  reportPath?: string,
 ): void {
   io.log("");
   io.log(`Generation complete in ${durationSeconds}s`);
@@ -240,6 +305,7 @@ function printSummary(
   io.log(`   Output:    ${outputDir}`);
   io.log(`   Metadata:  ${outputDir}/metadata.json`);
   if (sitemapPath) io.log(`   Sitemap:   ${sitemapPath}`);
+  if (reportPath) io.log(`   Report:    ${reportPath}`);
   io.log("");
 }
 
@@ -321,6 +387,7 @@ export async function runSsgCli(
       assets?: unknown[];
       siteUrl?: string;
       sitemap?: SitemapConfig | false;
+      outputReport?: SsgOutputReportConfig | false;
     };
     const candidate = configModule.default ?? configModule.staticConfig ?? configModule;
     const hasRoutes = Array.isArray(candidate.routes);
@@ -348,6 +415,13 @@ export async function runSsgCli(
         ? resolvedDeps.createStaticGen
         : await loadCreateStaticGen();
 
+    const routeSource =
+      hasRoutes && typeof resolvedDeps.createStaticGen !== "function"
+        ? { registry: registryFromLegacyRoutes(config.routes ?? [], await loadRouteAdapter()) }
+        : hasRoutes
+          ? { routes: config.routes }
+          : { registry: config.registry };
+
     cliStagingDir = await createSiblingStage(resolvedOutputDir, "askr-ssg");
     if (parsed.incremental && !parsed.forceFull && (await pathExists(resolvedOutputDir))) {
       await fs.cp(resolvedOutputDir, cliStagingDir, {
@@ -358,7 +432,7 @@ export async function runSsgCli(
     const generationOutputDir = cliStagingDir;
 
     const ssg = createStaticGen({
-      ...(hasRoutes ? { routes: config.routes } : { registry: config.registry }),
+      ...routeSource,
       outputDir: generationOutputDir,
       seed: config.seed,
       dataOverrides: config.dataOverrides,
@@ -370,12 +444,39 @@ export async function runSsgCli(
 
     const startTime = resolvedDeps.now();
     const result = await ssg.generate(toGenerateOptions(parsed));
+    const inspections =
+      result.failed === 0
+        ? await inspectSsgDocuments(generationOutputDir, result.routes)
+        : new Map();
+    const inspectedRoutes = result.routes.map((route) => ({
+      ...route,
+      ...(inspections.get(route.path)?.canonical
+        ? { canonical: inspections.get(route.path)?.canonical }
+        : {}),
+    }));
     const sitemapPath =
       result.failed === 0 && config.sitemap !== false && config.siteUrl
-        ? await generateSitemap(generationOutputDir, config.siteUrl, result.routes, config.sitemap)
+        ? await generateSitemap(
+            generationOutputDir,
+            config.siteUrl,
+            inspectedRoutes,
+            config.sitemap,
+          )
         : undefined;
     if (result.failed === 0 && config.sitemap === false) {
       await removeGeneratedSitemap(generationOutputDir);
+    }
+    const reportPath =
+      result.failed === 0 && config.outputReport !== false
+        ? await writeSsgOutputReport(
+            generationOutputDir,
+            result.routes,
+            inspections,
+            config.outputReport,
+          )
+        : undefined;
+    if (result.failed === 0 && config.outputReport === false) {
+      await removeSsgOutputReport(generationOutputDir);
     }
     if (result.failed === 0 && cliStagingDir) {
       await publishStagedDirectory(cliStagingDir, resolvedOutputDir);
@@ -390,6 +491,9 @@ export async function runSsgCli(
       result,
       sitemapPath
         ? path.join(resolvedOutputDir, path.relative(generationOutputDir, sitemapPath))
+        : undefined,
+      reportPath
+        ? path.join(resolvedOutputDir, path.relative(generationOutputDir, reportPath))
         : undefined,
     );
 
