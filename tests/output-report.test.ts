@@ -25,7 +25,11 @@ async function fixture(): Promise<{
       `<main>${"content ".repeat(30)}</main>` +
       `<script type="application/json" data-askr-render-data="true">${hydration}</script>`,
   );
-  await fs.writeFile(path.join(outputDir, "index.html"), "<main>Home</main>");
+  await fs.writeFile(
+    path.join(outputDir, "index.html"),
+    '<link rel="stylesheet" href="/assets/app.css">' +
+      '<script type="module" src="/assets/app.js"></script><main>Home</main>',
+  );
   await fs.writeFile(
     path.join(outputDir, "assets/app.js"),
     "export const app = 'app';\n".repeat(8),
@@ -35,6 +39,7 @@ async function fixture(): Promise<{
   await fs.writeFile(path.join(outputDir, "assets/photo.bin"), Buffer.alloc(64, 7));
   await fs.writeFile(path.join(outputDir, "metadata.json"), JSON.stringify({ internal: true }));
   await fs.writeFile(path.join(outputDir, ".askr/sitemap-manifest.json"), "{}");
+  await fs.writeFile(path.join(outputDir, ".askr/ssg-manifest.json"), "{}");
   await fs.writeFile(path.join(outputDir, ".askr/user-asset.bin"), "reported");
   return {
     outputDir,
@@ -70,6 +75,8 @@ describe("SSG output report", () => {
       report.routes[1].initial.javascript.map((asset: { path: string }) => asset.path),
     ).toEqual(["assets/app.js", "assets/chunk.js"]);
     expect(report.routes[1].initial.css[0].path).toBe("assets/app.css");
+    expect(report.routes[0].initial.javascript[0].path).toBe("assets/app.js");
+    expect(report.routes[0].initial.css[0].path).toBe("assets/app.css");
     expect(report.aggregate.javascript.raw).toBeGreaterThan(0);
     expect(report.aggregate.css.raw).toBeGreaterThan(0);
     expect(report.assets.map((asset: { path: string }) => asset.path)).not.toContain(
@@ -77,6 +84,9 @@ describe("SSG output report", () => {
     );
     expect(report.assets.map((asset: { path: string }) => asset.path)).not.toContain(
       ".askr/sitemap-manifest.json",
+    );
+    expect(report.assets.map((asset: { path: string }) => asset.path)).not.toContain(
+      ".askr/ssg-manifest.json",
     );
     expect(report.assets.map((asset: { path: string }) => asset.path)).toContain(
       ".askr/user-asset.bin",

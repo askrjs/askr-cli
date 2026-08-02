@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Resolve initial JavaScript and CSS references for the root SSG document and exclude framework-owned manifests from output reports.
+- Preserve request-local generated theme styles in newly scaffolded SSG documents.
+
 ## [0.0.18] - 2026-08-02
 
 ### Added
