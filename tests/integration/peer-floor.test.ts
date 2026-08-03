@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import { expect, test } from "vitest";
 
 const execFileAsync = promisify(execFile);
-const repository = fileURLToPath(new URL("../", import.meta.url));
+const repository = fileURLToPath(new URL("../../", import.meta.url));
 
 async function run(command: string, args: string[], cwd: string): Promise<string> {
   const { stdout, stderr } = await execFileAsync(command, args, {
