@@ -98,7 +98,7 @@ jobs:
         run: npm run test:templates
 
   peer-floor:
-    name: Packed Askr peer floor (0.0.53)
+    name: Packed Askr peer floor (0.0.85)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

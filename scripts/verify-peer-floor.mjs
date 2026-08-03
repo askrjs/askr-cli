@@ -36,7 +36,7 @@ try {
         private: true,
         type: "module",
         dependencies: {
-          "@askrjs/askr": "0.0.53",
+          "@askrjs/askr": "0.0.85",
           "@askrjs/cli": `file:${archive}`,
         },
       },
