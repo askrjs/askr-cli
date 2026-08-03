@@ -42,7 +42,7 @@
     "lint": "vp lint src tests benchmarks vite.config.ts vitest.config.ts vitest.bench.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:changelog": "node scripts/verify-changelog.mjs",
-    "test:peer-floor": "node scripts/verify-peer-floor.mjs",
+    "test:peer-floor": "vp test run -c vitest.config.ts tests/peer-floor.test.ts",
     "test:publint": "publint",
     "pack:check": "npm pack --ignore-scripts --dry-run --json",
     "test:templates": "node scripts/verify-packed-templates.mjs",
