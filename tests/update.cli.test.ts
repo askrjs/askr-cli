@@ -378,7 +378,7 @@ describe("update CLI", () => {
     const forbiddenPackage = ["npm", "check", "updates"].join("-");
     const forbiddenAlias = ["n", "c", "u"].join("");
 
-    expect(manifest.engines.node).toBe("^20.19.0 || >=22.12.0");
+    expect(manifest.engines.node).toBe(">=24.0.0");
     expect(Object.keys(manifest.dependencies).sort()).toEqual([
       "@npmcli/config",
       "js-yaml",
