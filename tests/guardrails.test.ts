@@ -109,7 +109,7 @@ describe("guardrail commands", () => {
     await syncBundledSkills({ cwd: root });
     const report = await runDoctor(
       { cwd: root, workspacePatterns: [] },
-      { nodeVersion: "22.12.0" },
+      { nodeVersion: "24.0.0" },
     );
 
     expect(report.summary).toEqual({ passed: 5, warnings: 0, errors: 0 });
