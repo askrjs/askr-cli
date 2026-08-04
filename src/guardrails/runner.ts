@@ -16,7 +16,7 @@ import {
   type ScriptResult,
 } from "./types";
 
-const SUPPORTED_NODE_RANGE = "^20.19.0 || >=22.12.0";
+const SUPPORTED_NODE_RANGE = ">=24.0.0";
 const VALIDATION_SCRIPTS = ["lint", "typecheck", "test", "build"] as const;
 
 export interface GuardrailOptions {

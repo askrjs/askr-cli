@@ -107,10 +107,7 @@ describe("guardrail commands", () => {
   it("diagnoses environment, package manager, skills, framework, and analysis health", async () => {
     const root = await fixture({ skills: true });
     await syncBundledSkills({ cwd: root });
-    const report = await runDoctor(
-      { cwd: root, workspacePatterns: [] },
-      { nodeVersion: "22.12.0" },
-    );
+    const report = await runDoctor({ cwd: root, workspacePatterns: [] }, { nodeVersion: "24.0.0" });
 
     expect(report.summary).toEqual({ passed: 5, warnings: 0, errors: 0 });
     expect(report.findings.map((entry) => entry.id)).toEqual([
