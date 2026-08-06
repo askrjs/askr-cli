@@ -250,19 +250,29 @@ export async function writeSsgOutputReport(
   }
   assets.sort((left, right) => left.path.localeCompare(right.path));
   const assetMap = new Map(assets.map((asset) => [asset.path, asset]));
+  const missingReferences = new Set<string>();
 
   const outputRoutes: SsgOutputRoute[] = [];
   for (const route of [...routes].sort((left, right) => left.path.localeCompare(right.path))) {
     const inspection = inspections.get(route.path);
     if (!inspection) continue;
     const html = inspection.html;
-    const referenced = (references: readonly string[], type: SsgOutputAsset["type"]) =>
-      references
-        .map((reference) => localReference(reference, inspection.filePath))
-        .filter((reference): reference is string => Boolean(reference))
-        .map((reference) => assetMap.get(reference))
-        .filter((asset): asset is SsgOutputAsset => asset?.type === type)
-        .sort((left, right) => left.path.localeCompare(right.path));
+    const referenced = (references: readonly string[], type: SsgOutputAsset["type"]) => {
+      const resolved: SsgOutputAsset[] = [];
+      for (const reference of references) {
+        const localPath = localReference(reference, inspection.filePath);
+        if (!localPath) continue;
+        const asset = assetMap.get(localPath);
+        if (!asset || asset.type !== type) {
+          missingReferences.add(
+            `route ${route.path} references missing ${type} asset ${localPath}`,
+          );
+          continue;
+        }
+        resolved.push(asset);
+      }
+      return resolved.sort((left, right) => left.path.localeCompare(right.path));
+    };
     outputRoutes.push({
       route: route.path,
       filePath: inspection.filePath,
@@ -276,6 +286,15 @@ export async function writeSsgOutputReport(
         css: referenced(inspection.css, "css"),
       },
     });
+  }
+
+  if (missingReferences.size > 0) {
+    throw new Error(
+      `SSG output contains missing local assets:\n${[...missingReferences]
+        .sort()
+        .map((item) => `- ${item}`)
+        .join("\n")}`,
+    );
   }
 
   const total = (type: SsgOutputAsset["type"]): SsgOutputSize =>

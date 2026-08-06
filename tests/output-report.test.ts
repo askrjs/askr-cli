@@ -119,6 +119,19 @@ describe("SSG output report", () => {
     expect(report.routes[1].initial.css[0].path).toBe("assets/app.css");
   });
 
+  it("should reject missing local initial assets instead of dropping the reference", async () => {
+    const { outputDir, routes } = await fixture();
+    await fs.writeFile(
+      path.join(outputDir, "guide/index.html"),
+      '<script type="module" src="../assets/missing.js"></script>',
+    );
+    const inspections = await inspectSsgDocuments(outputDir, routes);
+
+    await expect(writeSsgOutputReport(outputDir, routes, inspections)).rejects.toThrow(
+      /route \/guide references missing javascript asset assets\/missing\.js/,
+    );
+  });
+
   it("should list every configured budget violation and withhold the report", async () => {
     const { outputDir, routes } = await fixture();
     const inspections = await inspectSsgDocuments(outputDir, routes);
