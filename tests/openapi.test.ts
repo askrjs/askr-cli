@@ -76,6 +76,31 @@ components:
 `);
   });
 
+  it("should use formatter-compatible double quotes for quoted YAML scalars", () => {
+    const yaml = serializeOpenApi({
+      openapi: "3.1.2",
+      info: { title: "Fixture API", version: "1.0.0" },
+      paths: {
+        "/users": {
+          get: {
+            responses: {
+              "200": {
+                description: "OK",
+                content: {
+                  "application/json": {
+                    schema: { $ref: "#/components/schemas/User" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(yaml).toContain('"200":');
+    expect(yaml).toContain('"#/components/schemas/User"');
+  });
+
   it("loads TypeScript and atomically generates the artifact", async () => {
     const item = await fixture(validModule);
     try {
