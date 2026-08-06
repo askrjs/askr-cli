@@ -76,7 +76,7 @@ components:
 `);
   });
 
-  it("should use formatter-compatible double quotes for quoted YAML scalars", () => {
+  it("should use double quotes given quoted YAML scalars when serializing OpenAPI", () => {
     const yaml = serializeOpenApi({
       openapi: "3.1.2",
       info: { title: "Fixture API", version: "1.0.0" },

@@ -172,7 +172,7 @@ test("package exports only the canonical askr command", async () => {
   expect(packageJson.bin).toEqual({ askr: "./dist/cli.js" });
 });
 
-test("package ships the TypeScript 6 analyzer API alongside the TypeScript 7 compiler", async () => {
+test("should ship the TypeScript 6 analyzer API given the TypeScript 7 compiler when packaging the CLI", async () => {
   const packageJson = JSON.parse(
     await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),
   ) as {
