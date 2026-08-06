@@ -263,12 +263,13 @@ export async function writeSsgOutputReport(
         const localPath = localReference(reference, inspection.filePath);
         if (!localPath) continue;
         const asset = assetMap.get(localPath);
-        if (!asset || asset.type !== type) {
+        if (!asset) {
           missingReferences.add(
             `route ${route.path} references missing ${type} asset ${localPath}`,
           );
           continue;
         }
+        if (asset.type !== type) continue;
         resolved.push(asset);
       }
       return resolved.sort((left, right) => left.path.localeCompare(right.path));

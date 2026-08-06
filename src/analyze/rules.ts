@@ -313,17 +313,74 @@ function collectStateBindings(sourceFile: ts.SourceFile, bindings: SourceBinding
   return { getters, setters, owners };
 }
 
-function identifierIsReadAsValue(node: ts.Identifier): boolean {
+function isCallableJsxProp(node: ts.Identifier, checker: ts.TypeChecker): boolean {
+  const expression = node.parent;
+  if (!ts.isJsxExpression(expression) || !expression.expression) return false;
+  const attribute = expression.parent;
+  if (!ts.isJsxAttribute(attribute)) return false;
+  const opening = attribute.parent.parent;
+  if (!ts.isJsxOpeningLikeElement(opening)) return false;
+  const attributeName = ts.isIdentifier(attribute.name)
+    ? attribute.name.text
+    : ts.isJsxNamespacedName(attribute.name) && ts.isIdentifier(attribute.name.name)
+      ? attribute.name.name.text
+      : null;
+  if (!attributeName) return false;
+  let expected = checker.getContextualType(expression.expression);
+  if (!expected || expected.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) {
+    const tagType = checker.getTypeAtLocation(opening.tagName);
+    for (const signature of tagType.getCallSignatures()) {
+      const propsParameter = signature.parameters[0];
+      if (!propsParameter) continue;
+      const propsType = checker.getTypeOfSymbolAtLocation(propsParameter, opening.tagName);
+      const prop = propsType.getProperty(attributeName);
+      if (!prop) continue;
+      expected = checker.getTypeOfSymbolAtLocation(prop, attribute);
+      if (expected.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) continue;
+      if (expected.getCallSignatures().length > 0 || expected.isUnion()) break;
+    }
+  }
+  if (!expected || expected.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) return false;
+  const hasCallableSignature = (type: ts.Type): boolean =>
+    type.isUnion()
+      ? type.types.some((member) => hasCallableSignature(member))
+      : type.getCallSignatures().length > 0;
+  return hasCallableSignature(expected);
+}
+
+function identifierIsReadAsValue(node: ts.Identifier, checker: ts.TypeChecker): boolean {
   const parent = node.parent;
   if (ts.isCallExpression(parent) && parent.expression === node) return false;
-  if (ts.isPropertyAccessExpression(parent) && parent.expression === node) return false;
+  if (ts.isPropertyAccessExpression(parent)) {
+    // A getter can be a receiver (`count.foo`) and a property name (`obj.count`)
+    // without being read as the state value itself.
+    if (parent.expression === node || parent.name === node) return false;
+  }
+  if (ts.isElementAccessExpression(parent) && parent.expression === node) return false;
   if (ts.isVariableDeclaration(parent) && parent.name === node) return false;
   if (ts.isBindingElement(parent) && parent.name === node) return false;
-  if (ts.isImportSpecifier(parent) || ts.isImportClause(parent) || ts.isNamespaceImport(parent)) {
+  if (
+    ts.isImportSpecifier(parent) ||
+    ts.isImportClause(parent) ||
+    ts.isNamespaceImport(parent) ||
+    (ts.isParameter(parent) && parent.name === node) ||
+    (ts.isPropertyDeclaration(parent) && parent.name === node) ||
+    (ts.isPropertySignature(parent) && parent.name === node) ||
+    (ts.isMethodDeclaration(parent) && parent.name === node) ||
+    (ts.isMethodSignature(parent) && parent.name === node) ||
+    (ts.isExportSpecifier(parent) && (parent.name === node || parent.propertyName === node)) ||
+    (ts.isTypeQueryNode(parent) && parent.exprName === node)
+  ) {
     return false;
   }
-  if (ts.isJsxExpression(parent)) return !ts.isJsxAttribute(parent.parent);
-  return ts.isReturnStatement(parent);
+  if (ts.isJsxAttribute(parent) && parent.name === node) return false;
+  if (isCallableJsxProp(node, checker)) return false;
+  if (ts.isPropertyAssignment(parent) && parent.name === node) return false;
+  if (ts.isShorthandPropertyAssignment(parent)) return true;
+  // All remaining expression positions (arguments, operators, assignments,
+  // object values, template substitutions, JSX expressions, and returns) read
+  // the identifier's value.
+  return true;
 }
 
 const stateAccessRule: AnalyzeRule = {
@@ -355,7 +412,7 @@ const stateAccessRule: AnalyzeRule = {
         } else if (
           ts.isIdentifier(node) &&
           state.getters.has(node.text) &&
-          identifierIsReadAsValue(node)
+          identifierIsReadAsValue(node, context.checker)
         ) {
           diagnostics.push(
             diagnostic(
@@ -529,7 +586,7 @@ const stableDependenciesRule: AnalyzeRule = {
   },
 };
 
-function jsxAttributes(node: ts.JsxOpeningLikeElement): Map<string, ts.JsxAttributeLike> {
+function jsxAttributes(node: ts.JsxOpeningLikeElement): Map<string, ts.JsxAttribute> {
   return new Map(
     node.attributes.properties.flatMap((attribute) =>
       ts.isJsxAttribute(attribute) && ts.isIdentifier(attribute.name)
@@ -537,6 +594,69 @@ function jsxAttributes(node: ts.JsxOpeningLikeElement): Map<string, ts.JsxAttrib
         : [],
     ),
   );
+}
+
+function staticallyNonFunction(expression: ts.Expression, checker: ts.TypeChecker): boolean {
+  if (
+    ts.isArrowFunction(expression) ||
+    ts.isFunctionExpression(expression) ||
+    ts.isClassExpression(expression)
+  ) {
+    return false;
+  }
+  if (
+    ts.isStringLiteral(expression) ||
+    ts.isNumericLiteral(expression) ||
+    expression.kind === ts.SyntaxKind.TrueKeyword ||
+    expression.kind === ts.SyntaxKind.FalseKeyword ||
+    expression.kind === ts.SyntaxKind.NullKeyword ||
+    ts.isObjectLiteralExpression(expression) ||
+    ts.isArrayLiteralExpression(expression)
+  ) {
+    return true;
+  }
+  const type = checker.getTypeAtLocation(expression);
+  if (type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown | ts.TypeFlags.Never)) return false;
+  if (type.isUnion()) return type.types.every((member) => staticallyNonFunctionType(member));
+  return staticallyNonFunctionType(type);
+}
+
+function staticallyNonFunctionType(type: ts.Type): boolean {
+  if (type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown | ts.TypeFlags.Never)) return false;
+  if (type.isUnion()) {
+    return type.types.some(
+      (member) =>
+        !(member.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.VoidLike)) &&
+        staticallyNonFunctionType(member),
+    );
+  }
+  return type.getCallSignatures().length === 0;
+}
+
+function staticallyNotTrue(expression: ts.Expression, checker: ts.TypeChecker): boolean {
+  if (expression.kind === ts.SyntaxKind.TrueKeyword) return false;
+  if (
+    ts.isStringLiteral(expression) ||
+    ts.isNumericLiteral(expression) ||
+    expression.kind === ts.SyntaxKind.FalseKeyword ||
+    expression.kind === ts.SyntaxKind.NullKeyword ||
+    ts.isObjectLiteralExpression(expression) ||
+    ts.isArrayLiteralExpression(expression)
+  ) {
+    return true;
+  }
+  const type = checker.getTypeAtLocation(expression);
+  if (type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown | ts.TypeFlags.Never)) return false;
+  return staticallyNotTrueType(type, checker);
+}
+
+function staticallyNotTrueType(type: ts.Type, checker: ts.TypeChecker): boolean {
+  if (type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown | ts.TypeFlags.Never)) return false;
+  if (type.isUnion()) return type.types.every((member) => staticallyNotTrueType(member, checker));
+  if (type.flags & ts.TypeFlags.BooleanLike) {
+    return (type.flags & ts.TypeFlags.BooleanLiteral) !== 0 && type === checker.getFalseType();
+  }
+  return true;
 }
 
 const forContractRule: AnalyzeRule = {
@@ -587,6 +707,39 @@ const forContractRule: AnalyzeRule = {
               "Remove one key strategy.",
             ),
           );
+        }
+        if (by) {
+          const expression =
+            by.initializer && ts.isJsxExpression(by.initializer)
+              ? by.initializer.expression
+              : undefined;
+          if (!expression || staticallyNonFunction(expression, context.checker)) {
+            diagnostics.push(
+              diagnostic(
+                context,
+                by,
+                this,
+                "<For> by must be a function.",
+                "Pass by={(item) => item.id} or use byIndex for positional lists.",
+              ),
+            );
+          }
+        }
+        if (byIndex?.initializer) {
+          const expression = ts.isJsxExpression(byIndex.initializer)
+            ? byIndex.initializer.expression
+            : undefined;
+          if (!expression || staticallyNotTrue(expression, context.checker)) {
+            diagnostics.push(
+              diagnostic(
+                context,
+                byIndex,
+                this,
+                "<For> byIndex must be true.",
+                "Use bare byIndex or byIndex={true} for positional lists.",
+              ),
+            );
+          }
         }
         const element =
           ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent) ? node.parent : null;
