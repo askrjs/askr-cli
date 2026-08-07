@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.22] - 2026-08-07
+
+### Changed
+
+- Upgrade the CLI, templates, and analyzer to TypeScript 7 and refresh supported dependencies.
+- Normalize test names to the repository's behavioral naming convention.
+
+### Fixed
+
+- Validate referenced SSG assets before publishing output reports while preserving intentionally mismatched emitted asset types.
+- Diagnose state getter value reads across expressions while preserving callable JSX accessor props.
+- Enforce statically provable `For` `by` and `byIndex` contracts without rejecting unresolved dynamic or optional values.
+
 ## [0.0.21] - 2026-08-04
 
 ## [0.0.20] - 2026-08-02
@@ -51,7 +64,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Make database tooling work consistently across supported operating systems.
 
-[Unreleased]: https://github.com/askrjs/askr-cli/compare/v0.0.20...HEAD
+[Unreleased]: https://github.com/askrjs/askr-cli/compare/v0.0.22...HEAD
+[0.0.22]: https://github.com/askrjs/askr-cli/compare/v0.0.21...v0.0.22
+[0.0.21]: https://github.com/askrjs/askr-cli/compare/v0.0.20...v0.0.21
 [0.0.20]: https://github.com/askrjs/askr-cli/compare/v0.0.19...v0.0.20
 [0.0.19]: https://github.com/askrjs/askr-cli/compare/v0.0.18...v0.0.19
 [0.0.18]: https://github.com/askrjs/askr-cli/compare/v0.0.17...v0.0.18

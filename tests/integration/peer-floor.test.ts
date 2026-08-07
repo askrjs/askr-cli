@@ -38,7 +38,7 @@ test("should ensure packed CLI works with the minimum supported Askr peer", asyn
           private: true,
           type: "module",
           dependencies: {
-            "@askrjs/askr": "0.0.88",
+            "@askrjs/askr": "0.0.89",
             "@askrjs/cli": `file:${archive}`,
           },
         },
