@@ -36,7 +36,7 @@ export default api;
 `;
 
 describe("OpenAPI CLI", () => {
-  it("parses defaults and overrides", () => {
+  it("should parse defaults and overrides", () => {
     expect(parseOpenApiArgs([])).toEqual({
       entry: "./src/api.ts",
       output: "./openapi.yml",
@@ -53,7 +53,7 @@ describe("OpenAPI CLI", () => {
     });
   });
 
-  it("serializes exact ordered YAML without aliases and with one newline", () => {
+  it("should serialize exact ordered YAML without aliases and with one newline", () => {
     const shared = { type: "string" };
     expect(
       serializeOpenApi({
@@ -101,7 +101,7 @@ components:
     expect(yaml).toContain('"#/components/schemas/User"');
   });
 
-  it("loads TypeScript and atomically generates the artifact", async () => {
+  it("should load TypeScript and atomically generates the artifact", async () => {
     const item = await fixture(validModule);
     try {
       const result = io();
@@ -121,7 +121,7 @@ paths: {}
     }
   });
 
-  it("awaits asynchronous document exporters", async () => {
+  it("should await asynchronous document exporters", async () => {
     const item = await fixture(`
       export default {
         async toOpenApiDocument() {
@@ -139,7 +139,7 @@ paths: {}
     }
   });
 
-  it("prints machine-readable generation results", async () => {
+  it("should print machine-readable generation results", async () => {
     const item = await fixture(validModule);
     try {
       const result = io();
@@ -159,7 +159,7 @@ paths: {}
     }
   });
 
-  it("checks fresh, stale, and missing artifacts without writing", async () => {
+  it("should check fresh, stale, and missing artifacts without writing", async () => {
     const item = await fixture(validModule);
     try {
       const writes = vi.fn(async () => undefined);
@@ -244,7 +244,7 @@ paths: {}
     }
   });
 
-  it("routes the top-level openapi command", async () => {
+  it("should route the top-level openapi command", async () => {
     const item = await fixture(validModule);
     try {
       const result = io();
@@ -257,7 +257,7 @@ paths: {}
     }
   });
 
-  it("uses a temporary sibling before rename", async () => {
+  it("should use a temporary sibling before rename", async () => {
     const events: string[] = [];
     const result = io();
     const cwd = path.resolve(path.sep, "work");
@@ -293,7 +293,7 @@ paths: {}
     ]);
   });
 
-  it("refuses to overwrite the source entry", async () => {
+  it("should refuse to overwrite the source entry", async () => {
     const item = await fixture(validModule);
     try {
       const result = io();

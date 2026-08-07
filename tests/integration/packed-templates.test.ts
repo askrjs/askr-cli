@@ -19,7 +19,7 @@ async function run(command: string, args: string[], cwd: string): Promise<string
   return stdout;
 }
 
-test("packed CLI passes checks for every shipped template", async () => {
+test("should ensure packed CLI passes checks for every shipped template", async () => {
   const selected = process.env.ASKR_TEMPLATE
     ? allTemplates.filter((template) => template === process.env.ASKR_TEMPLATE)
     : allTemplates;

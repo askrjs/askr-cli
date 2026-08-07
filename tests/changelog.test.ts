@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "vitest";
 
-test("changelog has unreleased and current-version sections", async () => {
+test("should ensure changelog has unreleased and current-version sections", async () => {
   const [manifestSource, changelog] = await Promise.all([
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../CHANGELOG.md", import.meta.url), "utf8"),

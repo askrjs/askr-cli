@@ -112,7 +112,7 @@ function getSkillReviewDocEntries(
   }));
 }
 
-test("runCli prints top-level help", async () => {
+test("should ensure runCli prints top-level help", async () => {
   const { io, logs, errors } = createIo();
   const code = await runCli(["--help"], io);
 
@@ -127,7 +127,7 @@ test("runCli prints top-level help", async () => {
   expect(logs.join("\n")).toMatch(/openapi/);
 });
 
-test("package surface ships project templates for installed create commands", async () => {
+test("should ensure package surface ships project templates for installed create commands", async () => {
   const manifest = JSON.parse(
     await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),
   ) as { files: string[] };
@@ -143,7 +143,7 @@ test("package surface ships project templates for installed create commands", as
   }
 });
 
-test("runCli prints version for short and long flags", async () => {
+test("should ensure runCli prints version for short and long flags", async () => {
   const packageJson = JSON.parse(
     await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),
   ) as {
@@ -162,7 +162,7 @@ test("runCli prints version for short and long flags", async () => {
   expect(shortFlag.logs).toEqual([packageJson.version]);
 });
 
-test("package exports only the canonical askr command", async () => {
+test("should ensure package exports only the canonical askr command", async () => {
   const packageJson = JSON.parse(
     await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),
   ) as {
@@ -185,7 +185,7 @@ test("should ship the TypeScript 6 analyzer API given the TypeScript 7 compiler 
   expect(packageJson.devDependencies?.typescript).toBeUndefined();
 });
 
-test("public docs and templates use the clean-break scope vocabulary", async () => {
+test("should ensure public docs and templates use the clean-break scope vocabulary", async () => {
   const root = fileURLToPath(new URL("..", import.meta.url));
   const files = [
     ...(await sourceFiles(path.join(root, "docs"))),
@@ -212,7 +212,7 @@ test("public docs and templates use the clean-break scope vocabulary", async () 
   expect(violations).toEqual([]);
 });
 
-test("runCreateCli defaults to startkit when template is omitted", async () => {
+test("should ensure runCreateCli defaults to startkit when template is omitted", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-"));
   const previousCwd = process.cwd();
 
@@ -253,7 +253,7 @@ test("runCreateCli defaults to startkit when template is omitted", async () => {
   }
 }, 15_000);
 
-test("runCreateCli rejects unsafe names, unknown options, and extra positional arguments", async () => {
+test("should ensure runCreateCli rejects unsafe names, unknown options, and extra positional arguments", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-create-input-"));
   const previousCwd = process.cwd();
   try {
@@ -273,7 +273,7 @@ test("runCreateCli rejects unsafe names, unknown options, and extra positional a
   }
 });
 
-test("runCreateCli supports an explicit output directory without deriving it from the package name", async () => {
+test("should ensure runCreateCli supports an explicit output directory without deriving it from the package name", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-create-dir-"));
   const target = path.join(tempRoot, "nested", "project");
   try {
@@ -295,7 +295,7 @@ test("runCreateCli supports an explicit output directory without deriving it fro
   }
 });
 
-test("runCreateCli preserves a file that occupies the requested target", async () => {
+test("should ensure runCreateCli preserves a file that occupies the requested target", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-create-file-"));
   const previousCwd = process.cwd();
   try {
@@ -311,7 +311,7 @@ test("runCreateCli preserves a file that occupies the requested target", async (
   }
 });
 
-test("runCreateCli scaffolds SPA with the route-first themed app shell", async () => {
+test("should ensure runCreateCli scaffolds SPA with the route-first themed app shell", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-"));
   const previousCwd = process.cwd();
 
@@ -440,7 +440,7 @@ test("runCreateCli scaffolds SPA with the route-first themed app shell", async (
   }
 });
 
-test("runCreateCli scaffolds SSG with shared route registration and current builder hints", async () => {
+test("should ensure runCreateCli scaffolds SSG with shared route registration and current builder hints", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-"));
   const previousCwd = process.cwd();
 
@@ -499,7 +499,7 @@ test("runCreateCli scaffolds SSG with shared route registration and current buil
   }
 }, 15000);
 
-test("runCreateCli derives a prompt-aware builder blueprint and installs skills", async () => {
+test("should ensure runCreateCli derives a prompt-aware builder blueprint and installs skills", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-"));
   const previousCwd = process.cwd();
 
@@ -562,7 +562,7 @@ test("runCreateCli derives a prompt-aware builder blueprint and installs skills"
   }
 });
 
-test("runCreateCli scaffolds a function-first full-stack project", async () => {
+test("should ensure runCreateCli scaffolds a function-first full-stack project", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-"));
   const previousCwd = process.cwd();
 
@@ -627,7 +627,7 @@ test("runCreateCli scaffolds a function-first full-stack project", async () => {
   }
 });
 
-test("template package floors require the clean-break scope vocabulary", async () => {
+test("should ensure template package floors require the clean-break scope vocabulary", async () => {
   for (const template of ["full-stack", "spa", "ssr", "ssg", "startkit"]) {
     const manifest = JSON.parse(
       await fs.readFile(new URL(`../templates/${template}/package.json`, import.meta.url), "utf8"),
@@ -646,7 +646,7 @@ test("template package floors require the clean-break scope vocabulary", async (
   }
 });
 
-test("runCreateCli can skip bundled skills installation", async () => {
+test("should ensure runCreateCli can skip bundled skills installation", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-"));
   const previousCwd = process.cwd();
 
@@ -682,7 +682,7 @@ test("runCreateCli can skip bundled skills installation", async () => {
   }
 });
 
-test("runAddCli scaffolds a page and registers the app route", async () => {
+test("should ensure runAddCli scaffolds a page and registers the app route", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-add-"));
   const previousCwd = process.cwd();
 
@@ -718,7 +718,7 @@ test("runAddCli scaffolds a page and registers the app route", async () => {
   }
 });
 
-test("runAddCli rolls back page registration given a replacement failure", async () => {
+test("should ensure runAddCli rolls back page registration given a replacement failure", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-add-rollback-"));
   const previousCwd = process.cwd();
   try {
@@ -753,7 +753,7 @@ test("runAddCli rolls back page registration given a replacement failure", async
   }
 });
 
-test("runCli routes add page through the top-level command", async () => {
+test("should ensure runCli routes add page through the top-level command", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-add-"));
   const previousCwd = process.cwd();
 
@@ -801,7 +801,7 @@ test("runCli routes add page through the top-level command", async () => {
   }
 });
 
-test("runAddCli generates a browser-safe action and server registration", async () => {
+test("should ensure runAddCli generates a browser-safe action and server registration", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-add-"));
   const previousCwd = process.cwd();
 
@@ -868,7 +868,7 @@ test("runAddCli generates a browser-safe action and server registration", async 
   }
 });
 
-test("runSsgCli prints help without requiring config", async () => {
+test("should ensure runSsgCli prints help without requiring config", async () => {
   const { io, logs, errors } = createIo();
   const code = await runSsgCli(["--help"], undefined, io);
 
@@ -877,7 +877,7 @@ test("runSsgCli prints help without requiring config", async () => {
   expect(logs.join("\n")).toMatch(/askr ssg - Static Site Generation for Askr/);
 });
 
-test("runSsgCli rejects unknown, missing, and invalid option values", async () => {
+test("should ensure runSsgCli rejects unknown, missing, and invalid option values", async () => {
   for (const args of [["--config"], ["--unknown"], ["--workers", "garbage"], ["--workers", "0"]]) {
     const { io, errors } = createIo();
     expect(await runSsgCli(args, undefined, io)).toBe(1);
@@ -885,7 +885,7 @@ test("runSsgCli rejects unknown, missing, and invalid option values", async () =
   }
 });
 
-test("runSsgCli preserves live output when sitemap metadata fails", async () => {
+test("should ensure runSsgCli preserves live output when sitemap metadata fails", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-ssg-atomic-"));
   const output = path.join(root, "dist");
   await fs.mkdir(output);
@@ -929,7 +929,7 @@ test("runSsgCli preserves live output when sitemap metadata fails", async () => 
   }
 });
 
-test("runSsgCli preserves a file that occupies the output path", async () => {
+test("should ensure runSsgCli preserves a file that occupies the output path", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-ssg-file-"));
   await fs.writeFile(path.join(root, "dist"), "keep");
   try {
@@ -946,7 +946,7 @@ test("runSsgCli preserves a file that occupies the output path", async () => {
   }
 });
 
-test("runSsgCli requires a canonical site URL unless sitemap generation is disabled", async () => {
+test("should ensure runSsgCli requires a canonical site URL unless sitemap generation is disabled", async () => {
   const generate = async () => {
     throw new Error("generation should not start");
   };
@@ -969,7 +969,7 @@ test("runSsgCli requires a canonical site URL unless sitemap generation is disab
   );
 });
 
-test("runSsgCli loads TypeScript configs without an external loader", async () => {
+test("should ensure runSsgCli loads TypeScript configs without an external loader", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-ssg-"));
   const configPath = path.join(tempRoot, "ssg.config.ts");
   await fs.writeFile(
@@ -1008,7 +1008,7 @@ test("runSsgCli loads TypeScript configs without an external loader", async () =
   }
 });
 
-test("askr ssg executes TSX route modules with the project JSX runtime", async () => {
+test("should ensure askr ssg executes TSX route modules with the project JSX runtime", async () => {
   const tempRoot = await fs.mkdtemp(path.join(process.cwd(), ".tmp-askr-cli-ssg-"));
   const configPath = path.join(tempRoot, "ssg.config.ts");
   const outputDir = path.join(tempRoot, "dist");
@@ -1062,7 +1062,7 @@ test("askr ssg executes TSX route modules with the project JSX runtime", async (
   }
 });
 
-test("runSsgCli forwards complete registry-based static config", async () => {
+test("should ensure runSsgCli forwards complete registry-based static config", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-ssg-options-"));
   const registry = { records: [] };
   const document = () => "<!doctype html>";
@@ -1121,7 +1121,7 @@ test("runSsgCli forwards complete registry-based static config", async () => {
   }
 });
 
-test("runSsgCli preserves the previous full output when sitemap generation fails", async () => {
+test("should ensure runSsgCli preserves the previous full output when sitemap generation fails", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-sitemap-atomic-"));
   const outputDir = path.join(tempRoot, "dist");
   await fs.mkdir(outputDir);
@@ -1173,7 +1173,7 @@ test("runSsgCli preserves the previous full output when sitemap generation fails
   }
 });
 
-test("runSsgCli writes the default report before publishing staged output", async () => {
+test("should ensure runSsgCli writes the default report before publishing staged output", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-output-report-"));
   const outputDir = path.join(tempRoot, "dist");
   const { io, errors } = createIo();
@@ -1217,7 +1217,7 @@ test("runSsgCli writes the default report before publishing staged output", asyn
   }
 });
 
-test("runSsgCli preserves live output when an output budget fails", async () => {
+test("should ensure runSsgCli preserves live output when an output budget fails", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-output-budget-"));
   const outputDir = path.join(tempRoot, "dist");
   await fs.mkdir(outputDir);
@@ -1265,7 +1265,7 @@ test("runSsgCli preserves live output when an output budget fails", async () => 
   }
 });
 
-test("runSsgCli reports the complete staged result for incremental builds", async () => {
+test("should ensure runSsgCli reports the complete staged result for incremental builds", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-output-incremental-"));
   const outputDir = path.join(tempRoot, "dist");
   await fs.mkdir(path.join(outputDir, "old"), { recursive: true });
@@ -1316,7 +1316,7 @@ test("runSsgCli reports the complete staged result for incremental builds", asyn
   }
 });
 
-test("runSsgCli removes a retained output report when reporting is disabled", async () => {
+test("should ensure runSsgCli removes a retained output report when reporting is disabled", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-output-disabled-"));
   const outputDir = path.join(tempRoot, "dist");
   await fs.mkdir(path.join(outputDir, ".askr"), { recursive: true });
@@ -1358,7 +1358,7 @@ test("runSsgCli removes a retained output report when reporting is disabled", as
   }
 });
 
-test("runSkillsCli lists bundled skills", async () => {
+test("should ensure runSkillsCli lists bundled skills", async () => {
   const { io, logs, errors } = createIo();
   const code = await runSkillsCli(["list"], io);
 
@@ -1375,7 +1375,7 @@ test("runSkillsCli lists bundled skills", async () => {
   expect(logs).toContain("askr-testing-determinism");
 });
 
-test("runSkillsCli rejects missing cwd and unknown options before synchronization", async () => {
+test("should ensure runSkillsCli rejects missing cwd and unknown options before synchronization", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-input-"));
   const previousCwd = process.cwd();
   try {
@@ -1390,7 +1390,7 @@ test("runSkillsCli rejects missing cwd and unknown options before synchronizatio
   }
 });
 
-test("runSkillsCli bounds review input size", async () => {
+test("should ensure runSkillsCli bounds review input size", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-size-"));
   try {
     await fs.writeFile(path.join(tempRoot, "oversized.ts"), "x".repeat(2 * 1024 * 1024 + 1));
@@ -1402,7 +1402,7 @@ test("runSkillsCli bounds review input size", async () => {
   }
 });
 
-test("runSkillsCli preserves a file that occupies the skills target", async () => {
+test("should ensure runSkillsCli preserves a file that occupies the skills target", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-file-"));
   try {
     await fs.writeFile(path.join(tempRoot, "skills"), "keep");
@@ -1413,7 +1413,7 @@ test("runSkillsCli preserves a file that occupies the skills target", async () =
   }
 });
 
-test("runSkillsCli lists skill review prompts", async () => {
+test("should ensure runSkillsCli lists skill review prompts", async () => {
   const { io, logs, errors } = createIo();
   const code = await runSkillsCli(["review", "list"], io);
 
@@ -1423,7 +1423,7 @@ test("runSkillsCli lists skill review prompts", async () => {
   expect(logs.join("\n")).toMatch(/reject-react-query/);
 });
 
-test("skill review prompts only reference bundled skills", async () => {
+test("should ensure skill review prompts only reference bundled skills", async () => {
   const prompts = listSkillReviewPrompts();
   const bundledSkillEntries = await fs.readdir(new URL("../skills/", import.meta.url), {
     withFileTypes: true,
@@ -1441,7 +1441,7 @@ test("skill review prompts only reference bundled skills", async () => {
   }
 });
 
-test("skills docs stay aligned with bundled skill folders", async () => {
+test("should ensure skills docs stay aligned with bundled skill folders", async () => {
   const skillsDoc = await fs.readFile(new URL("../docs/skills.md", import.meta.url), "utf8");
   const documentedSkills = [
     ...getBacktickedBulletItems(getMarkdownSection(skillsDoc, "Foundation sequence")),
@@ -1460,7 +1460,7 @@ test("skills docs stay aligned with bundled skill folders", async () => {
   expect(documentedSkills).toEqual(bundledSkillNames);
 });
 
-test("workflow docs stay aligned with the layered skill system", async () => {
+test("should ensure workflow docs stay aligned with the layered skill system", async () => {
   const workflowsDoc = await fs.readFile(new URL("../docs/workflows.md", import.meta.url), "utf8");
   const skillsDoc = await fs.readFile(new URL("../docs/skills.md", import.meta.url), "utf8");
   const bundledSkillEntries = await fs.readdir(new URL("../skills/", import.meta.url), {
@@ -1500,7 +1500,7 @@ test("workflow docs stay aligned with the layered skill system", async () => {
   }
 });
 
-test("skill review prompt docs stay aligned with the prompt registry", async () => {
+test("should ensure skill review prompt docs stay aligned with the prompt registry", async () => {
   const prompts = listSkillReviewPrompts();
   const promptDoc = await fs.readFile(
     new URL("../docs/skill-review-prompts.md", import.meta.url),
@@ -1517,7 +1517,7 @@ test("skill review prompt docs stay aligned with the prompt registry", async () 
   expect(documentedPrompts).toEqual(registryPrompts);
 });
 
-test("runSkillsCli reviews a generated candidate with JSON output", async () => {
+test("should ensure runSkillsCli reviews a generated candidate with JSON output", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
 
   try {
@@ -1571,7 +1571,7 @@ test("runSkillsCli reviews a generated candidate with JSON output", async () => 
   }
 });
 
-test("runSkillsCli passes routing-layouts review for an idiomatic route tree", async () => {
+test("should ensure runSkillsCli passes routing-layouts review for an idiomatic route tree", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
 
   try {
@@ -1624,7 +1624,7 @@ test("runSkillsCli passes routing-layouts review for an idiomatic route tree", a
   }
 });
 
-test("runSkillsCli passes auth-authorization review for route-owned access policy", async () => {
+test("should ensure runSkillsCli passes auth-authorization review for route-owned access policy", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
 
   try {
@@ -1675,7 +1675,7 @@ test("runSkillsCli passes auth-authorization review for route-owned access polic
   }
 });
 
-test("runSkillsCli passes shared-data-consistency review for truthful query ownership", async () => {
+test("should ensure runSkillsCli passes shared-data-consistency review for truthful query ownership", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
 
   try {
@@ -1722,7 +1722,7 @@ test("runSkillsCli passes shared-data-consistency review for truthful query owne
   }
 });
 
-test("runSkillsCli passes crud-forms review for explicit form and error state", async () => {
+test("should ensure runSkillsCli passes crud-forms review for explicit form and error state", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
 
   try {
@@ -1771,7 +1771,7 @@ test("runSkillsCli passes crud-forms review for explicit form and error state", 
   }
 });
 
-test("runSkillsCli passes realtime review for bounded reconnecting streams", async () => {
+test("should ensure runSkillsCli passes realtime review for bounded reconnecting streams", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
 
   try {
@@ -1814,7 +1814,7 @@ test("runSkillsCli passes realtime review for bounded reconnecting streams", asy
   }
 });
 
-test("runSkillsCli passes agent-workflow-ui review for lifecycle-driven run screens", async () => {
+test("should ensure runSkillsCli passes agent-workflow-ui review for lifecycle-driven run screens", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
 
   try {
@@ -1865,7 +1865,7 @@ test("runSkillsCli passes agent-workflow-ui review for lifecycle-driven run scre
   }
 });
 
-test("runSkillsCli passes theming-ui review for token-based theme primitives", async () => {
+test("should ensure runSkillsCli passes theming-ui review for token-based theme primitives", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
 
   try {
@@ -1911,7 +1911,7 @@ test("runSkillsCli passes theming-ui review for token-based theme primitives", a
   }
 });
 
-test("runSkillsCli passes ssr-ssg review for environment-safe static routes", async () => {
+test("should ensure runSkillsCli passes ssr-ssg review for environment-safe static routes", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
 
   try {
@@ -1950,7 +1950,7 @@ test("runSkillsCli passes ssr-ssg review for environment-safe static routes", as
   }
 });
 
-test("runSkillsCli fails a negative review when React defaults appear", async () => {
+test("should ensure runSkillsCli fails a negative review when React defaults appear", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
 
   try {
@@ -1984,7 +1984,7 @@ test("runSkillsCli fails a negative review when React defaults appear", async ()
   }
 });
 
-test("runSkillsCli fails a negative review when app-local primitive clones appear", async () => {
+test("should ensure runSkillsCli fails a negative review when app-local primitive clones appear", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
 
   try {
@@ -2020,7 +2020,7 @@ test("runSkillsCli fails a negative review when app-local primitive clones appea
   }
 });
 
-test("runSkillsCli fails a negative review when one spinner models all async states", async () => {
+test("should ensure runSkillsCli fails a negative review when one spinner models all async states", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
 
   try {
@@ -2048,7 +2048,7 @@ test("runSkillsCli fails a negative review when one spinner models all async sta
   }
 });
 
-test("runSkillsCli fails a negative review when parallel architecture drift appears", async () => {
+test("should ensure runSkillsCli fails a negative review when parallel architecture drift appears", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-review-"));
 
   try {
@@ -2112,7 +2112,7 @@ test("runSkillsCli fails a negative review when parallel architecture drift appe
   }
 });
 
-test("runSkillsCli installs bundled skills into project skills", async () => {
+test("should ensure runSkillsCli installs bundled skills into project skills", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-"));
 
   try {
@@ -2139,7 +2139,7 @@ test("runSkillsCli installs bundled skills into project skills", async () => {
   }
 });
 
-test("runSkillsCli refuses install into non-empty skills without force", async () => {
+test("should ensure runSkillsCli refuses install into non-empty skills without force", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-"));
 
   try {
@@ -2156,7 +2156,7 @@ test("runSkillsCli refuses install into non-empty skills without force", async (
   }
 });
 
-test("runSkillsCli sync updates Askr skills and preserves unrelated skills", async () => {
+test("should ensure runSkillsCli sync updates Askr skills and preserves unrelated skills", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-"));
 
   try {

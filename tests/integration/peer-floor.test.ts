@@ -19,7 +19,7 @@ async function run(command: string, args: string[], cwd: string): Promise<string
   return stdout;
 }
 
-test("packed CLI works with the minimum supported Askr peer", async () => {
+test("should ensure packed CLI works with the minimum supported Askr peer", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-peer-floor-"));
   try {
     await run("npm", ["run", "build"], repository);
@@ -38,7 +38,7 @@ test("packed CLI works with the minimum supported Askr peer", async () => {
           private: true,
           type: "module",
           dependencies: {
-            "@askrjs/askr": "0.0.87",
+            "@askrjs/askr": "0.0.88",
             "@askrjs/cli": `file:${archive}`,
           },
         },

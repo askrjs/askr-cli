@@ -3,7 +3,7 @@ import { renderToString } from '@askrjs/askr/ssr';
 import Counter from '../../src/components/counter';
 
 describe('Counter', () => {
-  it('renders the initial hydration check view', () => {
+  it('should render the initial hydration check view', () => {
     const html = renderToString(() => <Counter />);
 
     expect(html).toContain('Hydration check');

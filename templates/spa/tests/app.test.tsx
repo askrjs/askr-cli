@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 
 describe('SPA template structure', () => {
-  it('documents the route-first shell and theme layers the app should keep', () => {
+  it('should document the route-first shell and theme layers the app should keep', () => {
     const structure = [
       'src/main.tsx',
       'src/pages/_routes.tsx',

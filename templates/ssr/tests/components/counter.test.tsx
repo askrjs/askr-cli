@@ -3,7 +3,7 @@ import { renderToString } from '@askrjs/askr/ssr';
 import Counter from '../../src/components/counter';
 
 describe('Counter', () => {
-  it('renders its initial state during SSR', () => {
+  it('should render its initial state during SSR', () => {
     const html = renderToString(() => <Counter />);
 
     expect(html).toContain('counter-value');
