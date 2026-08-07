@@ -13,19 +13,19 @@
 ## File Map
 
 - Modify `src/analyze/rules.ts`: define literal-segment extraction, implement the rule, and register it in `ANALYZE_RULES`.
-- Modify `tests/analyze.rules.test.ts`: add focused rule behavior, exclusion, and workspace-identity regression tests.
+- Modify `tests/analyze-rules.test.ts`: add focused rule behavior, exclusion, and workspace-identity regression tests.
 - Modify `docs/analyze.md`: document the new correctness rule and its exact exemption.
 
 ### Task 1: Detect hardcoded theme-token literals
 
 **Files:**
 
-- Modify: `tests/analyze.rules.test.ts` in the `describe("analyzer rules")` block
+- Modify: `tests/analyze-rules.test.ts` in the `describe("analyzer rules")` block
 - Modify: `src/analyze/rules.ts` near the shared `visit` helper and before `frameworkConfigRule`
 
 - [ ] **Step 1: Write the failing literal-detection test**
 
-Add this test to `tests/analyze.rules.test.ts`:
+Add this test to `tests/analyze-rules.test.ts`:
 
 ```ts
 it("reports hardcoded theme tokens in runtime literal segments", async () => {
@@ -64,7 +64,7 @@ comment and a non-literal identifier.
 Run:
 
 ```bash
-rtk npm test -- tests/analyze.rules.test.ts -t "reports hardcoded theme tokens in runtime literal segments"
+rtk npm test -- tests/analyze-rules.test.ts -t "reports hardcoded theme tokens in runtime literal segments"
 ```
 
 Expected: FAIL because `found` has length `0` instead of `5`.
@@ -135,7 +135,7 @@ both through its `TemplateExpression` and as a child node.
 Run:
 
 ```bash
-rtk npm test -- tests/analyze.rules.test.ts -t "reports hardcoded theme tokens in runtime literal segments"
+rtk npm test -- tests/analyze-rules.test.ts -t "reports hardcoded theme tokens in runtime literal segments"
 ```
 
 Expected: PASS with five diagnostics from `src/tokens.tsx`.
@@ -145,7 +145,7 @@ Expected: PASS with five diagnostics from `src/tokens.tsx`.
 Run:
 
 ```bash
-rtk npm test -- tests/analyze.rules.test.ts
+rtk npm test -- tests/analyze-rules.test.ts
 ```
 
 Expected: PASS; existing analyzer rules remain unchanged.
@@ -153,7 +153,7 @@ Expected: PASS; existing analyzer rules remain unchanged.
 - [ ] **Step 6: Commit the detection behavior**
 
 ```bash
-rtk git add src/analyze/rules.ts tests/analyze.rules.test.ts
+rtk git add src/analyze/rules.ts tests/analyze-rules.test.ts
 rtk git commit -m "feat(analyze): report hardcoded theme tokens"
 ```
 
@@ -161,12 +161,12 @@ rtk git commit -m "feat(analyze): report hardcoded theme tokens"
 
 **Files:**
 
-- Modify: `tests/analyze.rules.test.ts` in the `describe("analyzer rules")` block
+- Modify: `tests/analyze-rules.test.ts` in the `describe("analyzer rules")` block
 - Modify: `src/analyze/rules.ts` in `hardcodedThemeTokenRule.analyze`
 
 - [ ] **Step 1: Write the failing exemption and exclusion test**
 
-Add this test to `tests/analyze.rules.test.ts`:
+Add this test to `tests/analyze-rules.test.ts`:
 
 ```ts
 it("honors theme-token exclusions and exempts only the exact theme owner", async () => {
@@ -209,7 +209,7 @@ it("honors theme-token exclusions and exempts only the exact theme owner", async
 Run:
 
 ```bash
-rtk npm test -- tests/analyze.rules.test.ts -t "honors theme-token exclusions and exempts only the exact theme owner"
+rtk npm test -- tests/analyze-rules.test.ts -t "honors theme-token exclusions and exempts only the exact theme owner"
 ```
 
 Expected: FAIL because `@askrjs/themes` still receives one diagnostic. The
@@ -236,7 +236,7 @@ manifest-derived workspace name owns the token namespace.
 Run:
 
 ```bash
-rtk npm test -- tests/analyze.rules.test.ts -t "honors theme-token exclusions and exempts only the exact theme owner"
+rtk npm test -- tests/analyze-rules.test.ts -t "honors theme-token exclusions and exempts only the exact theme owner"
 ```
 
 Expected: PASS: one included-file diagnostic, no owner diagnostic, and one
@@ -247,7 +247,7 @@ lookalike-package diagnostic.
 Run:
 
 ```bash
-rtk npm test -- tests/analyze.rules.test.ts tests/analyze.cli.test.ts
+rtk npm test -- tests/analyze-rules.test.ts tests/analyze-cli.test.ts
 ```
 
 Expected: PASS.
@@ -255,7 +255,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit the exemption behavior**
 
 ```bash
-rtk git add src/analyze/rules.ts tests/analyze.rules.test.ts
+rtk git add src/analyze/rules.ts tests/analyze-rules.test.ts
 rtk git commit -m "test(analyze): cover theme token rule boundaries"
 ```
 
@@ -302,7 +302,7 @@ package dry-run all pass.
 - [ ] **Step 4: Commit documentation or formatter changes**
 
 ```bash
-rtk git add docs/analyze.md src/analyze/rules.ts tests/analyze.rules.test.ts
+rtk git add docs/analyze.md src/analyze/rules.ts tests/analyze-rules.test.ts
 rtk git commit -m "docs(analyze): describe theme token diagnostics"
 ```
 

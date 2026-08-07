@@ -22,7 +22,7 @@ function io() {
 type Loader = typeof loadOrmTooling;
 
 describe("database command routing", () => {
-  it("forwards all semantics to the project-installed ORM tooling", async () => {
+  it("should forward all semantics to the project-installed ORM tooling", async () => {
     const output = io();
     const runDatabaseCli = vi.fn(async () => 0);
     const loader: Loader = vi.fn(async () => ({ runDatabaseCli }));
@@ -42,7 +42,7 @@ describe("database command routing", () => {
     });
   });
 
-  it("reports a focused install error when tooling is unavailable", async () => {
+  it("should report a focused install error when tooling is unavailable", async () => {
     const output = io();
     const loader: Loader = vi.fn(async () => {
       throw new Error("missing");
@@ -51,7 +51,7 @@ describe("database command routing", () => {
     expect(output.errors).toEqual(["missing"]);
   });
 
-  it("captures lazy validation output for askr check", async () => {
+  it("should capture lazy validation output for askr check", async () => {
     const loader: Loader = vi.fn(async () => ({
       runDatabaseCli: async (
         _args: readonly string[],

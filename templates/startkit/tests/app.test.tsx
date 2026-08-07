@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vite-plus/test';
 
 describe('App Component', () => {
-  it('exposes the current starter route set', () => {
+  it('should expose the current starter route set', () => {
     const routes = [
       '/',
       '/login',
@@ -16,14 +16,14 @@ describe('App Component', () => {
     expect(routes).toContain('/login');
   });
 
-  it('uses the updated primary nav labels', () => {
+  it('should use the updated primary nav labels', () => {
     const navLabels = ['Dashboard', 'Accounts', 'Settings'];
 
     expect(navLabels).toContain('Accounts');
     expect(navLabels).toContain('Settings');
   });
 
-  it('documents the starter appearance presets', () => {
+  it('should document the starter appearance presets', () => {
     const appearanceModes = ['Default', 'Harbor', 'Ink'];
 
     expect(appearanceModes).toContain('Harbor');

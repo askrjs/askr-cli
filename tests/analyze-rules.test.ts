@@ -55,7 +55,7 @@ afterEach(async () => {
 });
 
 describe("analyzer rules", () => {
-  it("recognizes canonical aliased and namespace imports without matching unrelated functions", async () => {
+  it("should recognize canonical aliased and namespace imports without matching unrelated functions", async () => {
     const root = await fixture({
       "src/page.tsx": `
         import { state as cell } from "@askrjs/askr";
@@ -73,7 +73,7 @@ describe("analyzer rules", () => {
     expect(found.every((entry) => entry.file === "src/page.tsx")).toBe(true);
   });
 
-  it("reports unstable render calls and invalid state reads and writes", async () => {
+  it("should report unstable render calls and invalid state reads and writes", async () => {
     const root = await fixture({
       "src/page.tsx": `
         import { state, derive } from "@askrjs/askr";
@@ -96,7 +96,7 @@ describe("analyzer rules", () => {
     });
   });
 
-  it("reports state getters in value positions while preserving declaration and call syntax", async () => {
+  it("should report state getters in value positions while preserving declaration and call syntax", async () => {
     const root = await fixture({
       "src/page.tsx": `
         import { state } from "@askrjs/askr";
@@ -128,7 +128,7 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/state-access")).toHaveLength(7);
   });
 
-  it("validates statically known For key strategies without rejecting dynamic values", async () => {
+  it("should validate statically known For key strategies without rejecting dynamic values", async () => {
     const root = await fixture({
       "src/page.tsx": `
         import { For } from "@askrjs/askr";
@@ -165,7 +165,7 @@ describe("analyzer rules", () => {
     );
   });
 
-  it("checks resource cancellation and stable dependencies while accepting forwarded signals", async () => {
+  it("should check resource cancellation and stable dependencies while accepting forwarded signals", async () => {
     const root = await fixture({
       "src/page.tsx": `
         import { resource } from "@askrjs/askr/resources";
@@ -185,7 +185,7 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/stable-dependencies")).toHaveLength(1);
   });
 
-  it("checks For contracts, positional keys, and only reactive JSX map calls", async () => {
+  it("should check For contracts, positional keys, and only reactive JSX map calls", async () => {
     const root = await fixture({
       "src/page.tsx": `
         import { For, state } from "@askrjs/askr";
@@ -209,7 +209,7 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/stable-key")).toHaveLength(1);
   });
 
-  it("reports async components, bad boot wiring, and SSR browser globals", async () => {
+  it("should report async components, bad boot wiring, and SSR browser globals", async () => {
     const root = await fixture({
       "src/client.tsx": `
         import { createSPA } from "@askrjs/askr/boot";
@@ -231,7 +231,7 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/ssr-browser-global")).toHaveLength(1);
   });
 
-  it("checks route registry ownership, route syntax, controls, and data cancellation", async () => {
+  it("should check route registry ownership, route syntax, controls, and data cancellation", async () => {
     const root = await fixture({
       "src/routes.tsx": `
         import { Case, Match, Show } from "@askrjs/askr";
@@ -450,7 +450,7 @@ describe("analyzer rules", () => {
     expect(found).toHaveLength(0);
   });
 
-  it("reports state writes during render but accepts event-handler writes", async () => {
+  it("should report state writes during render but accepts event-handler writes", async () => {
     const root = await fixture({
       "src/page.tsx": `
         import { state } from "@askrjs/askr";
@@ -466,7 +466,7 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/state-render-write")).toHaveLength(1);
   });
 
-  it("reports malformed source and analyzes JavaScript without a tsconfig", async () => {
+  it("should report malformed source and analyzes JavaScript without a tsconfig", async () => {
     const root = await fixture(
       {
         "src/broken.ts": "export function broken( {",
@@ -484,7 +484,7 @@ describe("analyzer rules", () => {
     ).toBe(true);
   });
 
-  it("keeps dependency declaration graphs out of analysis programs", async () => {
+  it("should keep dependency declaration graphs out of analysis programs", async () => {
     const root = await fixture({
       "src/page.ts": 'import type { Huge } from "huge-package"; export type Page = Huge;',
       "node_modules/huge-package/package.json": JSON.stringify({
@@ -587,7 +587,7 @@ describe("analyzer rules", () => {
     ).toEqual([expect.objectContaining({ file: "src/theme.ts" })]);
   });
 
-  it("honors exclusions and rule severity configuration", async () => {
+  it("should honor exclusions and rule severity configuration", async () => {
     const root = await fixture(
       {
         "src/page.ts": 'import { state } from "@askrjs/askr"; state(0);',
@@ -612,7 +612,7 @@ describe("analyzer rules", () => {
     ]);
   });
 
-  it("reports lifecycle, stream, data, invalidation, and island contract violations", async () => {
+  it("should report lifecycle, stream, data, invalidation, and island contract violations", async () => {
     const root = await fixture({
       "src/contracts.tsx": `
         import { on, stream as live, task, timer } from "@askrjs/askr/resources";
@@ -655,7 +655,7 @@ describe("analyzer rules", () => {
     ).toBe(true);
   });
 
-  it("reports mixed execution models, action defects, discarded submits, and render allocations", async () => {
+  it("should report mixed execution models, action defects, discarded submits, and render allocations", async () => {
     const root = await fixture({
       "src/app.tsx": `
         import { state } from "@askrjs/askr";
@@ -694,7 +694,7 @@ describe("analyzer rules", () => {
     ).toBe(true);
   });
 
-  it("accepts valid contracts and ignores similarly named unrelated APIs", async () => {
+  it("should accept valid contracts and ignores similarly named unrelated APIs", async () => {
     const root = await fixture({
       "src/page.tsx": `
         import { ActionForm, action, defineAction } from "@askrjs/askr/actions";
@@ -747,7 +747,7 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => newRules.has(entry.ruleId))).toEqual([]);
   });
 
-  it("covers the static-analysis backlog with conservative positive and negative cases", async () => {
+  it("should cover the static-analysis backlog with conservative positive and negative cases", async () => {
     const root = await fixture({
       "src/backlog.tsx": `
         import { Case, For, Match, Show, defineScope, state } from "@askrjs/askr";

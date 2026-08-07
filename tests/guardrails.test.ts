@@ -91,7 +91,7 @@ afterEach(async () => {
 });
 
 describe("guardrail commands", () => {
-  it("parses shared cwd, workspace, JSON, and help options", () => {
+  it("should parse shared cwd, workspace, JSON, and help options", () => {
     expect(
       parseGuardrailArgs(["--cwd", "./fixture", "--workspace=a*", "--workspace", "b", "--json"]),
     ).toEqual({
@@ -104,7 +104,7 @@ describe("guardrail commands", () => {
     expect(() => parseGuardrailArgs(["--unknown"])).toThrow(/unknown option/i);
   });
 
-  it("diagnoses environment, package manager, skills, framework, and analysis health", async () => {
+  it("should diagnose environment, package manager, skills, framework, and analysis health", async () => {
     const root = await fixture({ skills: true });
     await syncBundledSkills({ cwd: root });
     const report = await runDoctor({ cwd: root, workspacePatterns: [] }, { nodeVersion: "24.0.0" });
@@ -119,7 +119,7 @@ describe("guardrail commands", () => {
     ]);
   });
 
-  it("reports actionable doctor failures without changing the project", async () => {
+  it("should report actionable doctor failures without changing the project", async () => {
     const root = await fixture({
       lockfiles: ["package-lock.json", "pnpm-lock.yaml"],
       source: ['import { state } from "@askrjs/askr";', "export const count = state(0);", ""].join(
@@ -143,7 +143,7 @@ describe("guardrail commands", () => {
     expect(await fs.readFile(path.join(root, "src", "app.ts"), "utf8")).toBe(before);
   });
 
-  it("runs validation scripts in order after analysis passes", async () => {
+  it("should run validation scripts in order after analysis passes", async () => {
     const root = await fixture();
     const executed: string[] = [];
     const report = await runCheck(
@@ -165,7 +165,7 @@ describe("guardrail commands", () => {
     ]);
   });
 
-  it("automatically validates a discovered database before project scripts", async () => {
+  it("should automatically validate a discovered database before project scripts", async () => {
     const root = await fixture();
     await fs.mkdir(path.join(root, "database"), { recursive: true });
     await fs.writeFile(path.join(root, "database", "index.ts"), "export default {};\n");
@@ -193,7 +193,7 @@ describe("guardrail commands", () => {
     });
   });
 
-  it("does not run project scripts until blocking analysis findings are repaired", async () => {
+  it("should not run project scripts until blocking analysis findings are repaired", async () => {
     const root = await fixture({
       source: ['import { state } from "@askrjs/askr";', "export const count = state(0);", ""].join(
         "\n",
@@ -208,7 +208,7 @@ describe("guardrail commands", () => {
     expect(report.scripts.every((entry) => entry.status === "skipped")).toBe(true);
   });
 
-  it("stops after a failed validation script and explains skipped stages", async () => {
+  it("should stop after a failed validation script and explains skipped stages", async () => {
     const root = await fixture();
     const report = await runCheck(
       { cwd: root, workspacePatterns: [] },
@@ -231,7 +231,7 @@ describe("guardrail commands", () => {
     ]);
   });
 
-  it("applies safe repairs, reports semantic leftovers, and converges idempotently", async () => {
+  it("should apply safe repairs, reports semantic leftovers, and converges idempotently", async () => {
     const root = await fixture({
       source: [
         'import { createRouteRegistry, route } from "@askrjs/askr/router";',
@@ -255,7 +255,7 @@ describe("guardrail commands", () => {
     );
   });
 
-  it("dispatches doctor, repair, and check through the canonical askr CLI", async () => {
+  it("should dispatch doctor, repair, and check through the canonical askr CLI", async () => {
     const root = await fixture({ skills: true });
     await syncBundledSkills({ cwd: root });
     const output = io();
@@ -269,7 +269,7 @@ describe("guardrail commands", () => {
 });
 
 describe("shipped template guardrails", () => {
-  it("keeps every template analyzer-clean and wired to the unified check", async () => {
+  it("should keep every template analyzer-clean and wired to the unified check", async () => {
     const templatesRoot = fileURLToPath(new URL("../templates/", import.meta.url));
     for (const name of ["full-stack", "spa", "ssg", "ssr", "startkit"]) {
       const root = path.join(templatesRoot, name);
