@@ -60,27 +60,27 @@
     "npm-registry-fetch": "^20.0.1",
     "parse5": "^8.0.1",
     "semver": "^7.8.5",
-    "tsx": "^4.23.5",
+    "tsx": "^4.23.9",
     "typescript": "^6.0.3"
   },
   "devDependencies": {
-    "@askrjs/askr": ">=0.0.85 <0.1.0",
-    "@askrjs/charts": ">=0.1.4 <0.2.0",
-    "@askrjs/logos": ">=0.0.5 <0.1.0",
-    "@askrjs/lucide": ">=0.0.6 <0.1.0",
-    "@askrjs/themes": ">=0.0.21 <0.1.0",
-    "@askrjs/ui": ">=0.0.24 <0.1.0",
-    "@askrjs/vite": ">=0.0.11 <0.1.0",
+    "@askrjs/askr": ">=0.0.87 <0.1.0",
+    "@askrjs/charts": ">=0.1.5 <0.2.0",
+    "@askrjs/logos": ">=0.0.6 <0.1.0",
+    "@askrjs/lucide": ">=0.0.8 <0.1.0",
+    "@askrjs/themes": ">=0.0.22 <0.1.0",
+    "@askrjs/ui": ">=0.0.25 <0.1.0",
+    "@askrjs/vite": ">=0.0.12 <0.1.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^26.1.2",
     "@types/semver": "^7.8.0",
     "@vitest/coverage-v8": "^4.1.10",
-    "publint": "^0.3.22",
-    "vite-plus": "0.2.7",
+    "publint": "^0.3.23",
+    "vite-plus": "0.2.8",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
-    "@askrjs/askr": ">=0.0.85 <0.1.0"
+    "@askrjs/askr": ">=0.0.87 <0.1.0"
   },
   "peerDependenciesMeta": {
     "@askrjs/askr": {

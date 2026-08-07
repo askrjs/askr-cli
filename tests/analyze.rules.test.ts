@@ -96,6 +96,75 @@ describe("analyzer rules", () => {
     });
   });
 
+  it("reports state getters in value positions while preserving declaration and call syntax", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { state } from "@askrjs/askr";
+        const [count, setCount] = state(0);
+        const doubled = count + 1;
+        send(count);
+        const object = { value: count };
+        const template = \`count: \${count}\`;
+        const receiver = count.toString();
+        const property = object.count;
+        type Snapshot = typeof count;
+        export { count };
+        count();
+        setCount(2);
+        function send(value: number) { return value; }
+        function AccessorView(props: { value: () => number }) { return <div>{props.value()}</div>; }
+        function OptionalAccessorView(props: { value?: () => number }) { return <div>{props.value?.()}</div>; }
+        function Label(props: { text: number }) { return <div>{props.text}</div>; }
+        export function Page() { return <main>
+          <div data-count={count} count={count} />
+          <AccessorView value={count} />
+          <OptionalAccessorView value={count} />
+          <Label text={count} />
+        </main>; }
+      `,
+    });
+
+    const found = await diagnostics(root);
+    expect(found.filter((entry) => entry.ruleId === "askr/state-access")).toHaveLength(7);
+  });
+
+  it("validates statically known For key strategies without rejecting dynamic values", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { For } from "@askrjs/askr";
+        declare const items: number[];
+        declare const dynamicBy: unknown;
+        declare const dynamicIndex: boolean;
+        declare const optionalIndex: boolean | undefined;
+        declare const maybeFn: (() => string) | number;
+        declare const optionalFn: (() => string) | undefined;
+        export function Page() { return <main>
+          <For each={items} by>{(item) => <span>{item}</span>}</For>
+          <For each={items} by="id">{(item) => <span>{item}</span>}</For>
+          <For each={items} byIndex={false}>{(item) => <span>{item}</span>}</For>
+          <For each={items} by={maybeFn}>{(item) => <span>{item}</span>}</For>
+          <For each={items} by={optionalFn}>{(item) => <span>{item}</span>}</For>
+          <For each={items} byIndex={}>{(item) => <span>{item}</span>}</For>
+          <For each={items} by={(item) => item}>{(item) => <span>{item}</span>}</For>
+          <For each={items} byIndex>{(item) => <span>{item}</span>}</For>
+          <For each={items} byIndex={optionalIndex}>{(item) => <span>{item}</span>}</For>
+          <For each={items} by={dynamicBy as any} byIndex={dynamicIndex}>{(item) => <span>{item}</span>}</For>
+        </main>; }
+      `,
+    });
+
+    const found = await diagnostics(root);
+    const contracts = found.filter((entry) => entry.ruleId === "askr/for-contract");
+    expect(contracts).toHaveLength(5);
+    expect(contracts.map((entry) => entry.message)).toEqual(
+      expect.arrayContaining([
+        "<For> by must be a function.",
+        "<For> byIndex must be true.",
+        "<For> accepts either by or byIndex, not both.",
+      ]),
+    );
+  });
+
   it("checks resource cancellation and stable dependencies while accepting forwarded signals", async () => {
     const root = await fixture({
       "src/page.tsx": `
