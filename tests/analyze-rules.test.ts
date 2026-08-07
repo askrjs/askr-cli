@@ -466,7 +466,7 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/state-render-write")).toHaveLength(1);
   });
 
-  it("should report malformed source and analyzes JavaScript without a tsconfig", async () => {
+  it("should report malformed source and analyze JavaScript without a tsconfig", async () => {
     const root = await fixture(
       {
         "src/broken.ts": "export function broken( {",
@@ -694,7 +694,7 @@ describe("analyzer rules", () => {
     ).toBe(true);
   });
 
-  it("should accept valid contracts and ignores similarly named unrelated APIs", async () => {
+  it("should accept valid contracts and ignore similarly named unrelated APIs", async () => {
     const root = await fixture({
       "src/page.tsx": `
         import { ActionForm, action, defineAction } from "@askrjs/askr/actions";

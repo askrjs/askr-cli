@@ -208,7 +208,7 @@ describe("guardrail commands", () => {
     expect(report.scripts.every((entry) => entry.status === "skipped")).toBe(true);
   });
 
-  it("should stop after a failed validation script and explains skipped stages", async () => {
+  it("should stop after a failed validation script and explain skipped stages", async () => {
     const root = await fixture();
     const report = await runCheck(
       { cwd: root, workspacePatterns: [] },
@@ -231,7 +231,7 @@ describe("guardrail commands", () => {
     ]);
   });
 
-  it("should apply safe repairs, reports semantic leftovers, and converges idempotently", async () => {
+  it("should apply safe repairs, report semantic leftovers, and converge idempotently", async () => {
     const root = await fixture({
       source: [
         'import { createRouteRegistry, route } from "@askrjs/askr/router";',

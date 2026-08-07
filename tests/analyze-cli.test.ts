@@ -86,7 +86,7 @@ describe("analyze CLI", () => {
     expect(() => parseAnalyzeArgs(["--unknown"])).toThrow(/unknown option/i);
   });
 
-  it("should scan all workspaces by default and filters repeated selections deterministically", async () => {
+  it("should scan all workspaces by default and filter repeated selections deterministically", async () => {
     const root = await workspaceFixture();
     const all = await runAnalysis({ cwd: root, workspacePatterns: [], check: true });
     const selected = await runAnalysis({ cwd: root, workspacePatterns: ["b"], check: true });
@@ -112,7 +112,7 @@ describe("analyze CLI", () => {
     expect(output.logs[0]).toBe(JSON.stringify(report));
   });
 
-  it("should dispatch through the unified CLI and prints human diagnostics", async () => {
+  it("should dispatch through the unified CLI and print human diagnostics", async () => {
     const root = await workspaceFixture();
     const output = io();
     expect(
@@ -122,7 +122,7 @@ describe("analyze CLI", () => {
     expect(output.logs.at(-1)).toMatch(/Analyzed 1 workspace/);
   });
 
-  it("should keep check mode immutable and applies a safe config fix transactionally by default", async () => {
+  it("should keep check mode immutable and apply a safe config fix transactionally by default", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-analyze-fix-"));
     roots.push(root);
     await fs.mkdir(path.join(root, "src"));
