@@ -172,7 +172,7 @@ test("package exports only the canonical askr command", async () => {
   expect(packageJson.bin).toEqual({ askr: "./dist/cli.js" });
 });
 
-test("package ships TypeScript as a runtime analyzer dependency", async () => {
+test("should ship the TypeScript 6 analyzer API given the TypeScript 7 compiler when packaging the CLI", async () => {
   const packageJson = JSON.parse(
     await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),
   ) as {
@@ -180,7 +180,8 @@ test("package ships TypeScript as a runtime analyzer dependency", async () => {
     devDependencies?: Record<string, string>;
   };
 
-  expect(packageJson.dependencies?.typescript).toMatch(/^\^6\./);
+  expect(packageJson.dependencies?.typescript).toBe("npm:@typescript/typescript6@^6.0.2");
+  expect(packageJson.devDependencies?.["@typescript/native"]).toBe("npm:typescript@^7.0.2");
   expect(packageJson.devDependencies?.typescript).toBeUndefined();
 });
 
