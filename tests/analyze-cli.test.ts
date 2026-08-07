@@ -65,7 +65,7 @@ afterEach(async () => {
 });
 
 describe("analyze CLI", () => {
-  it("parses repeated workspace filters and command options", () => {
+  it("should parse repeated workspace filters and command options", () => {
     expect(
       parseAnalyzeArgs([
         "--cwd",
@@ -86,7 +86,7 @@ describe("analyze CLI", () => {
     expect(() => parseAnalyzeArgs(["--unknown"])).toThrow(/unknown option/i);
   });
 
-  it("scans all workspaces by default and filters repeated selections deterministically", async () => {
+  it("should scan all workspaces by default and filter repeated selections deterministically", async () => {
     const root = await workspaceFixture();
     const all = await runAnalysis({ cwd: root, workspacePatterns: [], check: true });
     const selected = await runAnalysis({ cwd: root, workspacePatterns: ["b"], check: true });
@@ -98,7 +98,7 @@ describe("analyze CLI", () => {
     expect(selected.diagnostics.map((entry) => entry.workspace)).toEqual(["b"]);
   });
 
-  it("emits deterministic JSON and a blocking exit code", async () => {
+  it("should emit deterministic JSON and a blocking exit code", async () => {
     const root = await workspaceFixture();
     const output = io();
     expect(await runAnalyzeCli(["--cwd", root, "--json", "--check"], output.value)).toBe(1);
@@ -112,7 +112,7 @@ describe("analyze CLI", () => {
     expect(output.logs[0]).toBe(JSON.stringify(report));
   });
 
-  it("dispatches through the unified CLI and prints human diagnostics", async () => {
+  it("should dispatch through the unified CLI and print human diagnostics", async () => {
     const root = await workspaceFixture();
     const output = io();
     expect(
@@ -122,7 +122,7 @@ describe("analyze CLI", () => {
     expect(output.logs.at(-1)).toMatch(/Analyzed 1 workspace/);
   });
 
-  it("keeps check mode immutable and applies a safe config fix transactionally by default", async () => {
+  it("should keep check mode immutable and apply a safe config fix transactionally by default", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-analyze-fix-"));
     roots.push(root);
     await fs.mkdir(path.join(root, "src"));
@@ -168,7 +168,7 @@ describe("analyze CLI", () => {
     });
   });
 
-  it("applies safe route path fixes but leaves semantic collection findings unresolved", async () => {
+  it("should apply safe route path fixes but leaves semantic collection findings unresolved", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-analyze-semantic-"));
     roots.push(root);
     await fs.mkdir(path.join(root, "src"));
@@ -216,7 +216,7 @@ describe("analyze CLI", () => {
     expect(await fs.readFile(filePath, "utf8")).toContain('route("/users/{id}", Page)');
   });
 
-  it("does not mutate files when transactional writing fails", async () => {
+  it("should not mutate files when transactional writing fails", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-analyze-rollback-"));
     roots.push(root);
     await fs.mkdir(path.join(root, "src"));

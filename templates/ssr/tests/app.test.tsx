@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vite-plus/test';
 
 describe('App Component', () => {
-  it('renders layout with navigation', () => {
+  it('should render layout with navigation', () => {
     const app = (
       <div>
         <header>
