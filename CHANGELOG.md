@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support an explicit `outputReport.basePath` deployment prefix when validating root-absolute SSG asset references.
+
+### Security
+
+- Refresh the transitive Nano ID lockfile resolution to address the current audit advisory.
+
 ## [0.0.22] - 2026-08-07
 
 ### Changed

@@ -1217,6 +1217,109 @@ test("should ensure runSsgCli writes the default report before publishing staged
   }
 });
 
+test("should ensure runSsgCli applies the output report deployment base path", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-output-base-path-"));
+  const outputDir = path.join(tempRoot, "dist");
+  const { io, errors } = createIo();
+
+  try {
+    const code = await runSsgCli(
+      ["--config", "ssg.config.ts", "--output", outputDir],
+      {
+        cwd: () => tempRoot,
+        existsSync: () => true,
+        importConfig: async () => ({
+          routes: [{ path: "/" }],
+          sitemap: false,
+          outputReport: { basePath: "/website" },
+        }),
+        createStaticGen: (options) => ({
+          generate: async () => {
+            await fs.mkdir(path.join(options.outputDir, "assets"), { recursive: true });
+            await fs.writeFile(
+              path.join(options.outputDir, "index.html"),
+              '<script type="module" src="/website/assets/app.js"></script>',
+            );
+            await fs.writeFile(path.join(options.outputDir, "assets/app.js"), "export {};");
+            return {
+              mode: "full",
+              successful: 1,
+              totalRoutes: 1,
+              failed: 0,
+              rebuilt: 1,
+              skipped: 0,
+              removed: 0,
+              cacheHits: 0,
+              routes: [{ path: "/", filePath: "index.html", status: "success" }],
+            };
+          },
+        }),
+      },
+      io,
+    );
+
+    expect(code).toBe(0);
+    expect(errors).toHaveLength(0);
+    const report = JSON.parse(
+      await fs.readFile(path.join(outputDir, ".askr/ssg-output.json"), "utf8"),
+    );
+    expect(report.routes[0].initial.javascript[0].path).toBe("assets/app.js");
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("should ensure runSsgCli preserves live output when a prefixed asset is missing", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-output-missing-asset-"));
+  const outputDir = path.join(tempRoot, "dist");
+  await fs.mkdir(outputDir);
+  await fs.writeFile(path.join(outputDir, "index.html"), "previous");
+  const { io, errors } = createIo();
+
+  try {
+    const code = await runSsgCli(
+      ["--config", "ssg.config.ts", "--output", outputDir],
+      {
+        cwd: () => tempRoot,
+        existsSync: () => true,
+        importConfig: async () => ({
+          routes: [{ path: "/" }],
+          sitemap: false,
+          outputReport: { basePath: "/website" },
+        }),
+        createStaticGen: (options) => ({
+          generate: async () => {
+            await fs.mkdir(options.outputDir, { recursive: true });
+            await fs.writeFile(
+              path.join(options.outputDir, "index.html"),
+              '<script type="module" src="/website/assets/missing.js"></script>',
+            );
+            return {
+              mode: "full",
+              successful: 1,
+              totalRoutes: 1,
+              failed: 0,
+              rebuilt: 1,
+              skipped: 0,
+              removed: 0,
+              cacheHits: 0,
+              routes: [{ path: "/", filePath: "index.html", status: "success" }],
+            };
+          },
+        }),
+      },
+      io,
+    );
+
+    expect(code).toBe(1);
+    expect(errors.join("\n")).toContain("missing javascript asset assets/missing.js");
+    await expect(fs.readFile(path.join(outputDir, "index.html"), "utf8")).resolves.toBe("previous");
+    await expect(fs.access(path.join(outputDir, ".askr/ssg-output.json"))).rejects.toThrow();
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("should ensure runSsgCli preserves live output when an output budget fails", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-output-budget-"));
   const outputDir = path.join(tempRoot, "dist");
