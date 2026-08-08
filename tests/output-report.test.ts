@@ -119,6 +119,69 @@ describe("SSG output report", () => {
     expect(report.routes[1].initial.css[0].path).toBe("assets/app.css");
   });
 
+  it("should strip a configured deployment base path from root-absolute assets", async () => {
+    const { outputDir, routes } = await fixture();
+    await fs.writeFile(
+      path.join(outputDir, "index.html"),
+      '<link rel="stylesheet" href="/website/assets/app.css">' +
+        '<script type="module" src="/website/assets/app.js"></script>',
+    );
+    const inspections = await inspectSsgDocuments(outputDir, routes);
+
+    const destination = await writeSsgOutputReport(outputDir, routes, inspections, {
+      basePath: "/website",
+    });
+    const report = JSON.parse(await fs.readFile(destination, "utf8"));
+
+    expect(report.routes[0].initial.javascript[0].path).toBe("assets/app.js");
+    expect(report.routes[0].initial.css[0].path).toBe("assets/app.css");
+  });
+
+  it("should preserve root and relative asset resolution with an empty base path", async () => {
+    const { outputDir, routes } = await fixture();
+    await fs.writeFile(
+      path.join(outputDir, "guide/index.html"),
+      '<link rel="stylesheet" href="../assets/app.css">' +
+        '<script type="module" src="/assets/app.js"></script>',
+    );
+    const inspections = await inspectSsgDocuments(outputDir, routes);
+
+    await expect(
+      writeSsgOutputReport(outputDir, routes, inspections, { basePath: "/" }),
+    ).resolves.toBeTruthy();
+  });
+
+  it("should not rewrite root-absolute assets outside the configured base path", async () => {
+    const { outputDir, routes } = await fixture();
+    await fs.writeFile(
+      path.join(outputDir, "index.html"),
+      '<script type="module" src="/website-other/assets/app.js"></script>',
+    );
+    const inspections = await inspectSsgDocuments(outputDir, routes);
+
+    await expect(
+      writeSsgOutputReport(outputDir, routes, inspections, { basePath: "/website" }),
+    ).rejects.toThrow(/missing javascript asset website-other\/assets\/app\.js/);
+  });
+
+  it.each([
+    "website",
+    "https://example.com/website",
+    "/website?x=1",
+    "/website#x",
+    "/web\\site",
+    "/website/../private",
+    "/website/%2e%2e/private",
+    "/website/%zz",
+  ])("should reject malformed deployment base path %s", async (basePath) => {
+    const { outputDir, routes } = await fixture();
+    const inspections = await inspectSsgDocuments(outputDir, routes);
+
+    await expect(
+      writeSsgOutputReport(outputDir, routes, inspections, { basePath }),
+    ).rejects.toThrow(/outputReport\.basePath/);
+  });
+
   it("should reject missing local initial assets instead of dropping the reference", async () => {
     const { outputDir, routes } = await fixture();
     await fs.writeFile(
