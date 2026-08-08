@@ -28,6 +28,8 @@ export interface SsgOutputBudgets {
 }
 
 export interface SsgOutputReportConfig {
+  /** Deployment pathname prefix stripped from root-absolute asset references. */
+  basePath?: string;
   budgets?: SsgOutputBudgets;
   /** Number of largest pages retained in the summary. Defaults to 20. */
   largestPages?: number;
@@ -101,7 +103,11 @@ export async function removeSsgOutputReport(outputDir: string): Promise<void> {
   await fs.rm(path.join(outputDir, REPORT_PATH), { force: true });
 }
 
-function localReference(reference: string, documentPath: string): string | undefined {
+function localReference(
+  reference: string,
+  documentPath: string,
+  basePath: string,
+): string | undefined {
   let resolved: URL;
   try {
     const portableDocumentPath = documentPath.replaceAll("\\", "/");
@@ -116,10 +122,42 @@ function localReference(reference: string, documentPath: string): string | undef
   }
   if (resolved.origin !== "https://askr.invalid") return undefined;
   try {
-    return decodeURIComponent(resolved.pathname).replace(/^\/+/, "");
+    let pathname = decodeURIComponent(resolved.pathname);
+    if (
+      basePath &&
+      reference.startsWith("/") &&
+      (pathname === basePath || pathname.startsWith(`${basePath}/`))
+    ) {
+      pathname = pathname.slice(basePath.length);
+    }
+    return pathname.replace(/^\/+/, "");
   } catch {
     return undefined;
   }
+}
+
+function deploymentBasePath(value: string | undefined): string {
+  if (value === undefined || value === "" || value === "/") return "";
+  if (
+    typeof value !== "string" ||
+    !value.startsWith("/") ||
+    value.startsWith("//") ||
+    value.includes("?") ||
+    value.includes("#") ||
+    value.includes("\\")
+  ) {
+    throw new Error("outputReport.basePath must be an absolute URL pathname");
+  }
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    throw new Error("outputReport.basePath must use valid URL encoding");
+  }
+  if (decoded.split("/").some((segment) => segment === "." || segment === "..")) {
+    throw new Error("outputReport.basePath must not contain dot-segment traversal");
+  }
+  return decoded.replace(/\/+$/, "");
 }
 
 function positiveCount(value: number | undefined, fallback: number, label: string): number {
@@ -141,7 +179,8 @@ function validateByteBudget(budget: SsgByteBudget | undefined, label: string): v
   }
 }
 
-function validateConfig(config: SsgOutputReportConfig): void {
+function validateConfig(config: SsgOutputReportConfig): string {
+  const basePath = deploymentBasePath(config.basePath);
   const budgets = config.budgets;
   validateByteBudget(budgets?.routes, "outputReport.budgets.routes");
   for (const [route, budget] of Object.entries(budgets?.routeOverrides ?? {})) {
@@ -167,6 +206,7 @@ function validateConfig(config: SsgOutputReportConfig): void {
   }
   positiveCount(config.largestPages, 20, "outputReport.largestPages");
   positiveCount(config.largestAssets, 20, "outputReport.largestAssets");
+  return basePath;
 }
 
 function budgetViolations(report: SsgOutputReport, budgets: SsgOutputBudgets = {}): string[] {
@@ -242,7 +282,7 @@ export async function writeSsgOutputReport(
   inspections: ReadonlyMap<string, SsgDocumentInspection>,
   config: SsgOutputReportConfig = {},
 ): Promise<string> {
-  validateConfig(config);
+  const basePath = validateConfig(config);
   const assets: SsgOutputAsset[] = [];
   for (const filePath of (await emittedFiles(outputDir)).filter(isReportableAsset)) {
     const measured = size(await fs.readFile(path.join(outputDir, filePath)));
@@ -260,7 +300,7 @@ export async function writeSsgOutputReport(
     const referenced = (references: readonly string[], type: SsgOutputAsset["type"]) => {
       const resolved: SsgOutputAsset[] = [];
       for (const reference of references) {
-        const localPath = localReference(reference, inspection.filePath);
+        const localPath = localReference(reference, inspection.filePath, basePath);
         if (!localPath) continue;
         const asset = assetMap.get(localPath);
         if (!asset) {
