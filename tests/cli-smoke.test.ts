@@ -733,7 +733,9 @@ test("should ensure runAddCli transactionally scaffolds both database dialects",
         path.join(tempRoot, "src", "database", "index.ts"),
         "utf8",
       );
-      const manifest = JSON.parse(await fs.readFile(path.join(tempRoot, "package.json"), "utf8")) as {
+      const manifest = JSON.parse(
+        await fs.readFile(path.join(tempRoot, "package.json"), "utf8"),
+      ) as {
         dependencies: Record<string, string>;
       };
       expect(definition).toContain(`from '@askrjs/orm/${dialect}'`);

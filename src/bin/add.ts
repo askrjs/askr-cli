@@ -639,18 +639,22 @@ async function addDatabase(
     manifest.dependencies = {
       ...manifest.dependencies,
       "@askrjs/orm": "0.0.0",
-      ...(parsed.name === "postgres"
-        ? { pg: "^8.16.0", "pg-query-stream": "^4.10.0" }
-        : {}),
+      ...(parsed.name === "postgres" ? { pg: "^8.16.0", "pg-query-stream": "^4.10.0" } : {}),
     };
     manifest.dependencies = Object.fromEntries(
       Object.entries(manifest.dependencies).sort(([left], [right]) => left.localeCompare(right)),
     );
     const currentEnvironment = await fs.readFile(environmentFile, "utf8").catch(() => "");
-    const environmentLines = parsed.name === "postgres"
-      ? ["DATABASE_URL=postgres://postgres:postgres@localhost:5432/app", "DATABASE_SHADOW_URL=postgres://postgres:postgres@localhost:5432/app_shadow"]
-      : ["DATABASE_PATH=./data/app.sqlite"];
-    const additions = environmentLines.filter((line) => !currentEnvironment.includes(`${line.split("=")[0]}=`));
+    const environmentLines =
+      parsed.name === "postgres"
+        ? [
+            "DATABASE_URL=postgres://postgres:postgres@localhost:5432/app",
+            "DATABASE_SHADOW_URL=postgres://postgres:postgres@localhost:5432/app_shadow",
+          ]
+        : ["DATABASE_PATH=./data/app.sqlite"];
+    const additions = environmentLines.filter(
+      (line) => !currentEnvironment.includes(`${line.split("=")[0]}=`),
+    );
     const environment = `${currentEnvironment}${currentEnvironment && !currentEnvironment.endsWith("\n") ? "\n" : ""}${additions.join("\n")}${additions.length ? "\n" : ""}`;
     const driverImport = parsed.name;
     const definition = [
