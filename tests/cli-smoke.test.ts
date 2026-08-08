@@ -718,6 +718,37 @@ test("should ensure runAddCli scaffolds a page and registers the app route", asy
   }
 });
 
+test("should ensure runAddCli transactionally scaffolds both database dialects", async () => {
+  for (const dialect of ["sqlite", "postgres"] as const) {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), `askr-cli-database-${dialect}-`));
+    try {
+      await fs.writeFile(
+        path.join(tempRoot, "package.json"),
+        `${JSON.stringify({ name: "database-app", type: "module" }, null, 2)}\n`,
+      );
+      const { io, errors } = createIo();
+      expect(await runAddCli(["database", dialect, "--cwd", tempRoot], io)).toBe(0);
+      expect(errors).toHaveLength(0);
+      const definition = await fs.readFile(
+        path.join(tempRoot, "src", "database", "index.ts"),
+        "utf8",
+      );
+      const manifest = JSON.parse(await fs.readFile(path.join(tempRoot, "package.json"), "utf8")) as {
+        dependencies: Record<string, string>;
+      };
+      expect(definition).toContain(`from '@askrjs/orm/${dialect}'`);
+      expect(definition).toContain(`driver: ${dialect}()`);
+      expect(manifest.dependencies["@askrjs/orm"]).toBe("0.0.0");
+      expect(manifest.dependencies.pg).toBe(dialect === "postgres" ? "^8.16.0" : undefined);
+      await expect(
+        fs.access(path.join(tempRoot, "src", "database", "migrations", ".gitkeep")),
+      ).resolves.toBeUndefined();
+    } finally {
+      await fs.rm(tempRoot, { recursive: true, force: true });
+    }
+  }
+});
+
 test("should ensure runAddCli rolls back page registration given a replacement failure", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-add-rollback-"));
   const previousCwd = process.cwd();
