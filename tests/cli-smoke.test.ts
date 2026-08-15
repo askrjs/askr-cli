@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { runAddCli } from "../src/bin/add";
 import { runCli } from "../src/bin/cli";
 import { runCreateCli } from "../src/bin/create";
@@ -33,6 +33,21 @@ function createIo(): {
     },
     logs,
     errors,
+  };
+}
+
+function createConcurrentWriter(parties: number): typeof writeFileChanges {
+  let arrivals = 0;
+  let release: (() => void) | undefined;
+  const ready = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+
+  return async (changes, options) => {
+    arrivals += 1;
+    if (arrivals === parties) release?.();
+    await ready;
+    await writeFileChanges(changes, options);
   };
 }
 
@@ -718,6 +733,47 @@ test("should ensure runAddCli scaffolds a page and registers the app route", asy
   }
 });
 
+test("should ensure concurrent add page commands cannot silently lose a registration", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-add-concurrent-page-"));
+  const previousCwd = process.cwd();
+  try {
+    process.chdir(tempRoot);
+    expect(
+      await runCreateCli(["spa", "sample-spa", "--no-install", "--no-skills"], createIo().io),
+    ).toBe(0);
+    const appRoot = path.join(tempRoot, "sample-spa");
+    const alpha = createIo();
+    const beta = createIo();
+    const writer = createConcurrentWriter(2);
+
+    const results = await Promise.all([
+      runAddCli(["page", "alpha", "--cwd", appRoot], alpha.io, writer),
+      runAddCli(["page", "beta", "--cwd", appRoot], beta.io, writer),
+    ]);
+
+    expect([...results].sort()).toEqual([0, 1]);
+    const failed =
+      results[0] === 1
+        ? { name: "alpha", errors: alpha.errors }
+        : { name: "beta", errors: beta.errors };
+    const succeeded = results[0] === 0 ? "alpha" : "beta";
+    expect(failed.errors.join("\n")).toContain("File changed before writing");
+
+    const routes = await fs.readFile(path.join(appRoot, "src/pages/app/_routes.tsx"), "utf8");
+    expect(routes).toContain(`route('/app/${succeeded}',`);
+    expect(routes).not.toContain(`route('/app/${failed.name}',`);
+    await expect(
+      fs.access(path.join(appRoot, `src/pages/app/${succeeded}.tsx`)),
+    ).resolves.toBeUndefined();
+    await expect(
+      fs.access(path.join(appRoot, `src/pages/app/${failed.name}.tsx`)),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+  } finally {
+    process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("should ensure runAddCli transactionally scaffolds both database dialects", async () => {
   for (const dialect of ["sqlite", "postgres"] as const) {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), `askr-cli-database-${dialect}-`));
@@ -748,6 +804,36 @@ test("should ensure runAddCli transactionally scaffolds both database dialects",
     } finally {
       await fs.rm(tempRoot, { recursive: true, force: true });
     }
+  }
+});
+
+test("should ensure add database rejects a package manifest changed after planning", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-database-conflict-"));
+  const manifestFile = path.join(tempRoot, "package.json");
+  const externalManifest = `${JSON.stringify({ name: "database-app", dependencies: { external: "1.0.0" } }, null, 2)}\n`;
+  try {
+    await fs.writeFile(
+      manifestFile,
+      `${JSON.stringify({ name: "database-app", type: "module" }, null, 2)}\n`,
+    );
+    const { io, errors } = createIo();
+    const code = await runAddCli(
+      ["database", "sqlite", "--cwd", tempRoot],
+      io,
+      async (changes, options) => {
+        await fs.writeFile(manifestFile, externalManifest);
+        await writeFileChanges(changes, options);
+      },
+    );
+
+    expect(code).toBe(1);
+    expect(errors.join("\n")).toContain("File changed before writing");
+    expect(await fs.readFile(manifestFile, "utf8")).toBe(externalManifest);
+    await expect(fs.access(path.join(tempRoot, "src/database/index.ts"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
   }
 });
 
@@ -897,6 +983,120 @@ test("should ensure runAddCli generates a browser-safe action and server registr
     );
   } finally {
     process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("should ensure concurrent add action commands cannot silently lose a registration", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-add-concurrent-action-"));
+  const previousCwd = process.cwd();
+  try {
+    process.chdir(tempRoot);
+    expect(
+      await runCreateCli(
+        ["full-stack", "sample-full-stack", "--no-install", "--no-skills"],
+        createIo().io,
+      ),
+    ).toBe(0);
+    const appRoot = path.join(tempRoot, "sample-full-stack");
+    const archive = createIo();
+    const publish = createIo();
+    const writer = createConcurrentWriter(2);
+
+    const results = await Promise.all([
+      runAddCli(
+        ["action", "archive-project", "--route", "/", "--cwd", appRoot],
+        archive.io,
+        writer,
+      ),
+      runAddCli(
+        ["action", "publish-project", "--route", "/", "--cwd", appRoot],
+        publish.io,
+        writer,
+      ),
+    ]);
+
+    expect([...results].sort()).toEqual([0, 1]);
+    const failed =
+      results[0] === 1
+        ? { slug: "archive-project", identifier: "archiveProject", errors: archive.errors }
+        : { slug: "publish-project", identifier: "publishProject", errors: publish.errors };
+    const succeeded =
+      results[0] === 0
+        ? { slug: "archive-project", identifier: "archiveProject" }
+        : { slug: "publish-project", identifier: "publishProject" };
+    expect(failed.errors.join("\n")).toContain("File changed before writing");
+
+    const registry = await fs.readFile(path.join(appRoot, "src/server/action-registry.ts"), "utf8");
+    const authorizations = await fs.readFile(
+      path.join(appRoot, "src/action-authorizations.ts"),
+      "utf8",
+    );
+    expect(registry).toContain(`${succeeded.identifier}Action`);
+    expect(registry).not.toContain(`${failed.identifier}Action`);
+    expect(authorizations).toContain(`${succeeded.identifier}Action`);
+    expect(authorizations).not.toContain(`${failed.identifier}Action`);
+    await expect(
+      fs.access(path.join(appRoot, `src/actions/${succeeded.slug}.ts`)),
+    ).resolves.toBeUndefined();
+    await expect(
+      fs.access(path.join(appRoot, `src/actions/${failed.slug}.ts`)),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+  } finally {
+    process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("should ensure add action snapshots registries before discovering descriptors", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-add-action-snapshot-"));
+  const previousCwd = process.cwd();
+  try {
+    process.chdir(tempRoot);
+    expect(
+      await runCreateCli(
+        ["full-stack", "sample-full-stack", "--no-install", "--no-skills"],
+        createIo().io,
+      ),
+    ).toBe(0);
+    const appRoot = path.join(tempRoot, "sample-full-stack");
+    const actionsDir = path.join(appRoot, "src/actions");
+    const registryFile = path.join(appRoot, "src/server/action-registry.ts");
+    const authorizationFile = path.join(appRoot, "src/action-authorizations.ts");
+    const externalRegistry = "// changed registry\n";
+    const externalAuthorizations = "// changed authorizations\n";
+    const originalReaddir = fs.readdir.bind(fs);
+    const readdir = vi.spyOn(fs, "readdir").mockImplementation((async (
+      ...args: Parameters<typeof fs.readdir>
+    ) => {
+      const entries = await originalReaddir(...args);
+      if (path.resolve(String(args[0])) === actionsDir) {
+        await Promise.all([
+          fs.writeFile(registryFile, externalRegistry),
+          fs.writeFile(authorizationFile, externalAuthorizations),
+        ]);
+      }
+      return entries;
+    }) as typeof fs.readdir);
+    const { io, errors } = createIo();
+
+    try {
+      expect(
+        await runAddCli(["action", "publish-project", "--route", "/", "--cwd", appRoot], io),
+      ).toBe(1);
+    } finally {
+      readdir.mockRestore();
+    }
+
+    expect(errors.join("\n")).toContain("File changed before writing");
+    expect(await fs.readFile(registryFile, "utf8")).toBe(externalRegistry);
+    expect(await fs.readFile(authorizationFile, "utf8")).toBe(externalAuthorizations);
+    await expect(fs.access(path.join(actionsDir, "publish-project.ts"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  } finally {
+    process.chdir(previousCwd);
+    vi.restoreAllMocks();
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
 });

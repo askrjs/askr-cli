@@ -11,6 +11,31 @@ afterEach(async () => {
 });
 
 describe("writeFileChanges", () => {
+  it("should reject a stale shared-file edit before writing any transaction artifacts", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-file-changes-stale-"));
+    roots.push(root);
+    const shared = path.join(root, "shared.ts");
+    const created = path.join(root, "created.ts");
+    await fs.writeFile(shared, "changed by another process\n");
+
+    await expect(
+      writeFileChanges([
+        { filePath: created, content: "orphan\n" },
+        {
+          filePath: shared,
+          content: "planned replacement\n",
+          expectedContent: "original at plan time\n",
+        },
+      ]),
+    ).rejects.toThrow("File changed before writing");
+
+    expect(await fs.readFile(shared, "utf8")).toBe("changed by another process\n");
+    await expect(fs.stat(created)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.stat(path.join(root, ".shared.ts.askr-lock"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
   it("should restore replaced files and remove created files after a replacement failure", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-file-changes-"));
     roots.push(root);

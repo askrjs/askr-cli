@@ -498,9 +498,10 @@ async function addPage(parsed: ParsedArgs, io: CliIo, writeChanges: WriteChanges
   }
 
   const importSpecifier = toImportSpecifier(routesFile, pageFile);
+  let routeFileContent = "";
   let updatedRoutes = "";
   try {
-    const routeFileContent = await fs.readFile(routesFile, "utf8");
+    routeFileContent = await fs.readFile(routesFile, "utf8");
     updatedRoutes = createUpdatedRouteFile(routeFileContent, {
       componentName,
       importSpecifier,
@@ -522,7 +523,7 @@ async function addPage(parsed: ParsedArgs, io: CliIo, writeChanges: WriteChanges
           title,
         }),
       },
-      { filePath: routesFile, content: updatedRoutes },
+      { filePath: routesFile, content: updatedRoutes, expectedContent: routeFileContent },
     ]);
   } catch (error) {
     io.error("Failed to write generated page artifacts.");
@@ -582,6 +583,10 @@ async function addAction(
       routePath: parsed.routePath,
       slug,
     });
+    const [registryContent, authorizationContent] = await Promise.all([
+      fs.readFile(registryFile, "utf8"),
+      fs.readFile(authorizationFile, "utf8"),
+    ]);
     const actions = await discoverDeclaredActions(projectRoot, {
       filePath: descriptorFile,
       content: descriptor,
@@ -593,8 +598,16 @@ async function addAction(
         content: renderActionHandler({ descriptorName, handlerName, slug }),
       },
       { filePath: testFile, content: renderActionTest({ descriptorName, slug }) },
-      { filePath: registryFile, content: renderServerActionRegistry(actions) },
-      { filePath: authorizationFile, content: renderAuthorizationRegistry(actions) },
+      {
+        filePath: registryFile,
+        content: renderServerActionRegistry(actions),
+        expectedContent: registryContent,
+      },
+      {
+        filePath: authorizationFile,
+        content: renderAuthorizationRegistry(actions),
+        expectedContent: authorizationContent,
+      },
     ]);
   } catch (error) {
     io.error("Failed to write generated action artifacts.");
@@ -633,7 +646,8 @@ async function addDatabase(
     return 1;
   }
   try {
-    const manifest = JSON.parse(await fs.readFile(manifestFile, "utf8")) as {
+    const manifestContent = await fs.readFile(manifestFile, "utf8");
+    const manifest = JSON.parse(manifestContent) as {
       dependencies?: Record<string, string>;
     };
     manifest.dependencies = {
@@ -644,7 +658,10 @@ async function addDatabase(
     manifest.dependencies = Object.fromEntries(
       Object.entries(manifest.dependencies).sort(([left], [right]) => left.localeCompare(right)),
     );
-    const currentEnvironment = await fs.readFile(environmentFile, "utf8").catch(() => "");
+    const currentEnvironment = await fs.readFile(environmentFile, "utf8").catch((error) => {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT") return null;
+      throw error;
+    });
     const environmentLines =
       parsed.name === "postgres"
         ? [
@@ -653,9 +670,9 @@ async function addDatabase(
           ]
         : ["DATABASE_PATH=./data/app.sqlite"];
     const additions = environmentLines.filter(
-      (line) => !currentEnvironment.includes(`${line.split("=")[0]}=`),
+      (line) => !currentEnvironment?.includes(`${line.split("=")[0]}=`),
     );
-    const environment = `${currentEnvironment}${currentEnvironment && !currentEnvironment.endsWith("\n") ? "\n" : ""}${additions.join("\n")}${additions.length ? "\n" : ""}`;
+    const environment = `${currentEnvironment ?? ""}${currentEnvironment && !currentEnvironment.endsWith("\n") ? "\n" : ""}${additions.join("\n")}${additions.length ? "\n" : ""}`;
     const driverImport = parsed.name;
     const definition = [
       "import { defineDatabase } from '@askrjs/orm';",
@@ -684,8 +701,16 @@ async function addDatabase(
       { filePath: definitionFile, content: definition },
       { filePath: generatedFile, content: generated },
       { filePath: migrationKeep, content: "" },
-      { filePath: environmentFile, content: environment },
-      { filePath: manifestFile, content: `${JSON.stringify(manifest, null, 2)}\n` },
+      {
+        filePath: environmentFile,
+        content: environment,
+        expectedContent: currentEnvironment,
+      },
+      {
+        filePath: manifestFile,
+        content: `${JSON.stringify(manifest, null, 2)}\n`,
+        expectedContent: manifestContent,
+      },
     ]);
   } catch (error) {
     io.error("Failed to write generated database artifacts.");
