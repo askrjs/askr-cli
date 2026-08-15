@@ -30,7 +30,7 @@ export async function loadOrmTooling(cwd: string): Promise<OrmTooling> {
     entry = path.resolve(path.dirname(manifestPath), relative);
   } catch (error) {
     throw new Error(
-      "This project does not have @askrjs/orm installed. Install it before running `askr database`.",
+      "This project does not have @askrjs/orm installed. Run `npm install @askrjs/orm` before `askr database`.",
       { cause: error },
     );
   }

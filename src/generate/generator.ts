@@ -862,8 +862,10 @@ export async function writeGenerated(
     await rename(stage, output);
     if (moved) await rm(backup, { recursive: true, force: true });
   } catch (error) {
-    await rm(output, { recursive: true, force: true });
-    if (moved) await rename(backup, output);
+    if (moved) {
+      await rm(output, { recursive: true, force: true });
+      await rename(backup, output);
+    }
     throw error;
   } finally {
     await rm(stage, { recursive: true, force: true });

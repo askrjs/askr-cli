@@ -190,6 +190,24 @@ describe("askr generate", () => {
     );
     expect(await readFile(output, "utf8")).toBe("keep");
   });
+  it("should preserve generated output when its backup rename fails", async () => {
+    const root = await mkdtemp(join(tmpdir(), "askr-stale-backup-"));
+    const output = join(root, "generated");
+    const backup = `${output}.backup-${process.pid}`;
+    await mkdir(output);
+    await writeFile(join(output, ".askr-generated.json"), "original manifest\n");
+    await writeFile(join(output, "schemas.ts"), "original schema\n");
+    await mkdir(backup);
+    await writeFile(join(backup, "stale.txt"), "stale backup\n");
+
+    await expect(writeGenerated(output, generateFiles(document), false)).rejects.toThrow();
+
+    expect(await readFile(join(output, ".askr-generated.json"), "utf8")).toBe(
+      "original manifest\n",
+    );
+    expect(await readFile(join(output, "schemas.ts"), "utf8")).toBe("original schema\n");
+    expect(await readFile(join(backup, "stale.txt"), "utf8")).toBe("stale backup\n");
+  });
   it("should detect stale and extra files without writes given check mode when checking", async () => {
     const root = await mkdtemp(join(tmpdir(), "askr-check-"));
     const output = join(root, "client");
