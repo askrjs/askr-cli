@@ -18,6 +18,24 @@ async function run(command: string, args: string[], cwd: string): Promise<string
   return stdout;
 }
 
+async function installRegistryArtifacts(root: string, versions: readonly string[]): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 30; attempt += 1) {
+    try {
+      await run(
+        "npm",
+        ["install", "--ignore-scripts", "--no-audit", "--no-fund", ...versions],
+        root,
+      );
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 30) await new Promise((resolve) => setTimeout(resolve, 10_000));
+    }
+  }
+  throw lastError;
+}
+
 test("should validate a database using only public registry artifacts", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-registry-database-"));
   const cliVersion = process.env.ASKR_CLI_REGISTRY_VERSION ?? manifest.version;
@@ -27,18 +45,10 @@ test("should validate a database using only public registry artifacts", async ()
       path.join(root, "package.json"),
       `${JSON.stringify({ name: "askr-registry-database", private: true, type: "module" }, null, 2)}\n`,
     );
-    await run(
-      "npm",
-      [
-        "install",
-        "--ignore-scripts",
-        "--no-audit",
-        "--no-fund",
-        `@askrjs/cli@${cliVersion}`,
-        `@askrjs/orm@${ormVersion}`,
-      ],
-      root,
-    );
+    await installRegistryArtifacts(root, [
+      `@askrjs/cli@${cliVersion}`,
+      `@askrjs/orm@${ormVersion}`,
+    ]);
     await fs.mkdir(path.join(root, "database"));
     await fs.writeFile(
       path.join(root, "database", "index.ts"),
@@ -60,4 +70,4 @@ export default defineDatabase({ driver: sqlite({ filename: "./database.sqlite" }
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
-}, 120_000);
+}, 360_000);

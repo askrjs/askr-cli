@@ -43,6 +43,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:changelog": "vp test run -c vitest.config.ts tests/changelog.test.ts",
     "test:peer-floor": "vp test run -c vitest.integration.config.ts tests/integration/peer-floor.test.ts",
+    "test:registry-database": "vp test run -c vitest.integration.config.ts tests/integration/registry-database.test.ts",
     "test:publint": "publint",
     "pack:check": "npm pack --ignore-scripts --dry-run --json",
     "test:templates": "vp test run -c vitest.integration.config.ts tests/integration/packed-templates.test.ts",
