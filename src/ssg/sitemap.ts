@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+/** Allowed XML sitemap change-frequency values. */
 export type SitemapChangeFrequency =
   | "always"
   | "hourly"
@@ -10,11 +11,13 @@ export type SitemapChangeFrequency =
   | "yearly"
   | "never";
 
+/** Metadata emitted for one generated sitemap URL. */
 export interface SitemapRouteConfig {
   /** Canonical URL. Relative values resolve against siteUrl. */
   url?: string;
   /** W3C date/datetime or Date describing the last meaningful page update. */
   lastModified?: string | Date;
+  /** How often the resource is expected to change. */
   changeFrequency?: SitemapChangeFrequency;
   /** Relative crawl priority from 0 through 1. */
   priority?: number;
@@ -22,14 +25,19 @@ export interface SitemapRouteConfig {
   alternates?: Readonly<Record<string, string>>;
 }
 
+/** Route information passed to a sitemap metadata resolver. */
 export interface SitemapRouteContext {
+  /** Published route pathname. */
   path: string;
+  /** Generated file path for the route. */
   filePath: string;
+  /** Render status reported by the SSG pipeline. */
   status: string;
   /** Resolved rendered canonical URL, when the document declares one. */
   canonical?: string;
 }
 
+/** Configuration for sitemap generation during static-site generation. */
 export interface SitemapConfig {
   /** Site-wide values inherited by included routes. */
   defaults?: Omit<SitemapRouteConfig, "url" | "alternates">;
@@ -47,9 +55,15 @@ export interface SitemapConfig {
   /** Output path relative to the SSG output directory. */
   output?: string;
   /** Maintain a Sitemap directive in robots.txt. Defaults to true. */
-  robots?: boolean | { output?: string };
+  /** Maintain a Sitemap directive in robots.txt; an object selects its output path. */
+  robots?:
+    | boolean
+    | { /** robots.txt output path relative to the SSG directory. */ output?: string };
   /** Optional lower limits for deterministic partitioning and tests. */
-  limits?: { urlsPerFile?: number; bytesPerFile?: number };
+  limits?: {
+    /** Maximum URLs per generated file. */ urlsPerFile?: number;
+    /** Maximum bytes per generated file. */ bytesPerFile?: number;
+  };
   /** Maximum concurrent async route metadata resolvers. Defaults to 16. */
   resolverConcurrency?: number;
 }
