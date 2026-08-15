@@ -1,3 +1,6 @@
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   loadOrmTooling,
@@ -22,6 +25,19 @@ function io() {
 type Loader = typeof loadOrmTooling;
 
 describe("database command routing", () => {
+  it("should name the exact public ORM install command when tooling is missing", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-missing-orm-"));
+    try {
+      await fs.writeFile(
+        path.join(root, "package.json"),
+        `${JSON.stringify({ name: "missing-orm", private: true, type: "module" })}\n`,
+      );
+      await expect(loadOrmTooling(root)).rejects.toThrow("npm install @askrjs/orm");
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("should forward all semantics to the project-installed ORM tooling", async () => {
     const output = io();
     const runDatabaseCli = vi.fn(async () => 0);
