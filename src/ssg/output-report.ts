@@ -3,33 +3,43 @@ import path from "node:path";
 import { gzipSync } from "node:zlib";
 import type { InspectableRoute, SsgDocumentInspection } from "./documents";
 
+/** Raw and gzip byte limits for one emitted artifact. */
 export interface SsgByteBudget {
+  /** Maximum uncompressed byte count. */
   raw?: number;
+  /** Maximum gzip-compressed byte count. */
   gzip?: number;
 }
 
+/** Optional limits applied while validating an SSG output report. */
 export interface SsgOutputBudgets {
   /** Default raw/gzip HTML limits for every route. */
   routes?: SsgByteBudget;
   /** Exact route overrides merged with defaults; false exempts a route. */
   routeOverrides?: Readonly<Record<string, SsgByteBudget | false>>;
+  /** Hydration-size limits, expressed as a share of raw HTML. */
   hydration?: {
     /** Maximum hydration bytes as a 0..1 share of raw HTML. */
+    /** Default maximum hydration share from 0 through 1. */
     share?: number;
     /** Exact share overrides; false exempts a route. */
+    /** Exact route shares; false exempts a route. */
     routes?: Readonly<Record<string, number | false>>;
   };
   /** Exact emitted asset raw/gzip limits; false exempts an asset. */
   assets?: Readonly<Record<string, SsgByteBudget | false>>;
+  /** Aggregate JavaScript and CSS limits. */
   aggregate?: {
     javascript?: SsgByteBudget;
     css?: SsgByteBudget;
   };
 }
 
+/** Configuration for generating and validating an SSG output report. */
 export interface SsgOutputReportConfig {
   /** Deployment pathname prefix stripped from root-absolute asset references. */
   basePath?: string;
+  /** Byte and hydration limits to enforce. */
   budgets?: SsgOutputBudgets;
   /** Number of largest pages retained in the summary. Defaults to 20. */
   largestPages?: number;
@@ -37,29 +47,47 @@ export interface SsgOutputReportConfig {
   largestAssets?: number;
 }
 
+/** Raw and gzip sizes measured for an emitted resource. */
 export interface SsgOutputSize {
+  /** Uncompressed byte count. */
   raw: number;
+  /** Gzip-compressed byte count. */
   gzip: number;
 }
 
+/** An emitted JavaScript, CSS, or other static asset. */
 export interface SsgOutputAsset extends SsgOutputSize {
+  /** Output-relative asset path. */
   path: string;
+  /** Classified asset type. */
   type: "javascript" | "css" | "other";
 }
 
+/** Size and initial-asset information for one generated route. */
 export interface SsgOutputRoute {
+  /** Published route pathname. */
   route: string;
+  /** Output-relative HTML file path. */
   filePath: string;
+  /** Rendered HTML sizes. */
   html: SsgOutputSize;
+  /** Hydration payload size and share of HTML. */
   hydration: { raw: number; share: number };
+  /** Initial JavaScript and CSS assets referenced by the route. */
   initial: { javascript: SsgOutputAsset[]; css: SsgOutputAsset[] };
 }
 
+/** Complete size report produced for one SSG output directory. */
 export interface SsgOutputReport {
+  /** Schema version of this report. */
   version: 1;
+  /** All generated route measurements. */
   routes: SsgOutputRoute[];
+  /** All emitted non-HTML assets. */
   assets: SsgOutputAsset[];
+  /** Aggregate JavaScript and CSS sizes. */
   aggregate: { javascript: SsgOutputSize; css: SsgOutputSize };
+  /** Largest pages and assets retained for diagnostics. */
   largest: { pages: SsgOutputRoute[]; assets: SsgOutputAsset[] };
 }
 

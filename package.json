@@ -1,6 +1,6 @@
 {
   "name": "@askrjs/cli",
-  "version": "0.0.23",
+  "version": "0.0.24",
   "description": "Unified CLI for the Askr platform",
   "homepage": "https://github.com/askrjs/askr-cli#readme",
   "bugs": {
@@ -49,7 +49,9 @@
     "bench": "npm run build --silent && npm run bench:analyze && node --import tsx benchmarks/cli.mjs --gate",
     "bench:analyze": "vp test bench --run -c vitest.bench.config.ts",
     "bench:json": "npm run build --silent && node --import tsx benchmarks/cli.mjs --gate --json",
-    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run test:changelog && npm run build && npm run test:publint && npm run pack:check",
+    "docs:check": "npm run build && node ./dist/cli.js docs check",
+    "docs:snapshot": "npm run build && node ./dist/cli.js docs snapshot",
+    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run test:changelog && npm run build && npm run docs:check && npm run test:publint && npm run pack:check",
     "prepack": "npm run build",
     "prepublishOnly": "npm run check && npm run test:templates && npm run test:peer-floor"
   },

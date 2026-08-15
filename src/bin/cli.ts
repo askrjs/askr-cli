@@ -17,6 +17,7 @@ function printHelp(io: CliIo = console): void {
   io.log("  check      Run the complete project validation path");
   io.log("  create     Create a new Askr app from a template or product prompt");
   io.log("  database   Generate, validate, and migrate project databases");
+  io.log("  docs       Check or snapshot consumer-visible API documentation");
   io.log("  doctor     Diagnose environment and Askr project health");
   io.log("  generate   Generate an @askrjs/fetch client from OpenAPI");
   io.log("  openapi    Generate or check an OpenAPI YAML artifact");
@@ -79,6 +80,11 @@ export async function runCli(
   if (command === "database") {
     const { runDatabaseCommand } = await import("./database");
     return runDatabaseCommand(args.slice(1), io);
+  }
+
+  if (command === "docs") {
+    const { runDocsCli } = await import("./docs");
+    return runDocsCli(args.slice(1), io);
   }
 
   if (command === "analyze") {
