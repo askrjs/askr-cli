@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.25] - 2026-08-15
+
+### Fixed
+
+- Reject stale concurrent `askr add` transactions before they can silently lose a shared route, action registry, authorization, environment, or package-manifest edit.
+
 ## [0.0.24] - 2026-08-15
 
 ### Added
@@ -80,7 +86,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Make database tooling work consistently across supported operating systems.
 
-[Unreleased]: https://github.com/askrjs/askr-cli/compare/v0.0.24...HEAD
+[Unreleased]: https://github.com/askrjs/askr-cli/compare/v0.0.25...HEAD
+[0.0.25]: https://github.com/askrjs/askr-cli/compare/v0.0.24...v0.0.25
 [0.0.24]: https://github.com/askrjs/askr-cli/compare/v0.0.23...v0.0.24
 [0.0.23]: https://github.com/askrjs/askr-cli/compare/v0.0.22...v0.0.23
 [0.0.22]: https://github.com/askrjs/askr-cli/compare/v0.0.21...v0.0.22
