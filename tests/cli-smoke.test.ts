@@ -752,15 +752,22 @@ test("should ensure concurrent add page commands cannot silently lose a registra
     ]);
 
     expect([...results].sort()).toEqual([0, 1]);
-    const failed = results[0] === 1 ? { name: "alpha", errors: alpha.errors } : { name: "beta", errors: beta.errors };
+    const failed =
+      results[0] === 1
+        ? { name: "alpha", errors: alpha.errors }
+        : { name: "beta", errors: beta.errors };
     const succeeded = results[0] === 0 ? "alpha" : "beta";
     expect(failed.errors.join("\n")).toContain("File changed before writing");
 
     const routes = await fs.readFile(path.join(appRoot, "src/pages/app/_routes.tsx"), "utf8");
     expect(routes).toContain(`route('/app/${succeeded}',`);
     expect(routes).not.toContain(`route('/app/${failed.name}',`);
-    await expect(fs.access(path.join(appRoot, `src/pages/app/${succeeded}.tsx`))).resolves.toBeUndefined();
-    await expect(fs.access(path.join(appRoot, `src/pages/app/${failed.name}.tsx`))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(
+      fs.access(path.join(appRoot, `src/pages/app/${succeeded}.tsx`)),
+    ).resolves.toBeUndefined();
+    await expect(
+      fs.access(path.join(appRoot, `src/pages/app/${failed.name}.tsx`)),
+    ).rejects.toMatchObject({ code: "ENOENT" });
   } finally {
     process.chdir(previousCwd);
     await fs.rm(tempRoot, { recursive: true, force: true });
@@ -810,15 +817,21 @@ test("should ensure add database rejects a package manifest changed after planni
       `${JSON.stringify({ name: "database-app", type: "module" }, null, 2)}\n`,
     );
     const { io, errors } = createIo();
-    const code = await runAddCli(["database", "sqlite", "--cwd", tempRoot], io, async (changes, options) => {
-      await fs.writeFile(manifestFile, externalManifest);
-      await writeFileChanges(changes, options);
-    });
+    const code = await runAddCli(
+      ["database", "sqlite", "--cwd", tempRoot],
+      io,
+      async (changes, options) => {
+        await fs.writeFile(manifestFile, externalManifest);
+        await writeFileChanges(changes, options);
+      },
+    );
 
     expect(code).toBe(1);
     expect(errors.join("\n")).toContain("File changed before writing");
     expect(await fs.readFile(manifestFile, "utf8")).toBe(externalManifest);
-    await expect(fs.access(path.join(tempRoot, "src/database/index.ts"))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.access(path.join(tempRoot, "src/database/index.ts"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
@@ -980,7 +993,10 @@ test("should ensure concurrent add action commands cannot silently lose a regist
   try {
     process.chdir(tempRoot);
     expect(
-      await runCreateCli(["full-stack", "sample-full-stack", "--no-install", "--no-skills"], createIo().io),
+      await runCreateCli(
+        ["full-stack", "sample-full-stack", "--no-install", "--no-skills"],
+        createIo().io,
+      ),
     ).toBe(0);
     const appRoot = path.join(tempRoot, "sample-full-stack");
     const archive = createIo();
@@ -988,27 +1004,44 @@ test("should ensure concurrent add action commands cannot silently lose a regist
     const writer = createConcurrentWriter(2);
 
     const results = await Promise.all([
-      runAddCli(["action", "archive-project", "--route", "/", "--cwd", appRoot], archive.io, writer),
-      runAddCli(["action", "publish-project", "--route", "/", "--cwd", appRoot], publish.io, writer),
+      runAddCli(
+        ["action", "archive-project", "--route", "/", "--cwd", appRoot],
+        archive.io,
+        writer,
+      ),
+      runAddCli(
+        ["action", "publish-project", "--route", "/", "--cwd", appRoot],
+        publish.io,
+        writer,
+      ),
     ]);
 
     expect([...results].sort()).toEqual([0, 1]);
-    const failed = results[0] === 1
-      ? { slug: "archive-project", identifier: "archiveProject", errors: archive.errors }
-      : { slug: "publish-project", identifier: "publishProject", errors: publish.errors };
-    const succeeded = results[0] === 0
-      ? { slug: "archive-project", identifier: "archiveProject" }
-      : { slug: "publish-project", identifier: "publishProject" };
+    const failed =
+      results[0] === 1
+        ? { slug: "archive-project", identifier: "archiveProject", errors: archive.errors }
+        : { slug: "publish-project", identifier: "publishProject", errors: publish.errors };
+    const succeeded =
+      results[0] === 0
+        ? { slug: "archive-project", identifier: "archiveProject" }
+        : { slug: "publish-project", identifier: "publishProject" };
     expect(failed.errors.join("\n")).toContain("File changed before writing");
 
     const registry = await fs.readFile(path.join(appRoot, "src/server/action-registry.ts"), "utf8");
-    const authorizations = await fs.readFile(path.join(appRoot, "src/action-authorizations.ts"), "utf8");
+    const authorizations = await fs.readFile(
+      path.join(appRoot, "src/action-authorizations.ts"),
+      "utf8",
+    );
     expect(registry).toContain(`${succeeded.identifier}Action`);
     expect(registry).not.toContain(`${failed.identifier}Action`);
     expect(authorizations).toContain(`${succeeded.identifier}Action`);
     expect(authorizations).not.toContain(`${failed.identifier}Action`);
-    await expect(fs.access(path.join(appRoot, `src/actions/${succeeded.slug}.ts`))).resolves.toBeUndefined();
-    await expect(fs.access(path.join(appRoot, `src/actions/${failed.slug}.ts`))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(
+      fs.access(path.join(appRoot, `src/actions/${succeeded.slug}.ts`)),
+    ).resolves.toBeUndefined();
+    await expect(
+      fs.access(path.join(appRoot, `src/actions/${failed.slug}.ts`)),
+    ).rejects.toMatchObject({ code: "ENOENT" });
   } finally {
     process.chdir(previousCwd);
     await fs.rm(tempRoot, { recursive: true, force: true });

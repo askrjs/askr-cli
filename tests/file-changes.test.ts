@@ -31,6 +31,9 @@ describe("writeFileChanges", () => {
 
     expect(await fs.readFile(shared, "utf8")).toBe("changed by another process\n");
     await expect(fs.stat(created)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.stat(path.join(root, ".shared.ts.askr-lock"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
   });
 
   it("should restore replaced files and remove created files after a replacement failure", async () => {
