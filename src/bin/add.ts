@@ -583,14 +583,14 @@ async function addAction(
       routePath: parsed.routePath,
       slug,
     });
-    const actions = await discoverDeclaredActions(projectRoot, {
-      filePath: descriptorFile,
-      content: descriptor,
-    });
     const [registryContent, authorizationContent] = await Promise.all([
       fs.readFile(registryFile, "utf8"),
       fs.readFile(authorizationFile, "utf8"),
     ]);
+    const actions = await discoverDeclaredActions(projectRoot, {
+      filePath: descriptorFile,
+      content: descriptor,
+    });
     await writeChanges([
       { filePath: descriptorFile, content: descriptor },
       {

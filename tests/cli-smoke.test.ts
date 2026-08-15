@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { runAddCli } from "../src/bin/add";
 import { runCli } from "../src/bin/cli";
 import { runCreateCli } from "../src/bin/create";
@@ -1044,6 +1044,59 @@ test("should ensure concurrent add action commands cannot silently lose a regist
     ).rejects.toMatchObject({ code: "ENOENT" });
   } finally {
     process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("should ensure add action snapshots registries before discovering descriptors", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-add-action-snapshot-"));
+  const previousCwd = process.cwd();
+  try {
+    process.chdir(tempRoot);
+    expect(
+      await runCreateCli(
+        ["full-stack", "sample-full-stack", "--no-install", "--no-skills"],
+        createIo().io,
+      ),
+    ).toBe(0);
+    const appRoot = path.join(tempRoot, "sample-full-stack");
+    const actionsDir = path.join(appRoot, "src/actions");
+    const registryFile = path.join(appRoot, "src/server/action-registry.ts");
+    const authorizationFile = path.join(appRoot, "src/action-authorizations.ts");
+    const externalRegistry = "// changed registry\n";
+    const externalAuthorizations = "// changed authorizations\n";
+    const originalReaddir = fs.readdir.bind(fs);
+    const readdir = vi.spyOn(fs, "readdir").mockImplementation((async (
+      ...args: Parameters<typeof fs.readdir>
+    ) => {
+      const entries = await originalReaddir(...args);
+      if (path.resolve(String(args[0])) === actionsDir) {
+        await Promise.all([
+          fs.writeFile(registryFile, externalRegistry),
+          fs.writeFile(authorizationFile, externalAuthorizations),
+        ]);
+      }
+      return entries;
+    }) as typeof fs.readdir);
+    const { io, errors } = createIo();
+
+    try {
+      expect(
+        await runAddCli(["action", "publish-project", "--route", "/", "--cwd", appRoot], io),
+      ).toBe(1);
+    } finally {
+      readdir.mockRestore();
+    }
+
+    expect(errors.join("\n")).toContain("File changed before writing");
+    expect(await fs.readFile(registryFile, "utf8")).toBe(externalRegistry);
+    expect(await fs.readFile(authorizationFile, "utf8")).toBe(externalAuthorizations);
+    await expect(fs.access(path.join(actionsDir, "publish-project.ts"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  } finally {
+    process.chdir(previousCwd);
+    vi.restoreAllMocks();
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
 });
