@@ -34,7 +34,10 @@ describe("API documentation contract", () => {
     await fs.mkdir(path.join(root, "dist"), { recursive: true });
     await fs.writeFile(
       path.join(root, "package.json"),
-      JSON.stringify({ name: "@fixture/esm-docs", exports: { ".": { types: "./dist/index.d.mts" } } }),
+      JSON.stringify({
+        name: "@fixture/esm-docs",
+        exports: { ".": { types: "./dist/index.d.mts" } },
+      }),
     );
     await fs.writeFile(
       path.join(root, "dist/index.d.mts"),
@@ -49,9 +52,12 @@ export type Payload = { value: string };
     expect(result.diagnostics).toEqual([
       expect.objectContaining({ symbol: "convert", missing: "@param id" }),
     ]);
-    const signature = result.snapshot.symbols.find((symbol) => symbol.name === "convert")?.signature ?? "";
+    const signature =
+      result.snapshot.symbols.find((symbol) => symbol.name === "convert")?.signature ?? "";
     expect(signature).toContain("string");
     expect(signature).toContain("number");
-    expect(result.snapshot.symbols.find((symbol) => symbol.name === "Payload")?.signature).toContain("value");
+    expect(
+      result.snapshot.symbols.find((symbol) => symbol.name === "Payload")?.signature,
+    ).toContain("value");
   });
 });

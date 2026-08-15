@@ -70,7 +70,11 @@ function signatureFor(symbol: ts.Symbol, checker: ts.TypeChecker): string {
   if (ts.isTypeAliasDeclaration(declaration)) {
     return `${symbol.name}: ${declaration.type.getText(declaration.getSourceFile())}`;
   }
-  if (ts.isInterfaceDeclaration(declaration) || ts.isClassDeclaration(declaration) || ts.isEnumDeclaration(declaration)) {
+  if (
+    ts.isInterfaceDeclaration(declaration) ||
+    ts.isClassDeclaration(declaration) ||
+    ts.isEnumDeclaration(declaration)
+  ) {
     return declaration.getText(declaration.getSourceFile());
   }
   const type = checker.getTypeOfSymbolAtLocation(symbol, declaration);
