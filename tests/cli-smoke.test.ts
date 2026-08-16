@@ -414,7 +414,7 @@ test("should ensure runCreateCli scaffolds SPA with the route-first themed app s
     expect(appLayoutFile).toMatch(/Sidebar/);
     expect(appLayoutFile).toMatch(/ThemeToggle/);
     expect(appLayoutFile).toMatch(/appNavItems/);
-    expect(packageJson).toMatch(/"@askrjs\/charts": ">=0\.1\.0 <0\.2\.0"/);
+    expect(packageJson).toMatch(/"@askrjs\/charts": ">=0\.2\.0 <0\.3\.0"/);
     expect(routesFile).toMatch(/registerPublicRoutes/);
     expect(routesFile).toMatch(/registerAuthRoutes/);
     expect(routesFile).toMatch(/registerAppRoutes/);
@@ -483,7 +483,7 @@ test("should ensure runCreateCli scaffolds SSG with shared route registration an
     expect(packageJson).toMatch(
       /"generate": "askr ssg --config \.\/ssg\.config\.ts --output \.\/dist"/,
     );
-    expect(packageJson).toMatch(/"@askrjs\/cli": ">=0\.0\.2 <0\.1\.0"/);
+    expect(packageJson).toMatch(/"@askrjs\/cli": ">=0\.2\.0 <0\.3\.0"/);
     expect(packageJson).toMatch(/"test": "vp test run -c \.\/vitest\.config\.ts"/);
     expect(packageJson).toMatch(/"fmt": "vp fmt \."/);
     expect(mainFile).toMatch(/registry:\s*pageRegistry/);
@@ -612,10 +612,10 @@ test("should ensure runCreateCli scaffolds a function-first full-stack project",
     expect(packageJson).toMatch(/"@askrjs\/schema"/);
     expect(packageJson).toMatch(/"@askrjs\/i18n"/);
     expect(packageJson).toMatch(/"@askrjs\/otel"/);
-    expect(packageManifest.dependencies["@askrjs/askr"]).toBe(">=0.0.53 <0.1.0");
-    expect(packageManifest.dependencies["@askrjs/themes"]).toBe(">=0.0.12 <0.1.0");
-    expect(packageManifest.dependencies["@askrjs/ui"]).toBe(">=0.0.13 <0.1.0");
-    expect(packageManifest.devDependencies["@askrjs/vite"]).toBe(">=0.0.6 <0.1.0");
+    expect(packageManifest.dependencies["@askrjs/askr"]).toBe(">=0.2.0 <0.3.0");
+    expect(packageManifest.dependencies["@askrjs/themes"]).toBe(">=0.2.0 <0.3.0");
+    expect(packageManifest.dependencies["@askrjs/ui"]).toBe(">=0.2.0 <0.3.0");
+    expect(packageManifest.devDependencies["@askrjs/vite"]).toBe(">=0.2.0 <0.3.0");
     expect(indexHtml.match(/<!--askr-app-->/g)).toHaveLength(1);
     expect(indexHtml.match(/<!--askr-head-->/g)).toHaveLength(1);
     expect(gitignore).toContain("node_modules");
@@ -648,15 +648,15 @@ test("should ensure template package floors require the clean-break scope vocabu
       await fs.readFile(new URL(`../templates/${template}/package.json`, import.meta.url), "utf8"),
     ) as { dependencies: Record<string, string> };
 
-    expect(manifest.dependencies["@askrjs/askr"], template).toBe(">=0.0.53 <0.1.0");
+    expect(manifest.dependencies["@askrjs/askr"], template).toBe(">=0.2.0 <0.3.0");
     if (manifest.dependencies["@askrjs/themes"]) {
-      expect(manifest.dependencies["@askrjs/themes"], template).toBe(">=0.0.12 <0.1.0");
+      expect(manifest.dependencies["@askrjs/themes"], template).toBe(">=0.2.0 <0.3.0");
     }
     if (manifest.dependencies["@askrjs/ui"]) {
-      expect(manifest.dependencies["@askrjs/ui"], template).toBe(">=0.0.13 <0.1.0");
+      expect(manifest.dependencies["@askrjs/ui"], template).toBe(">=0.2.0 <0.3.0");
     }
     if (manifest.dependencies["@askrjs/auth"]) {
-      expect(manifest.dependencies["@askrjs/auth"], template).toBe(">=0.0.1 <0.1.0");
+      expect(manifest.dependencies["@askrjs/auth"], template).toBe(">=0.2.0 <0.3.0");
     }
   }
 });
