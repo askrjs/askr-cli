@@ -80,7 +80,7 @@
     "@typescript/native": "npm:typescript@^7.0.2",
     "@vitest/coverage-v8": "^4.1.10",
     "publint": "^0.3.23",
-    "vite-plus": "0.2.8",
+    "vite-plus": "0.2.9",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
