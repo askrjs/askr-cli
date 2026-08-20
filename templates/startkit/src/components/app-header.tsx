@@ -23,12 +23,7 @@ export default function AppHeader() {
 
   return (
     <header class="app-header">
-      <Inline
-        class="app-header-content"
-        align="center"
-        justify="between"
-        wrap
-      >
+      <Inline class="app-header-content" align="center" justify="between" wrap>
         <div class="breadcrumbs">
           <span>App</span>
           <span aria-hidden="true">/</span>
