@@ -147,7 +147,7 @@ export default function AccountsPage() {
           errorText={accountsResource.error?.message ?? null}
         />
 
-        <Inline class="account-bulk-actions" align="center" wrap="wrap">
+        <Inline class="account-bulk-actions" align="center" wrap>
           <span class="muted">{selectedIdsState().length} selected</span>
 
           <AlertDialog>

@@ -63,7 +63,7 @@ export default function HomePage() {
                   system.
                 </p>
               </Stack>
-              <Inline gap="3" wrap="wrap">
+              <Inline gap="3" wrap>
                 <Button asChild>
                   <Link href="/login">
                     Open console <ArrowRightIcon size={16} aria-hidden="true" />

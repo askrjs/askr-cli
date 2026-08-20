@@ -11,7 +11,7 @@ jobs:
 
   publish:
     needs: ci
-    uses: askrjs/actions/.github/workflows/publish-package.yml@1ecd3e84c32b3ff9bb85111baabbd31f79c459dd
+    uses: askrjs/actions/.github/workflows/publish-package.yml@main
     permissions:
       contents: write
       id-token: write
@@ -25,10 +25,16 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
         with:
           node-version: "lts/*"
           cache: npm
-      - run: npm ci
-      - run: npm run test:registry-database
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run registry database smoke test
+        run: npm run test:registry-database

@@ -64,12 +64,12 @@ export default function AppLayout({ children }: { children?: unknown }) {
       <ShellMain>
         <Header position="sticky" class="app-header">
           <Container size="full">
-            <Inline justify="between" align="center" gap="3" wrap="wrap">
+            <Inline justify="between" align="center" gap="3" wrap>
               <Stack gap="none">
                 <span class="eyebrow">Operations console</span>
                 <strong>Agent workflow control plane</strong>
               </Stack>
-              <Inline gap="2" align="center" wrap="wrap">
+              <Inline gap="2" align="center" wrap>
                 <Badge>event stream healthy</Badge>
                 <ThemeToggle
                   variant="ghost"
