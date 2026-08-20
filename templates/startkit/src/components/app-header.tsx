@@ -27,7 +27,7 @@ export default function AppHeader() {
         class="app-header-content"
         align="center"
         justify="between"
-        wrap="wrap"
+        wrap
       >
         <div class="breadcrumbs">
           <span>App</span>
