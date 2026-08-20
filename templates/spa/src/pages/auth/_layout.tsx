@@ -10,12 +10,12 @@ export default function AuthLayout({ children }: { children?: unknown }) {
     <div class="auth-shell">
       <Header position="sticky" class="auth-header">
         <Container size="full">
-          <Inline justify="between" align="center" gap="3" wrap="wrap">
+          <Inline justify="between" align="center" gap="3" wrap>
             <Link href="/" class="brand-link">
               <span class="brand-mark">A</span>
               <strong>{'{{appName}}'}</strong>
             </Link>
-            <Inline gap="2" align="center" wrap="wrap">
+            <Inline gap="2" align="center" wrap>
               <ThemeToggle
                 variant="ghost"
                 size="icon"

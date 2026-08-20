@@ -172,7 +172,7 @@ export default function SettingsPage() {
             </Select>
           </Field>
 
-          <Inline class="settings-example-actions" align="center" wrap="wrap">
+          <Inline class="settings-example-actions" align="center" wrap>
             <Button class="button-secondary" disabled>
               Disabled action example
             </Button>
