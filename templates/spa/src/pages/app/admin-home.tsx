@@ -68,7 +68,7 @@ export default function AdminHomePage() {
 
       {snapshot ? (
         <>
-          <Block gap="md" class="metric-grid">
+          <Block class="metric-grid">
             {snapshot.metrics.map((metric) => (
               <MetricCard
                 label={metric.label}
@@ -78,7 +78,7 @@ export default function AdminHomePage() {
             ))}
           </Block>
 
-          <Block gap="md" align="stretch" class="chart-grid">
+          <Block class="chart-grid">
             <Card>
               <CardHeader>
                 <CardTitle>Run throughput</CardTitle>

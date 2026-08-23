@@ -439,6 +439,8 @@ test("should ensure runCreateCli scaffolds SPA with the route-first themed app s
     expect(themeStylesFile).toMatch(/@layer theme/);
     expect(layoutStylesFile).toMatch(/@layer layout/);
     expect(componentsStylesFile).toMatch(/@layer components/);
+    expect(componentsStylesFile).not.toMatch(/\[data-slot=['"]dialog-overlay['"]\]/);
+    expect(componentsStylesFile).not.toMatch(/\[data-slot=['"]dialog-content['"]\]/);
     expect(homeFile).toMatch(/Route-first Askr SPA/);
     expect(homeFile).toMatch(/auth branch/);
     expect(homeFile).toMatch(/@askrjs\/themes\/components/);

@@ -450,6 +450,112 @@ describe("analyzer rules", () => {
     expect(found).toHaveLength(0);
   });
 
+  it("should reject class overrides on every fully themed floating layer", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import {
+          AlertDialogContent,
+          AlertDialogOverlay,
+          AlertDialogTrigger,
+          DialogContent,
+          DialogOverlay,
+          DropdownContent,
+          HoverCardContent,
+          MenuContent,
+          MenubarContent,
+          MenubarSubContent,
+          PopoverContent,
+          SelectContent,
+          TooltipContent,
+        } from "@askrjs/ui";
+        declare const overlayProps: Record<string, unknown>;
+        export function Page() {
+          return <>
+            <AlertDialogOverlay class="dialog-overlay" />
+            <AlertDialogContent class="dialog-content" />
+            <DialogOverlay class="dialog-overlay" />
+            <DialogContent class="dialog-content" />
+            <DropdownContent class="floating" />
+            <HoverCardContent class="floating" />
+            <MenuContent class="floating" />
+            <MenubarContent class="floating" />
+            <MenubarSubContent class="floating" />
+            <PopoverContent class="floating" />
+            <SelectContent class="floating" />
+            <TooltipContent class="floating" />
+            <DialogOverlay className="named-overlay" />
+            <DialogOverlay />
+            <AlertDialogTrigger className="trigger" />
+            <DialogOverlay class="ignored" {...overlayProps} />
+          </>;
+        }
+      `,
+    });
+
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/no-slot-style-override",
+    );
+    expect(found).toHaveLength(13);
+    expect(found.every((entry) => entry.severity === "error")).toBe(true);
+    expect(found.map((entry) => entry.message).join("\n")).toMatch(/AlertDialogOverlay/);
+    expect(found.map((entry) => entry.message).join("\n")).toMatch(/TooltipContent/);
+    expect(found.every((entry) => entry.message.includes("data-slot"))).toBe(true);
+    expect(found.every((entry) => entry.remediation?.includes("theme tokens"))).toBe(true);
+  });
+
+  it("should warn when Block combines class and flex-layout prop authority", async () => {
+    const staticRoot = await fixture({
+      "src/page.tsx": `
+        import { Block } from "@askrjs/themes/components";
+        export const Page = () => <Block className="domain-section-header" direction="row" />;
+      `,
+    });
+    const responsiveRoot = await fixture({
+      "src/page.tsx": `
+        import { Block as LayoutBlock } from "@askrjs/themes/components";
+        export const Page = () => (
+          <LayoutBlock class="domain-section-header" direction={{ base: "column", sm: "row" }} gap="sm" />
+        );
+      `,
+    });
+    const safeRoot = await fixture({
+      "src/page.tsx": `
+        import { Block } from "@askrjs/themes/components";
+        declare const props: Record<string, unknown>;
+        export const Page = () => <>
+          <Block className="panel" padding="sm" />
+          <Block direction="row" />
+          <Block className="panel" />
+          <Block className="panel" direction="row" {...props} />
+        </>;
+      `,
+    });
+
+    const staticFound = (await diagnostics(staticRoot)).filter(
+      (entry) => entry.ruleId === "askr/block-layout-authority-conflict",
+    );
+    const responsiveFound = (await diagnostics(responsiveRoot)).filter(
+      (entry) => entry.ruleId === "askr/block-layout-authority-conflict",
+    );
+    const safeFound = (await diagnostics(safeRoot)).filter(
+      (entry) => entry.ruleId === "askr/block-layout-authority-conflict",
+    );
+
+    expect(staticFound).toEqual([
+      expect.objectContaining({
+        severity: "warning",
+        message: expect.stringMatching(/className.*layout props \(direction\)/),
+      }),
+    ]);
+    expect(responsiveFound).toEqual([
+      expect.objectContaining({
+        severity: "warning",
+        message: expect.stringMatching(/class.*direction, gap/),
+      }),
+    ]);
+    expect(safeFound).toEqual([]);
+  });
+
   it("should report state writes during render but accepts event-handler writes", async () => {
     const root = await fixture({
       "src/page.tsx": `

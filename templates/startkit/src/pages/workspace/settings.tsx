@@ -183,7 +183,7 @@ export default function SettingsPage() {
               </DialogTrigger>
               <DialogPortal>
                 <DialogOverlay />
-                <DialogContent class="panel stack-md">
+                <DialogContent>
                   <DialogTitle>Reset workspace preferences?</DialogTitle>
                   <DialogDescription>
                     This is a modal wiring example. Connect this to real

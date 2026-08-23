@@ -380,27 +380,10 @@
     z-index: 30;
   }
 
-  .app-toast,
-  [data-slot='dialog-content'] {
+  .app-toast {
     border: 1px solid var(--ak-color-border);
     border-radius: var(--ak-radius-lg);
     background: var(--ak-color-surface);
     box-shadow: none;
-  }
-
-  [data-slot='dialog-overlay'] {
-    position: fixed;
-    inset: 0;
-    background: color-mix(in srgb, var(--ak-color-fg) 25%, transparent);
-    backdrop-filter: blur(2px);
-  }
-
-  [data-slot='dialog-content'] {
-    position: fixed;
-    inline-size: min(30rem, calc(100vw - 2rem));
-    inset-inline-start: 50%;
-    inset-block-start: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 40;
   }
 }

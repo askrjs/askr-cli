@@ -38,7 +38,7 @@ export default function SettingsPage() {
         </Stack>
       </section>
 
-      <Block gap="md" align="start" class="settings-grid">
+      <Block class="settings-grid">
         <Card>
           <CardHeader>
             <CardTitle>API adapter</CardTitle>

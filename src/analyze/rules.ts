@@ -21,6 +21,8 @@ interface SourceBindings {
 
 const SOURCE_BINDING_CACHE = new WeakMap<ts.SourceFile, SourceBindings>();
 
+const ANALYZED_JSX_MODULE_PATTERN = /^@askrjs\/(?:ui(?:\/|$)|themes\/components$)/;
+
 interface SourceCallFact {
   readonly node: ts.CallExpression;
   readonly name: string;
@@ -50,7 +52,8 @@ function sourceBindings(sourceFile: ts.SourceFile): SourceBindings {
     if (
       !ts.isImportDeclaration(statement) ||
       !ts.isStringLiteral(statement.moduleSpecifier) ||
-      !ASKR_MODULE_PATTERN.test(statement.moduleSpecifier.text)
+      (!ASKR_MODULE_PATTERN.test(statement.moduleSpecifier.text) &&
+        !ANALYZED_JSX_MODULE_PATTERN.test(statement.moduleSpecifier.text))
     ) {
       continue;
     }
@@ -594,6 +597,25 @@ function jsxAttributes(node: ts.JsxOpeningLikeElement): Map<string, ts.JsxAttrib
         : [],
     ),
   );
+}
+
+function hasJsxSpreadAttribute(node: ts.JsxOpeningLikeElement): boolean {
+  return node.attributes.properties.some(ts.isJsxSpreadAttribute);
+}
+
+function hasNonEmptyJsxAttribute(attribute: ts.JsxAttribute | undefined): boolean {
+  if (!attribute) return false;
+  if (!attribute.initializer) return true;
+  if (ts.isStringLiteral(attribute.initializer))
+    return attribute.initializer.text.trim().length > 0;
+  const expression = jsxExpression(attribute);
+  if (!expression) return false;
+  if (ts.isStringLiteralLike(expression)) return expression.text.trim().length > 0;
+  return ![
+    ts.SyntaxKind.FalseKeyword,
+    ts.SyntaxKind.NullKeyword,
+    ts.SyntaxKind.UndefinedKeyword,
+  ].includes(expression.kind);
 }
 
 function staticallyNonFunction(expression: ts.Expression, checker: ts.TypeChecker): boolean {
@@ -3439,7 +3461,7 @@ const linkContractRule: AnalyzeRule = {
         if (!ts.isJsxOpeningElement(node) && !ts.isJsxSelfClosingElement(node)) return;
         if (canonicalJsxName(node.tagName, bindings) !== "Link") return;
         const attributes = jsxAttributes(node);
-        if ([...attributes.values()].some(ts.isJsxSpreadAttribute)) return;
+        if (hasJsxSpreadAttribute(node)) return;
         const to = attributes.get("to");
         const href = attributes.get("href");
         if (!to && !href) {
@@ -3490,6 +3512,94 @@ const linkContractRule: AnalyzeRule = {
             ),
           );
         }
+      });
+    }
+    return diagnostics;
+  },
+};
+
+export const THEMED_FLOATING_LAYER_SLOTS = {
+  AlertDialogOverlay: "dialog-overlay",
+  AlertDialogContent: "dialog-content",
+  DialogOverlay: "dialog-overlay",
+  DialogContent: "dialog-content",
+  DropdownContent: "dropdown-content",
+  HoverCardContent: "hover-card-content",
+  MenuContent: "menu-content",
+  MenubarContent: "menubar-content",
+  MenubarSubContent: "menubar-content",
+  PopoverContent: "popover-content",
+  SelectContent: "select-content",
+  TooltipContent: "tooltip-content",
+} as const;
+
+const noSlotStyleOverrideRule: AnalyzeRule = {
+  id: "askr/no-slot-style-override",
+  category: "correctness",
+  severity: "error",
+  description: "Themed floating layers must use their shipped slot styling.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const sourceFile of context.sourceFiles) {
+      const bindings = sourceBindings(sourceFile);
+      visit(sourceFile, (node) => {
+        if (!ts.isJsxOpeningElement(node) && !ts.isJsxSelfClosingElement(node)) return;
+        if (hasJsxSpreadAttribute(node)) return;
+        const component = canonicalJsxName(node.tagName, bindings);
+        if (!component || !(component in THEMED_FLOATING_LAYER_SLOTS)) return;
+        const attributes = jsxAttributes(node);
+        const classAttribute = attributes.get("class") ?? attributes.get("className");
+        if (!hasNonEmptyJsxAttribute(classAttribute)) return;
+        const slot =
+          THEMED_FLOATING_LAYER_SLOTS[component as keyof typeof THEMED_FLOATING_LAYER_SLOTS];
+        diagnostics.push(
+          diagnostic(
+            context,
+            classAttribute ?? node.tagName,
+            this,
+            `<${component}> received a class prop; this component is already fully styled via [data-slot="${slot}"] and isn't meant to be restyled per call site.`,
+            "Customize the owning theme tokens, such as --ak-color-backdrop, --ak-radius-xl, or --ak-shadow-lg, instead of passing a class.",
+          ),
+        );
+      });
+    }
+    return diagnostics;
+  },
+};
+
+export const BLOCK_LAYOUT_AUTHORITY_COMPONENTS = ["Block"] as const;
+const BLOCK_LAYOUT_AUTHORITY_NAMES = new Set<string>(BLOCK_LAYOUT_AUTHORITY_COMPONENTS);
+const BLOCK_FLEX_LAYOUT_PROPS = ["direction", "align", "justify", "gap", "wrap"] as const;
+
+const blockLayoutAuthorityConflictRule: AnalyzeRule = {
+  id: "askr/block-layout-authority-conflict",
+  category: "correctness",
+  severity: "warning",
+  description: "Block should have one deliberate flex-layout authority.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const sourceFile of context.sourceFiles) {
+      const bindings = sourceBindings(sourceFile);
+      visit(sourceFile, (node) => {
+        if (!ts.isJsxOpeningElement(node) && !ts.isJsxSelfClosingElement(node)) return;
+        if (hasJsxSpreadAttribute(node)) return;
+        const component = canonicalJsxName(node.tagName, bindings);
+        if (!component || !BLOCK_LAYOUT_AUTHORITY_NAMES.has(component)) return;
+        const attributes = jsxAttributes(node);
+        const classAttribute = attributes.get("class") ?? attributes.get("className");
+        if (!hasNonEmptyJsxAttribute(classAttribute)) return;
+        const layoutProps = BLOCK_FLEX_LAYOUT_PROPS.filter((name) => attributes.has(name));
+        if (layoutProps.length === 0) return;
+        const classProp = attributes.has("class") ? "class" : "className";
+        diagnostics.push(
+          diagnostic(
+            context,
+            classAttribute ?? node.tagName,
+            this,
+            `<${component}> combines a CSS ${classProp} with layout props (${layoutProps.join(", ")}) on the same element; verify they agree, or drop one.`,
+            "Pick one flex-layout authority: prefer the shared class when it is reused without props, or prefer Block props when the class is local and single-use.",
+          ),
+        );
       });
     }
     return diagnostics;
@@ -3693,6 +3803,8 @@ export const ANALYZE_RULES: readonly AnalyzeRule[] = [
   actionContractRule,
   actionPromiseRule,
   renderAllocationRule,
+  noSlotStyleOverrideRule,
+  blockLayoutAuthorityConflictRule,
   hardcodedThemeTokenRule,
   noEffectDataLoadingRule,
   testingContractRule,
