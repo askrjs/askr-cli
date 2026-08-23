@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Make `askr update` solve direct dependency constraints alongside peer constraints, holding back incompatible candidates with an explicit JSON-plan reason.
+- Preserve public peer dependency floors when the selected release already satisfies the supported range.
+
 ## [0.2.1] - 2026-08-23
 
 ### Added
