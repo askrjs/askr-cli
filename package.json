@@ -1,6 +1,6 @@
 {
   "name": "@askrjs/cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Unified CLI for the Askr platform",
   "homepage": "https://github.com/askrjs/askr-cli#readme",
   "bugs": {
@@ -58,29 +58,29 @@
   },
   "dependencies": {
     "@npmcli/config": "^11.0.1",
-    "js-yaml": "^5.2.3",
+    "js-yaml": "^5.3.0",
     "minimatch": "^10.2.6",
     "npm-registry-fetch": "^20.0.1",
     "parse5": "^8.0.1",
     "semver": "^7.8.5",
-    "tsx": "^4.23.11",
+    "tsx": "^4.23.12",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "devDependencies": {
-    "@askrjs/askr": ">=0.2.0 <0.3.0",
+    "@askrjs/askr": ">=0.2.2 <0.3.0",
     "@askrjs/charts": ">=0.2.0 <0.3.0",
     "@askrjs/logos": ">=0.2.0 <0.3.0",
     "@askrjs/lucide": ">=0.2.0 <0.3.0",
-    "@askrjs/themes": ">=0.2.0 <0.3.0",
-    "@askrjs/ui": ">=0.2.0 <0.3.0",
+    "@askrjs/themes": ">=0.2.2 <0.3.0",
+    "@askrjs/ui": ">=0.2.1 <0.3.0",
     "@askrjs/vite": ">=0.2.0 <0.3.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^26.2.0",
     "@types/semver": "^7.8.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "@vitest/coverage-v8": "^4.1.10",
-    "publint": "^0.3.23",
-    "vite-plus": "0.2.8",
+    "publint": "^0.3.24",
+    "vite-plus": "0.2.9",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
