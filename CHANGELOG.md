@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-23
+
 ### Added
 
 - Add analyzer diagnostics for per-call styling of theme-owned floating layers and conflicting class-versus-prop flex layout on `Block`.
@@ -15,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Let the startkit's dialog and alert-dialog content use the complete default theme styling without call-site layout classes.
 - Remove conflicting `Block` layout props from SPA template grids whose CSS classes already own grid alignment and gaps.
+- Refresh eligible AskrJS, runtime, and development-tool dependency ranges with `askr update`.
 
 ## [0.2.0] - 2026-08-16
 
@@ -101,7 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Make database tooling work consistently across supported operating systems.
 
-[Unreleased]: https://github.com/askrjs/askr-cli/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/askrjs/askr-cli/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/askrjs/askr-cli/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/askrjs/askr-cli/compare/v0.0.25...v0.2.0
 [0.0.25]: https://github.com/askrjs/askr-cli/compare/v0.0.24...v0.0.25
 [0.0.24]: https://github.com/askrjs/askr-cli/compare/v0.0.23...v0.0.24

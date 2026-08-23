@@ -536,13 +536,11 @@ export function planUpdates(options: PlannerOptions): UpdatePlan {
     if (selectedNames.has(packageName)) continue;
     const occurrences = context
       .filter((entry) => entry.package === packageName)
-      .map(
-        (entry): PlannedOccurrence => ({
-          ...baseOccurrence(entry),
-          status: "error",
-          reason: `peer compatibility lookup failed: ${failure}`,
-        }),
-      );
+      .map((entry): PlannedOccurrence => ({
+        ...baseOccurrence(entry),
+        status: "error",
+        reason: `peer compatibility lookup failed: ${failure}`,
+      }));
     decisions.push({
       package: packageName,
       selectedTag: options.cliTag ?? tags[packageName] ?? "latest",
