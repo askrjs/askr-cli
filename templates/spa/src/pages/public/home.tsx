@@ -51,7 +51,7 @@ export default function HomePage() {
     <>
       <Section paddingY="2xl">
         <Container size="xl">
-          <Block gap="lg" align="center" class="hero-grid">
+          <Block class="hero-grid">
             <Stack gap="lg" class="hero-copy">
               <Badge>Route-first Askr SPA</Badge>
               <Stack gap="md">
@@ -110,7 +110,7 @@ export default function HomePage() {
 
       <Section paddingY="xl">
         <Container size="xl">
-          <Block gap="md" class="feature-grid">
+          <Block class="feature-grid">
             {capabilities.map((item) => (
               <Card>
                 <CardHeader>

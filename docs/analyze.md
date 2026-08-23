@@ -25,8 +25,9 @@ workspace-relative file, one-based line and column, and optional remediation.
 Output is sorted by workspace, file, position, rule ID, and message.
 
 The analyzer resolves named aliases and namespace imports from
-`@askrjs/askr` and its public subpaths. A same-named function imported from
-another package or local module is not treated as an Askr API.
+`@askrjs/askr`, `@askrjs/ui`, `@askrjs/themes/components`, and their supported
+public subpaths. A same-named function imported from another package or local
+module is not treated as an Askr API.
 
 ### Correctness
 
@@ -80,6 +81,14 @@ another package or local module is not treated as an Askr API.
   parameter objects against workspace route declarations. Dynamic objects and
   spreads are deliberately skipped. Relative links plus `http`, `https`,
   `mailto`, `tel`, and `sms` remain valid.
+- `askr/no-slot-style-override` rejects non-empty `class` and `className` props
+  on fully themed floating-layer content and overlay components. Customize the
+  owning theme tokens instead. Components with a spread are skipped because
+  the analyzer cannot prove the final prop set.
+- `askr/block-layout-authority-conflict` warns when `Block` combines a
+  non-empty `class` or `className` with `direction`, `align`, `justify`, `gap`,
+  or `wrap`. Choose either the class or the component props as the element's
+  flex-layout authority. Components with a spread are skipped.
 - `askr/query-key-contract` reports directly provable nondeterministic and
   Symbol query key/scope parts; dynamic values are left alone.
 - `askr/import-subpath` groups named root imports by their owning public Askr

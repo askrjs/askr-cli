@@ -161,7 +161,7 @@ export default function AccountsPage() {
             </AlertDialogTrigger>
             <AlertDialogPortal>
               <AlertDialogOverlay />
-              <AlertDialogContent class="panel stack-md">
+              <AlertDialogContent>
                 <AlertDialogTitle>Archive selected accounts?</AlertDialogTitle>
                 <AlertDialogDescription>
                   This updates selected account records in the mock data source.
