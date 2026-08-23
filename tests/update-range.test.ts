@@ -17,6 +17,10 @@ function occurrence(specification: string, packageName = "fixture"): DependencyO
   };
 }
 
+function peerOccurrence(specification: string, packageName: string): DependencyOccurrence {
+  return { ...occurrence(specification, packageName), section: "peerDependencies" };
+}
+
 function packument(target: string, versions: string[]): Packument {
   return {
     "dist-tags": { latest: target },
@@ -196,6 +200,59 @@ describe("update range planner", () => {
       "2.0.0",
       "2.0.0",
     ]);
+  });
+
+  test("should keep a public peer floor given the selected release remains supported", () => {
+    const plan = planUpdates({
+      occurrences: [peerOccurrence(">=0.2.0 <0.3.0", "@askrjs/askr")],
+      packuments: new Map([["@askrjs/askr", packument("0.2.2", ["0.2.0", "0.2.1", "0.2.2"])]]),
+    });
+
+    expect(plan.decisions[0].occurrences[0]).toMatchObject({
+      status: "current",
+      proposedSpecification: null,
+      reason: "the selected version remains supported by the declared peer range",
+    });
+  });
+
+  test("should select a compatible direct dependency set below latest when updating", () => {
+    const vitePlus = occurrence("0.2.8", "vite-plus");
+    const vitest = occurrence("^4.1.10", "vitest");
+    const coverage = occurrence("^4.1.10", "@vitest/coverage-v8");
+    const plan = planUpdates({
+      occurrences: [vitePlus, vitest, coverage],
+      contextOccurrences: [vitePlus, vitest, coverage],
+      packuments: new Map([
+        [
+          "vite-plus",
+          {
+            "dist-tags": { latest: "0.2.9" },
+            versions: {
+              "0.2.8": { version: "0.2.8", dependencies: { vitest: "4.1.10" } },
+              "0.2.9": { version: "0.2.9", dependencies: { vitest: "4.1.10" } },
+            },
+          },
+        ],
+        ["vitest", packument("4.1.11", ["4.1.10", "4.1.11"])],
+        ["@vitest/coverage-v8", packument("4.1.11", ["4.1.10", "4.1.11"])],
+      ]),
+    });
+
+    expect(
+      Object.fromEntries(
+        plan.decisions.map((decision) => [
+          decision.package,
+          decision.occurrences[0].selectedVersion,
+        ]),
+      ),
+    ).toEqual({
+      "@vitest/coverage-v8": "4.1.11",
+      "vite-plus": "0.2.9",
+      vitest: "4.1.10",
+    });
+    expect(plan.decisions.find((decision) => decision.package === "vitest")?.reason).toContain(
+      "compatible version 4.1.10 selected below latest@4.1.11",
+    );
   });
 
   test("should choose an older compatible release below latest when upgrading", () => {
