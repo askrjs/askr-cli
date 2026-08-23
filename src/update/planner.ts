@@ -27,6 +27,7 @@ interface PlannerOptions {
 }
 
 interface VersionMetadata extends Record<string, unknown> {
+  dependencies?: Record<string, unknown>;
   peerDependencies?: Record<string, unknown>;
   peerDependenciesMeta?: Record<string, unknown>;
 }
@@ -148,6 +149,18 @@ function planOne(
       targetVersion: target,
       occurrence: { ...withVersions, status: "manual", reason: blocker },
     };
+  if (
+    occurrence.section === "peerDependencies" &&
+    semver.satisfies(selected, occurrence.currentSpecification, { includePrerelease: true })
+  )
+    return {
+      targetVersion: target,
+      occurrence: {
+        ...withVersions,
+        status: "current",
+        reason: "the selected version remains supported by the declared peer range",
+      },
+    };
   const declared = semver.minVersion(occurrence.currentSpecification)?.version ?? allowed;
   if (!semver.gt(selected, declared)) {
     return {
@@ -155,7 +168,10 @@ function planOne(
       occurrence: {
         ...withVersions,
         status: "current",
-        reason: blocker ?? "the declared version is current",
+        reason:
+          selected === target
+            ? "the declared version is current"
+            : `compatible version ${selected} selected below ${tag}@${target}`,
       },
     };
   }
@@ -226,7 +242,11 @@ function solveWorkspace(
   cliTag: string | undefined,
   localVersions: ReadonlyMap<string, string>,
   mode: "update" | "upgrade",
-): { choices: Map<string, string>; blockers: Map<string, string> } {
+): {
+  choices: Map<string, string>;
+  blockers: Map<string, string>;
+  constrained: Set<string>;
+} {
   const selectedNames = new Set(
     selectedOccurrences.filter((entry) => entry.kind === "fetch").map((entry) => entry.package),
   );
@@ -242,11 +262,12 @@ function solveWorkspace(
     let candidates = current ? [current] : [];
     if (selectedNames.has(name) && packument && current) {
       const target = selectedTarget(packument, cliTag ?? tags[name] ?? "latest");
+      const minimum = semver.minVersion(occurrence.currentSpecification)?.version ?? current;
       if (target)
         candidates = publishedVersions(packument)
           .filter(
             (version) =>
-              semver.gte(version, current) &&
+              semver.gte(version, minimum) &&
               semver.lte(version, target) &&
               (mode === "upgrade" || !isBreakingChange(current, version)),
           )
@@ -301,6 +322,21 @@ function solveWorkspace(
         if (!semver.satisfies(peerVersion, requirement, { includePrerelease: true }))
           return `${name}@${version} requires ${peer}@${requirement}`;
       }
+      for (const [dependency, requirement] of Object.entries(meta.dependencies ?? {}).sort(
+        ([a], [b]) => a.localeCompare(b),
+      )) {
+        if (typeof requirement !== "string" || !semver.validRange(requirement)) continue;
+        const providerChanged = states.get(name)?.current !== version;
+        const assignedDependency = choices.get(dependency);
+        const dependencyChanged =
+          assignedDependency !== undefined &&
+          states.get(dependency)?.current !== assignedDependency;
+        if (!providerChanged && !dependencyChanged) continue;
+        const dependencyVersion = assignedDependency ?? installed.get(dependency);
+        if (!dependencyVersion) continue;
+        if (!semver.satisfies(dependencyVersion, requirement, { includePrerelease: true }))
+          return `${name}@${version} requires ${dependency}@${requirement}`;
+      }
     }
     return null;
   };
@@ -308,13 +344,18 @@ function solveWorkspace(
   // Join only packages that can constrain one another. Independent packages are
   // resolved immediately instead of inflating a whole-workspace Cartesian search.
   const edges = new Map(variables.map(([name]) => [name, new Set<string>()]));
+  const constrained = new Set<string>();
   for (const [name, state] of variables) {
     for (const version of state.candidates) {
-      const peers = metadata(packuments.get(name)!, version)?.peerDependencies ?? {};
-      for (const peer of Object.keys(peers)) {
-        if (!edges.has(peer)) continue;
-        edges.get(name)!.add(peer);
-        edges.get(peer)!.add(name);
+      const meta = metadata(packuments.get(name)!, version);
+      for (const constraints of [meta?.dependencies, meta?.peerDependencies]) {
+        for (const dependency of Object.keys(constraints ?? {})) {
+          if (states.has(dependency)) constrained.add(name);
+          if (!edges.has(dependency)) continue;
+          constrained.add(dependency);
+          edges.get(name)!.add(dependency);
+          edges.get(dependency)!.add(name);
+        }
       }
     }
   }
@@ -343,7 +384,6 @@ function solveWorkspace(
     const baseChoices = new Map([...choices].filter(([name]) => !componentSet.has(name)));
     const domains = new Map(component.map((name) => [name, states.get(name)!.candidates] as const));
     let best: Map<string, string> | null = null;
-    let bestChanged = -1;
     let bestVector: number[] = [];
     let statesVisited = 0;
     let exhausted = false;
@@ -359,11 +399,6 @@ function solveWorkspace(
       }
       const merged = new Map([...baseChoices, ...assigned]);
       const remaining = component.filter((name) => !assigned.has(name));
-      const changed = component.filter(
-        (name) => assigned.has(name) && assigned.get(name) !== states.get(name)!.current,
-      ).length;
-      if (changed + remaining.length < bestChanged) return;
-
       const pruned = new Map<string, readonly string[]>();
       for (const name of remaining) {
         const viable = domains
@@ -389,9 +424,8 @@ function solveWorkspace(
             value < (bestVector[index] ?? Number.POSITIVE_INFINITY) &&
             vector.slice(0, index).every((prior, priorIndex) => prior === bestVector[priorIndex]),
         );
-        if (changed > bestChanged || (changed === bestChanged && newer)) {
+        if (!best || newer) {
           best = new Map(assigned);
-          bestChanged = changed;
           bestVector = vector;
         }
         return;
@@ -439,7 +473,7 @@ function solveWorkspace(
       validate(attempted) ?? "no jointly peer-compatible update advances this dependency",
     );
   }
-  return { choices, blockers };
+  return { choices, blockers, constrained };
 }
 
 function aggregateStatus(occurrences: PlannedOccurrence[]): UpdateStatus {
@@ -508,7 +542,9 @@ export function planUpdates(options: PlannerOptions): UpdatePlan {
         const solution = workspaceSolutions.get(occurrence.workspace);
         const blocker = solution?.blockers.get(packageName);
         const chosen =
-          mode === "update" && !blocker ? undefined : solution?.choices.get(packageName);
+          mode === "update" && !solution?.constrained.has(packageName)
+            ? undefined
+            : solution?.choices.get(packageName);
         return planOne(
           occurrence,
           options.packuments.get(packageName),
