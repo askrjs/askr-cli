@@ -255,6 +255,77 @@ describe("update range planner", () => {
     );
   });
 
+  test("should keep compatible packages at their current targets when updating", () => {
+    const packageA = occurrence("^1.0.0", "package-a");
+    const packageB = occurrence("^2.0.0", "package-b");
+    const plan = planUpdates({
+      occurrences: [packageA, packageB],
+      contextOccurrences: [packageA, packageB],
+      packuments: new Map([
+        [
+          "package-a",
+          {
+            "dist-tags": { latest: "1.9.0" },
+            versions: {
+              "1.0.0": { version: "1.0.0", peerDependencies: { "package-b": "^2.0.0" } },
+              "1.5.0": { version: "1.5.0", peerDependencies: { "package-b": "^2.0.0" } },
+              "1.9.0": { version: "1.9.0", peerDependencies: { "package-b": "^2.0.0" } },
+            },
+          },
+        ],
+        [
+          "package-b",
+          {
+            "dist-tags": { latest: "2.9.0" },
+            versions: {
+              "2.0.0": { version: "2.0.0", peerDependencies: { "package-a": "^1.0.0" } },
+              "2.5.0": { version: "2.5.0", peerDependencies: { "package-a": "^1.0.0" } },
+              "2.9.0": { version: "2.9.0", peerDependencies: { "package-a": "^1.0.0" } },
+            },
+          },
+        ],
+      ]),
+    });
+
+    expect(
+      Object.fromEntries(
+        plan.decisions.map((decision) => [
+          decision.package,
+          decision.occurrences[0].selectedVersion,
+        ]),
+      ),
+    ).toEqual({ "package-a": "1.9.0", "package-b": "2.9.0" });
+  });
+
+  test("should ignore an unchanged dependency mismatch outside the updated component", () => {
+    const packageA = occurrence("1.0.0", "package-a");
+    const packageB = occurrence("2.0.0", "package-b");
+    const packageC = occurrence("^3.0.0", "package-c");
+    const plan = planUpdates({
+      occurrences: [packageC],
+      contextOccurrences: [packageA, packageB, packageC],
+      packuments: new Map([
+        [
+          "package-a",
+          {
+            "dist-tags": { latest: "1.0.0" },
+            versions: {
+              "1.0.0": { version: "1.0.0", dependencies: { "package-b": "^1.0.0" } },
+            },
+          },
+        ],
+        ["package-b", packument("2.0.0", ["2.0.0"])],
+        ["package-c", packument("3.5.0", ["3.0.0", "3.5.0"])],
+      ]),
+    });
+
+    expect(plan.decisions[0].occurrences[0]).toMatchObject({
+      selectedVersion: "3.5.0",
+      status: "safe",
+      proposedSpecification: "^3.5.0",
+    });
+  });
+
   test("should choose an older compatible release below latest when upgrading", () => {
     const app = occurrence("^1.0.0", "app");
     const peer = occurrence("^1.0.0", "peer");

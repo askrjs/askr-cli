@@ -326,7 +326,13 @@ function solveWorkspace(
         ([a], [b]) => a.localeCompare(b),
       )) {
         if (typeof requirement !== "string" || !semver.validRange(requirement)) continue;
-        const dependencyVersion = installed.get(dependency);
+        const providerChanged = states.get(name)?.current !== version;
+        const assignedDependency = choices.get(dependency);
+        const dependencyChanged =
+          assignedDependency !== undefined &&
+          states.get(dependency)?.current !== assignedDependency;
+        if (!providerChanged && !dependencyChanged) continue;
+        const dependencyVersion = assignedDependency ?? installed.get(dependency);
         if (!dependencyVersion) continue;
         if (!semver.satisfies(dependencyVersion, requirement, { includePrerelease: true }))
           return `${name}@${version} requires ${dependency}@${requirement}`;
@@ -342,13 +348,14 @@ function solveWorkspace(
   for (const [name, state] of variables) {
     for (const version of state.candidates) {
       const meta = metadata(packuments.get(name)!, version);
-      const constraints = { ...meta?.dependencies, ...meta?.peerDependencies };
-      for (const dependency of Object.keys(constraints)) {
-        if (states.has(dependency)) constrained.add(name);
-        if (!edges.has(dependency)) continue;
-        constrained.add(dependency);
-        edges.get(name)!.add(dependency);
-        edges.get(dependency)!.add(name);
+      for (const constraints of [meta?.dependencies, meta?.peerDependencies]) {
+        for (const dependency of Object.keys(constraints ?? {})) {
+          if (states.has(dependency)) constrained.add(name);
+          if (!edges.has(dependency)) continue;
+          constrained.add(dependency);
+          edges.get(name)!.add(dependency);
+          edges.get(dependency)!.add(name);
+        }
       }
     }
   }
@@ -377,7 +384,6 @@ function solveWorkspace(
     const baseChoices = new Map([...choices].filter(([name]) => !componentSet.has(name)));
     const domains = new Map(component.map((name) => [name, states.get(name)!.candidates] as const));
     let best: Map<string, string> | null = null;
-    let bestChanged = -1;
     let bestVector: number[] = [];
     let statesVisited = 0;
     let exhausted = false;
@@ -393,11 +399,6 @@ function solveWorkspace(
       }
       const merged = new Map([...baseChoices, ...assigned]);
       const remaining = component.filter((name) => !assigned.has(name));
-      const changed = component.filter(
-        (name) => assigned.has(name) && assigned.get(name) !== states.get(name)!.current,
-      ).length;
-      if (changed + remaining.length < bestChanged) return;
-
       const pruned = new Map<string, readonly string[]>();
       for (const name of remaining) {
         const viable = domains
@@ -423,9 +424,8 @@ function solveWorkspace(
             value < (bestVector[index] ?? Number.POSITIVE_INFINITY) &&
             vector.slice(0, index).every((prior, priorIndex) => prior === bestVector[priorIndex]),
         );
-        if (changed > bestChanged || (changed === bestChanged && newer)) {
+        if (!best || newer) {
           best = new Map(assigned);
-          bestChanged = changed;
           bestVector = vector;
         }
         return;
