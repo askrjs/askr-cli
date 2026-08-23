@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add analyzer diagnostics for per-call styling of theme-owned floating layers and conflicting class-versus-prop flex layout on `Block`.
+
+### Changed
+
+- Let the startkit's dialog and alert-dialog content use the complete default theme styling without call-site layout classes.
+- Remove conflicting `Block` layout props from SPA template grids whose CSS classes already own grid alignment and gaps.
+
 ## [0.2.0] - 2026-08-16
 
 ### Changed
