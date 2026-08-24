@@ -52,6 +52,7 @@ template selection, while the prompt can still supply an inferred app name.
 - `askr check [--cwd <dir>] [--workspace <pattern>]... [--json]`
 - `askr database validate|generate [--database <name>] [--json]`
 - `askr database migration create|status|plan|apply|resolve ...`
+- `askr docs check|snapshot [--root <dir>] [--json]`
 - `askr skills list`
 - `askr skills install [--cwd <dir>] [--force]`
 - `askr skills sync [--cwd <dir>]`
