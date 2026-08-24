@@ -798,7 +798,7 @@ test("should ensure runAddCli transactionally scaffolds both database dialects",
       };
       expect(definition).toContain(`from '@askrjs/orm/${dialect}'`);
       expect(definition).toContain(`driver: ${dialect}()`);
-      expect(manifest.dependencies["@askrjs/orm"]).toBe("0.0.0");
+      expect(manifest.dependencies["@askrjs/orm"]).toBe(">=0.2.0 <0.3.0");
       expect(manifest.dependencies.pg).toBe(dialect === "postgres" ? "^8.16.0" : undefined);
       await expect(
         fs.access(path.join(tempRoot, "src", "database", "migrations", ".gitkeep")),
