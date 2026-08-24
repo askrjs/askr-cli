@@ -39,4 +39,19 @@ describe("directory publication", () => {
 
     expect(await fs.readFile(path.join(target, "old.txt"), "utf8")).toBe("old");
   });
+
+  it("should recover a lock left by an interrupted publisher", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-directory-orphan-"));
+    roots.push(root);
+    const target = path.join(root, "output");
+    const lock = `${target}.askr-lock`;
+    const stage = await createSiblingStage(target, "test");
+    await fs.writeFile(path.join(stage, "complete.txt"), "new");
+    await fs.mkdir(lock);
+    await fs.writeFile(path.join(lock, "owner.json"), '{"pid":2147483647}\n');
+
+    await expect(publishStagedDirectory(stage, target)).resolves.toBeUndefined();
+    await expect(fs.readFile(path.join(target, "complete.txt"), "utf8")).resolves.toBe("new");
+    await expect(fs.access(lock)).rejects.toMatchObject({ code: "ENOENT" });
+  });
 });

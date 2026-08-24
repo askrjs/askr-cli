@@ -208,6 +208,26 @@ describe("askr generate", () => {
     expect(await readFile(join(output, "schemas.ts"), "utf8")).toBe("original schema\n");
     expect(await readFile(join(backup, "stale.txt"), "utf8")).toBe("stale backup\n");
   });
+  it("should leave one complete result under concurrent generation", async () => {
+    const root = await mkdtemp(join(tmpdir(), "askr-concurrent-generate-"));
+    const output = join(root, "generated");
+    const first = generateFiles(document);
+    const second = { ...first, "schemas.ts": `${first["schemas.ts"]}// second\n` };
+    const results = await Promise.allSettled([
+      writeGenerated(output, first, false),
+      writeGenerated(output, second, false),
+    ]);
+    expect(results.filter(({ status }) => status === "fulfilled")).toHaveLength(2);
+    const schema = await readFile(join(output, "schemas.ts"), "utf8");
+    expect([first["schemas.ts"], second["schemas.ts"]]).toContain(schema);
+    expect((await readdir(output)).sort()).toEqual(Object.keys(first).sort());
+  });
+  it("should generate safely in a path containing spaces and Unicode", async () => {
+    const root = await mkdtemp(join(tmpdir(), "askr hostile 路径 "));
+    const output = join(root, "generated client ✓");
+    await expect(writeGenerated(output, generateFiles(document), false)).resolves.toBeUndefined();
+    await expect(readFile(join(output, "api.ts"), "utf8")).resolves.toContain("defineApi");
+  });
   it("should detect stale and extra files without writes given check mode when checking", async () => {
     const root = await mkdtemp(join(tmpdir(), "askr-check-"));
     const output = join(root, "client");
