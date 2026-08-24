@@ -266,6 +266,42 @@ describe("guardrail commands", () => {
     expect(await runGuardrailCli("repair", ["--help"], help.value)).toBe(0);
     expect(help.logs.join("\n")).toMatch(/askr repair/);
   });
+
+  it("should cover guardrail entry parsing, human reports, and error output", async () => {
+    const root = await fixture({ skills: true });
+    await syncBundledSkills({ cwd: root });
+
+    const doctor = io();
+    expect(await runGuardrailCli("doctor", ["--cwd", root], doctor.value)).toBe(0);
+    expect(doctor.logs.join("\n")).toMatch(/Doctor: \d+ passed/);
+
+    const repair = io();
+    expect(await runGuardrailCli("repair", [`--cwd=${root}`], repair.value)).toBe(0);
+    expect(repair.logs.join("\n")).toContain("Repair:");
+
+    const check = io();
+    expect(
+      await runGuardrailCli("check", ["--cwd", root], check.value, {
+        runScript: async (_executable, args) => ({
+          status: args.at(-1) === "test" ? "failed" : "passed",
+          exitCode: args.at(-1) === "test" ? 1 : 0,
+          stdout: args.at(-1) === "lint" ? "lint output\n" : "",
+          stderr: args.at(-1) === "test" ? "test output\n" : "",
+        }),
+      }),
+    ).toBe(1);
+    expect(check.logs.join("\n")).toContain("PASS npm run lint");
+    expect(check.logs.join("\n")).toContain("SKIP npm run build (test failed)");
+    expect(check.errors).toContain("test output");
+
+    const invalid = io();
+    expect(await runGuardrailCli("doctor", ["--json", "--workspace"], invalid.value)).toBe(1);
+    expect(JSON.parse(invalid.errors[0]!)).toMatchObject({
+      schemaVersion: 1,
+      status: "error",
+      error: "--workspace requires a value",
+    });
+  });
 });
 
 describe("shipped template guardrails", () => {
