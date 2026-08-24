@@ -43,7 +43,7 @@ function helpText(): string {
     "Usage:",
     "  askr add page <name> [--branch app|public] [--cwd <dir>] [--title <title>] [--route <path>] [--force]",
     "  askr add action <name> --route <path> [--cwd <dir>] [--force]",
-    "  askr add database postgres|sqlite [--cwd <dir>]",
+    "  askr add database postgres|sqlite [--cwd <dir>] [--force]",
     "",
     "Commands:",
     "  page      Scaffold a route page and register it in a route-first SPA branch",

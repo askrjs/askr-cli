@@ -13,6 +13,7 @@ import { lookup } from "node:dns/promises";
 import { request as httpsRequest } from "node:https";
 import type { IncomingHttpHeaders, IncomingMessage } from "node:http";
 import { BlockList, isIP } from "node:net";
+import { withDirectoryTargetLock } from "../directory-swap";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { load } from "js-yaml";
@@ -828,6 +829,16 @@ async function existingFiles(directory: string) {
   }
 }
 export async function writeGenerated(
+  directory: string,
+  files: Record<string, string>,
+  check: boolean,
+): Promise<void> {
+  const output = resolve(directory);
+  if (check) return writeGeneratedUnlocked(output, files, true);
+  return withDirectoryTargetLock(output, () => writeGeneratedUnlocked(output, files, false));
+}
+
+async function writeGeneratedUnlocked(
   directory: string,
   files: Record<string, string>,
   check: boolean,

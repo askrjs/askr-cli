@@ -579,6 +579,40 @@ test("should ensure runCreateCli derives a prompt-aware builder blueprint and in
   }
 });
 
+test("should ensure prompt metacharacters and unrelated text cannot escape an existing git parent", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-hostile-prompt-"));
+  const previousCwd = process.cwd();
+  const promptText = `${"unrelated words ".repeat(200)} ; $(touch escaped) && rm -rf /`;
+  try {
+    await fs.mkdir(path.join(tempRoot, ".git"));
+    await fs.writeFile(path.join(tempRoot, "dirty.txt"), "preserve\n");
+    process.chdir(tempRoot);
+    const { io, errors } = createIo();
+    expect(
+      await runCreateCli(
+        ["startkit", "safe-app", "--prompt", promptText, "--no-install", "--no-skills"],
+        io,
+      ),
+    ).toBe(0);
+    expect(errors).toHaveLength(0);
+    expect(await fs.readFile(path.join(tempRoot, "dirty.txt"), "utf8")).toBe("preserve\n");
+    await expect(fs.access(path.join(tempRoot, "escaped"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    const blueprint = JSON.parse(
+      await fs.readFile(path.join(tempRoot, "safe-app", ".askr/blueprint.json"), "utf8"),
+    ) as { sourcePrompt: string; template: string; templateSelection: { mode: string } };
+    expect(blueprint.sourcePrompt).toBe(promptText.trim().replace(/\s+/g, " "));
+    expect(blueprint).toMatchObject({
+      template: "startkit",
+      templateSelection: { mode: "explicit" },
+    });
+  } finally {
+    process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("should ensure runCreateCli scaffolds a function-first full-stack project", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-"));
   const previousCwd = process.cwd();
@@ -806,6 +840,28 @@ test("should ensure runAddCli transactionally scaffolds both database dialects",
     } finally {
       await fs.rm(tempRoot, { recursive: true, force: true });
     }
+  }
+});
+
+test("should ensure concurrent database generators report one complete winner", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-database-race-"));
+  try {
+    await fs.writeFile(path.join(tempRoot, "package.json"), '{"name":"database-app"}\n');
+    const first = createIo();
+    const second = createIo();
+    const writer = createConcurrentWriter(2);
+    const results = await Promise.all([
+      runAddCli(["database", "sqlite", "--cwd", tempRoot], first.io, writer),
+      runAddCli(["database", "postgres", "--cwd", tempRoot], second.io, writer),
+    ]);
+    expect(results.sort()).toEqual([0, 1]);
+    const definition = await fs.readFile(path.join(tempRoot, "src/database/index.ts"), "utf8");
+    expect(definition.includes("sqlite()") || definition.includes("postgres()")).toBe(true);
+    expect(
+      JSON.parse(await fs.readFile(path.join(tempRoot, "package.json"), "utf8")).dependencies,
+    ).toHaveProperty("@askrjs/orm", ">=0.2.0 <0.3.0");
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
   }
 });
 
@@ -1176,6 +1232,49 @@ test("should ensure runSsgCli preserves a file that occupies the output path", a
       ),
     ).toBe(1);
     expect(await fs.readFile(path.join(root, "dist"), "utf8")).toBe("keep");
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("should ensure concurrent SSG invocations publish only complete output trees", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-ssg-race-"));
+  let run = 0;
+  const invoke = () =>
+    runSsgCli(
+      ["--config", "ssg.config.ts", "--output", "dist"],
+      {
+        cwd: () => root,
+        existsSync: () => true,
+        importConfig: async () => ({ routes: [{ path: "/" }], sitemap: false }),
+        createStaticGen: ({ outputDir }) => ({
+          generate: async () => {
+            const value = String((run += 1));
+            await fs.writeFile(path.join(outputDir, "index.html"), value);
+            await fs.writeFile(path.join(outputDir, "complete.txt"), value);
+            return {
+              mode: "full",
+              successful: 1,
+              totalRoutes: 1,
+              failed: 0,
+              rebuilt: 1,
+              skipped: 0,
+              removed: 0,
+              cacheHits: 0,
+              routes: [{ path: "/", filePath: "index.html", status: "success" }],
+            };
+          },
+        }),
+      },
+      createIo().io,
+    );
+  try {
+    expect(await Promise.all([invoke(), invoke()])).toEqual([0, 0]);
+    const output = path.join(root, "dist");
+    expect(await fs.readFile(path.join(output, "index.html"), "utf8")).toBe(
+      await fs.readFile(path.join(output, "complete.txt"), "utf8"),
+    );
+    expect((await fs.readdir(root)).some((name) => name.includes("askr-lock"))).toBe(false);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
@@ -2520,6 +2619,25 @@ test("should ensure runSkillsCli sync updates Askr skills and preserves unrelate
     await expect(
       fs.access(path.join(skillsRoot, "askr-app-builder", "SKILL.md")),
     ).resolves.toBeUndefined();
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("should ensure concurrent skill syncs publish complete trees", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-race-"));
+  try {
+    const results = await Promise.all([
+      runSkillsCli(["sync", "--cwd", tempRoot], createIo().io),
+      runSkillsCli(["sync", "--cwd", tempRoot], createIo().io),
+    ]);
+    expect(results).toEqual([0, 0]);
+    await expect(
+      fs.access(path.join(tempRoot, "skills", "askr-app-builder", "SKILL.md")),
+    ).resolves.toBeUndefined();
+    expect(
+      (await fs.readdir(path.join(tempRoot, "skills"))).filter((name) => name.startsWith("askr-")),
+    ).toHaveLength(26);
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
