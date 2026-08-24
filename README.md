@@ -32,15 +32,20 @@ Prompt-first scaffolding is also supported:
 askr create --prompt "Agent workflow console with approvals and analytics"
 ```
 
-The CLI deterministically selects the best template, writes `.askr/blueprint.json`
+The CLI uses deterministic weighted keyword matching to select a template,
+prints the matched terms and selection reason, writes `.askr/blueprint.json`
 and `.askr/builder-brief.md`, and installs bundled Askr skills into `skills/`
-unless you opt out with `--no-skills`.
+unless you opt out with `--no-skills`. Full-stack terms have weight 6, SSR and
+SSG terms weight 4, SPA and startkit terms weight 3, and startkit has a
+one-point default. An explicit positional template overrides prompt-based
+template selection, while the prompt can still supply an inferred app name.
 
 ## Commands
 
 - `askr create [template] <name> [--prompt <text>] [--no-install] [--no-skills]`
 - `askr add page <name> [--branch app|public]`
 - `askr add action <name> --route <path>`
+- `askr add database postgres|sqlite [--cwd <dir>] [--force]`
 - `askr analyze [--cwd <dir>] [--workspace <pattern>]... [--json] [--check]`
 - `askr doctor [--cwd <dir>] [--workspace <pattern>]... [--json]`
 - `askr repair [--cwd <dir>] [--workspace <pattern>]... [--json]`
