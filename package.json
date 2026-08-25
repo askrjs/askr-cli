@@ -67,7 +67,7 @@
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "devDependencies": {
-    "@askrjs/askr": ">=0.2.3 <0.3.0",
+    "@askrjs/askr": ">=0.2.0 <0.3.0",
     "@askrjs/charts": ">=0.2.0 <0.3.0",
     "@askrjs/logos": ">=0.2.1 <0.3.0",
     "@askrjs/lucide": ">=0.2.1 <0.3.0",
@@ -84,7 +84,7 @@
     "vitest": "^4.1.11"
   },
   "peerDependencies": {
-    "@askrjs/askr": ">=0.2.3 <0.3.0"
+    "@askrjs/askr": ">=0.2.0 <0.3.0"
   },
   "peerDependenciesMeta": {
     "@askrjs/askr": {
