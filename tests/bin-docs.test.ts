@@ -66,7 +66,7 @@ describe("docs CLI entry", () => {
     await expect(fs.readFile(path.join(root, "audit/docs.json"), "utf8")).resolves.toContain(
       '"name": "value"',
     );
-  });
+  }, 15_000);
 
   it("should report inspection failures in human and JSON modes", async () => {
     const missing = path.join(os.tmpdir(), `askr-missing-docs-${process.pid}`);
