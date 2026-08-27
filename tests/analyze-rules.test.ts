@@ -128,6 +128,28 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/state-access")).toHaveLength(7);
   });
 
+  it("should follow state bindings and allow callable accessor references", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { state } from "@askrjs/askr";
+        interface Adapter { isAuthenticated(): boolean; user(): string | null; }
+        export function Page() {
+          const isAuthenticated = state(false);
+          const user = state<string | null>(null);
+          const otp = state("");
+          const mutation = {
+            action: ({ otp: code, token }: { otp: string; token: string }) => code + token,
+          };
+          const adapter: Adapter = { isAuthenticated, user };
+          return <div>{mutation.action({ otp: otp(), token: adapter.user() ?? "" })}</div>;
+        }
+      `,
+    });
+
+    const found = await diagnostics(root);
+    expect(found.filter((entry) => entry.ruleId === "askr/state-access")).toEqual([]);
+  });
+
   it("should validate statically known For key strategies without rejecting dynamic values", async () => {
     const root = await fixture({
       "src/page.tsx": `

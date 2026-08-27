@@ -280,12 +280,20 @@ const stableRenderRule: AnalyzeRule = {
 interface StateBindings {
   readonly getters: Set<string>;
   readonly setters: Set<string>;
+  readonly getterSymbols: Set<ts.Symbol>;
+  readonly setterSymbols: Set<ts.Symbol>;
   readonly owners: Map<string, ts.SignatureDeclaration | null>;
 }
 
-function collectStateBindings(sourceFile: ts.SourceFile, bindings: SourceBindings): StateBindings {
+function collectStateBindings(
+  sourceFile: ts.SourceFile,
+  bindings: SourceBindings,
+  checker: ts.TypeChecker,
+): StateBindings {
   const getters = new Set<string>();
   const setters = new Set<string>();
+  const getterSymbols = new Set<ts.Symbol>();
+  const setterSymbols = new Set<ts.Symbol>();
   const owners = new Map<string, ts.SignatureDeclaration | null>();
   visit(sourceFile, (node) => {
     if (
@@ -299,21 +307,27 @@ function collectStateBindings(sourceFile: ts.SourceFile, bindings: SourceBinding
     const owner = containingFunction(node);
     if (ts.isIdentifier(node.name)) {
       getters.add(node.name.text);
+      const symbol = checker.getSymbolAtLocation(node.name);
+      if (symbol) getterSymbols.add(symbol);
       owners.set(node.name.text, owner);
     }
     if (ts.isArrayBindingPattern(node.name)) {
       const [getter, setter] = node.name.elements;
       if (getter && ts.isBindingElement(getter) && ts.isIdentifier(getter.name)) {
         getters.add(getter.name.text);
+        const symbol = checker.getSymbolAtLocation(getter.name);
+        if (symbol) getterSymbols.add(symbol);
         owners.set(getter.name.text, owner);
       }
       if (setter && ts.isBindingElement(setter) && ts.isIdentifier(setter.name)) {
         setters.add(setter.name.text);
+        const symbol = checker.getSymbolAtLocation(setter.name);
+        if (symbol) setterSymbols.add(symbol);
         owners.set(setter.name.text, owner);
       }
     }
   });
-  return { getters, setters, owners };
+  return { getters, setters, getterSymbols, setterSymbols, owners };
 }
 
 function isCallableJsxProp(node: ts.Identifier, checker: ts.TypeChecker): boolean {
@@ -379,7 +393,11 @@ function identifierIsReadAsValue(node: ts.Identifier, checker: ts.TypeChecker): 
   if (ts.isJsxAttribute(parent) && parent.name === node) return false;
   if (isCallableJsxProp(node, checker)) return false;
   if (ts.isPropertyAssignment(parent) && parent.name === node) return false;
-  if (ts.isShorthandPropertyAssignment(parent)) return true;
+  if (ts.isShorthandPropertyAssignment(parent)) {
+    const contextual = checker.getContextualType(node);
+    if (contextual?.getCallSignatures().length) return false;
+    return true;
+  }
   // All remaining expression positions (arguments, operators, assignments,
   // object values, template substitutions, JSX expressions, and returns) read
   // the identifier's value.
@@ -395,12 +413,13 @@ const stateAccessRule: AnalyzeRule = {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
       const bindings = sourceBindings(sourceFile);
-      const state = collectStateBindings(sourceFile, bindings);
+      const state = collectStateBindings(sourceFile, bindings, context.checker);
       visit(sourceFile, (node) => {
         if (
           ts.isCallExpression(node) &&
           ts.isIdentifier(node.expression) &&
           state.setters.has(node.expression.text) &&
+          state.setterSymbols.has(context.checker.getSymbolAtLocation(node.expression)!) &&
           node.arguments.length === 0
         ) {
           diagnostics.push(
@@ -415,6 +434,7 @@ const stateAccessRule: AnalyzeRule = {
         } else if (
           ts.isIdentifier(node) &&
           state.getters.has(node.text) &&
+          state.getterSymbols.has(context.checker.getSymbolAtLocation(node)!) &&
           identifierIsReadAsValue(node, context.checker)
         ) {
           diagnostics.push(
@@ -442,17 +462,24 @@ const stateRenderWriteRule: AnalyzeRule = {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
       const bindings = sourceBindings(sourceFile);
-      const state = collectStateBindings(sourceFile, bindings);
+      const state = collectStateBindings(sourceFile, bindings, context.checker);
       visit(sourceFile, (node) => {
         if (!ts.isCallExpression(node)) return;
         let cellName: string | null = null;
-        if (ts.isIdentifier(node.expression) && state.setters.has(node.expression.text)) {
+        if (
+          ts.isIdentifier(node.expression) &&
+          state.setters.has(node.expression.text) &&
+          state.setterSymbols.has(context.checker.getSymbolAtLocation(node.expression)!)
+        ) {
           cellName = node.expression.text;
         } else if (
           ts.isPropertyAccessExpression(node.expression) &&
           node.expression.name.text === "set" &&
           ts.isIdentifier(node.expression.expression) &&
-          state.getters.has(node.expression.expression.text)
+          state.getters.has(node.expression.expression.text) &&
+          state.getterSymbols.has(
+            context.checker.getSymbolAtLocation(node.expression.expression)!,
+          )
         ) {
           cellName = node.expression.expression.text;
         }
@@ -938,7 +965,7 @@ const preferForRule: AnalyzeRule = {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
       const bindings = sourceBindings(sourceFile);
-      const state = collectStateBindings(sourceFile, bindings);
+      const state = collectStateBindings(sourceFile, bindings, context.checker);
       visit(sourceFile, (node) => {
         if (
           !ts.isCallExpression(node) ||
@@ -2773,7 +2800,7 @@ const exhaustiveDependenciesRule: AnalyzeRule = {
       ) {
         continue;
       }
-      const reactive = collectStateBindings(sourceFile, bindings).getters;
+      const reactive = collectStateBindings(sourceFile, bindings, context.checker).getters;
       for (const { node, name } of sourceFacts(sourceFile).calls) {
         if (name !== "resource" && name !== "stream") continue;
         const loader = node.arguments[0];
@@ -2834,7 +2861,7 @@ const forRowClosureCaptureRule: AnalyzeRule = {
     for (const sourceFile of context.sourceFiles) {
       const bindings = sourceBindings(sourceFile);
       if (!sourceFacts(sourceFile).jsx.some((fact) => fact.name === "For")) continue;
-      const reactive = collectStateBindings(sourceFile, bindings).getters;
+      const reactive = collectStateBindings(sourceFile, bindings, context.checker).getters;
       const snapshots = new Set<string>();
       visit(sourceFile, (candidate) => {
         if (
@@ -3668,7 +3695,7 @@ const noEffectDataLoadingRule: AnalyzeRule = {
     for (const sourceFile of context.sourceFiles) {
       const bindings = sourceBindings(sourceFile);
       if (!sourceFacts(sourceFile).calls.some((fact) => fact.name === "task")) continue;
-      const state = collectStateBindings(sourceFile, bindings);
+      const state = collectStateBindings(sourceFile, bindings, context.checker);
       for (const { node, name } of sourceFacts(sourceFile).calls) {
         if (name !== "task") continue;
         const callback = node.arguments[0];
