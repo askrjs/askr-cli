@@ -153,6 +153,53 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/state-access")).toEqual([]);
   });
 
+  it("should scope every state-sensitive rule to the bound accessor symbols", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { For, state } from "@askrjs/askr";
+        import { resource, task } from "@askrjs/askr/resources";
+        export function Page() {
+          const [items, setItems] = state([{ id: "state" }]);
+          const [query, setQuery] = state("state");
+          function Shadowed() {
+            const items = () => [{ id: "local" }];
+            const query = () => "local";
+            const setQuery = (_value: string) => {};
+            const snapshot = query();
+            setQuery("render");
+            resource(() => query(), []);
+            task(async () => {
+              const response = await fetch("/api/value");
+              setQuery(await response.text());
+            });
+            return <main>
+              {items().map((item) => <span>{item.id}</span>)}
+              <For each={items()} by={(item) => item.id}>
+                {() => <span>{query()}{snapshot}</span>}
+              </For>
+            </main>;
+          }
+          return <Shadowed />;
+        }
+      `,
+    });
+
+    const found = await diagnostics(root);
+    for (const ruleId of [
+      "askr/state-access",
+      "askr/state-render-write",
+      "askr/prefer-for",
+      "askr/exhaustive-dependencies",
+      "askr/for-row-closure-capture",
+      "askr/no-effect-data-loading",
+    ]) {
+      expect(
+        found.filter((entry) => entry.ruleId === ruleId),
+        ruleId,
+      ).toEqual([]);
+    }
+  });
+
   it("should validate statically known For key strategies without rejecting dynamic values", async () => {
     const root = await fixture({
       "src/page.tsx": `
@@ -595,6 +642,27 @@ describe("analyzer rules", () => {
 
     const found = await diagnostics(root);
     expect(found.filter((entry) => entry.ruleId === "askr/state-render-write")).toHaveLength(1);
+  });
+
+  it("should preserve same-named state ownership across sibling components", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { state } from "@askrjs/askr";
+        export function First() {
+          const count = state(0);
+          count.set(1);
+          return <div>{count()}</div>;
+        }
+        export function Second() {
+          const count = state(0);
+          count.set(2);
+          return <div>{count()}</div>;
+        }
+      `,
+    });
+
+    const found = await diagnostics(root);
+    expect(found.filter((entry) => entry.ruleId === "askr/state-render-write")).toHaveLength(2);
   });
 
   it("should report malformed source and analyze JavaScript without a tsconfig", async () => {
