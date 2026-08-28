@@ -1,6 +1,6 @@
 {
   "name": "@askrjs/cli",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Unified CLI for the Askr platform",
   "homepage": "https://github.com/askrjs/askr-cli#readme",
   "bugs": {
@@ -58,7 +58,7 @@
   },
   "dependencies": {
     "@npmcli/config": "^11.0.1",
-    "js-yaml": "^5.4.0",
+    "js-yaml": "^5.4.1",
     "minimatch": "^10.2.6",
     "npm-registry-fetch": "^20.0.1",
     "parse5": "^8.0.1",

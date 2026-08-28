@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-08-28
+
+### Fixed
+
+- Follow state getter and setter symbol identity across every state-sensitive analyzer rule, preserving same-named bindings in nested and sibling scopes.
+- Accept state and derived accessors passed deliberately to imported `watch()` sources and callable adapter properties.
+
+### Changed
+
+- Update `js-yaml` from 5.4.0 to 5.4.1 and refresh the validated AskrJS patch release set.
+
 ## [0.2.2] - 2026-08-25
 
 ### Fixed
@@ -111,7 +122,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Make database tooling work consistently across supported operating systems.
 
-[Unreleased]: https://github.com/askrjs/askr-cli/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/askrjs/askr-cli/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/askrjs/askr-cli/compare/v0.2.2...v0.2.3
+[0.2.2]: https://github.com/askrjs/askr-cli/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/askrjs/askr-cli/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/askrjs/askr-cli/compare/v0.0.25...v0.2.0
 [0.0.25]: https://github.com/askrjs/askr-cli/compare/v0.0.24...v0.0.25
