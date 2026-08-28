@@ -392,6 +392,7 @@ function identifierIsReadAsValue(node: ts.Identifier, checker: ts.TypeChecker): 
   }
   if (ts.isJsxAttribute(parent) && parent.name === node) return false;
   if (isCallableJsxProp(node, checker)) return false;
+  if (isWatchSourceReference(node)) return false;
   if (ts.isPropertyAssignment(parent) && parent.name === node) return false;
   if (ts.isShorthandPropertyAssignment(parent)) {
     const contextual = checker.getContextualType(node);
@@ -402,6 +403,42 @@ function identifierIsReadAsValue(node: ts.Identifier, checker: ts.TypeChecker): 
   // object values, template substitutions, JSX expressions, and returns) read
   // the identifier's value.
   return true;
+}
+
+function isWatchSourceReference(node: ts.Identifier): boolean {
+  let sourceExpression: ts.Node = node;
+  while (
+    sourceExpression.parent &&
+    (ts.isArrayLiteralExpression(sourceExpression.parent) ||
+      ts.isAsExpression(sourceExpression.parent) ||
+      ts.isParenthesizedExpression(sourceExpression.parent))
+  ) {
+    sourceExpression = sourceExpression.parent;
+  }
+
+  const call = sourceExpression.parent;
+  if (!call || !ts.isCallExpression(call) || call.arguments[0] !== sourceExpression) return false;
+  if (!ts.isIdentifier(call.expression)) return false;
+
+  const localName = call.expression.text;
+  return node.getSourceFile().statements.some((statement) => {
+    if (
+      !ts.isImportDeclaration(statement) ||
+      !ts.isStringLiteral(statement.moduleSpecifier) ||
+      statement.moduleSpecifier.text !== "@askrjs/askr/resources"
+    ) {
+      return false;
+    }
+    return Boolean(
+      statement.importClause?.namedBindings &&
+      ts.isNamedImports(statement.importClause.namedBindings) &&
+      statement.importClause.namedBindings.elements.some(
+        (specifier) =>
+          specifier.name.text === localName &&
+          (specifier.propertyName?.text ?? specifier.name.text) === "watch",
+      ),
+    );
+  });
 }
 
 const stateAccessRule: AnalyzeRule = {
@@ -477,9 +514,7 @@ const stateRenderWriteRule: AnalyzeRule = {
           node.expression.name.text === "set" &&
           ts.isIdentifier(node.expression.expression) &&
           state.getters.has(node.expression.expression.text) &&
-          state.getterSymbols.has(
-            context.checker.getSymbolAtLocation(node.expression.expression)!,
-          )
+          state.getterSymbols.has(context.checker.getSymbolAtLocation(node.expression.expression)!)
         ) {
           cellName = node.expression.expression.text;
         }

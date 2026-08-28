@@ -132,6 +132,7 @@ describe("analyzer rules", () => {
     const root = await fixture({
       "src/page.tsx": `
         import { state } from "@askrjs/askr";
+        import { watch } from "@askrjs/askr/resources";
         interface Adapter { isAuthenticated(): boolean; user(): string | null; }
         export function Page() {
           const isAuthenticated = state(false);
@@ -141,6 +142,8 @@ describe("analyzer rules", () => {
             action: ({ otp: code, token }: { otp: string; token: string }) => code + token,
           };
           const adapter: Adapter = { isAuthenticated, user };
+          watch(isAuthenticated, () => {});
+          watch([isAuthenticated, user] as const, () => {});
           return <div>{mutation.action({ otp: otp(), token: adapter.user() ?? "" })}</div>;
         }
       `,
