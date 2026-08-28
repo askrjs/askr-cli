@@ -425,7 +425,7 @@ function identifierIsReadAsValue(node: ts.Identifier, checker: ts.TypeChecker): 
   }
   if (ts.isJsxAttribute(parent) && parent.name === node) return false;
   if (isCallableJsxProp(node, checker)) return false;
-  if (isWatchSourceReference(node)) return false;
+  if (isWatchSourceReference(node, checker)) return false;
   if (ts.isPropertyAssignment(parent) && parent.name === node) return false;
   if (ts.isShorthandPropertyAssignment(parent)) {
     const contextual = checker.getContextualType(node);
@@ -438,7 +438,7 @@ function identifierIsReadAsValue(node: ts.Identifier, checker: ts.TypeChecker): 
   return true;
 }
 
-function isWatchSourceReference(node: ts.Identifier): boolean {
+function isWatchSourceReference(node: ts.Identifier, checker: ts.TypeChecker): boolean {
   let sourceExpression: ts.Node = node;
   while (
     sourceExpression.parent &&
@@ -462,15 +462,23 @@ function isWatchSourceReference(node: ts.Identifier): boolean {
     ) {
       return false;
     }
-    return Boolean(
-      statement.importClause?.namedBindings &&
-      ts.isNamedImports(statement.importClause.namedBindings) &&
-      statement.importClause.namedBindings.elements.some(
-        (specifier) =>
-          specifier.name.text === localName &&
-          (specifier.propertyName?.text ?? specifier.name.text) === "watch",
-      ),
-    );
+    if (
+      !statement.importClause?.namedBindings ||
+      !ts.isNamedImports(statement.importClause.namedBindings)
+    ) {
+      return false;
+    }
+    const callSymbol = checker.getSymbolAtLocation(call.expression);
+    return statement.importClause.namedBindings.elements.some((specifier) => {
+      if (
+        specifier.name.text !== localName ||
+        (specifier.propertyName?.text ?? specifier.name.text) !== "watch"
+      ) {
+        return false;
+      }
+      const importSymbol = checker.getSymbolAtLocation(specifier.name);
+      return Boolean(callSymbol && importSymbol && callSymbol === importSymbol);
+    });
   });
 }
 

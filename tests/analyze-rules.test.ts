@@ -153,6 +153,27 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/state-access")).toEqual([]);
   });
 
+  it("should only allow state accessors passed to the imported watch binding", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { state } from "@askrjs/askr";
+        import { watch } from "@askrjs/askr/resources";
+        export function Page() {
+          const value = state("state");
+          function Shadowed() {
+            const watch = (source: () => string) => source;
+            watch(value);
+            return <span>{value()}</span>;
+          }
+          return <Shadowed />;
+        }
+      `,
+    });
+
+    const found = await diagnostics(root);
+    expect(found.filter((entry) => entry.ruleId === "askr/state-access")).toHaveLength(1);
+  });
+
   it("should scope every state-sensitive rule to the bound accessor symbols", async () => {
     const root = await fixture({
       "src/page.tsx": `
