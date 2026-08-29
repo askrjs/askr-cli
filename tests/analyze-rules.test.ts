@@ -807,6 +807,72 @@ describe("analyzer rules", () => {
     ).toEqual([expect.objectContaining({ file: "src/theme.ts" })]);
   });
 
+  it("should honor root and nested gitignore rules including negation", async () => {
+    const root = await fixture(
+      {
+        ".gitignore": ["legacy/*/", "ignored/*.ts", "!ignored/kept.ts", "/ignored-root.ts"].join(
+          "\n",
+        ),
+        "src/page.ts": `export const token = "--ak-color-text";`,
+        "legacy/framework/src/foreign.ts": `export const token = "--ak-color-surface";`,
+        "ignored/dropped.ts": `export const token = "--ak-color-border";`,
+        "ignored/kept.ts": `export const token = "--ak-color-primary";`,
+        "ignored-root.ts": `export const token = "--ak-color-danger";`,
+        "nested/.gitignore": ["*.ts", "!kept.ts"].join("\n"),
+        "nested/dropped.ts": `export const token = "--ak-color-warning";`,
+        "nested/kept.ts": `export const token = "--ak-color-success";`,
+      },
+      {
+        tsconfig: {
+          compilerOptions: {
+            module: "ESNext",
+            moduleResolution: "Bundler",
+            target: "ES2022",
+          },
+          include: ["src", "legacy", "ignored", "nested", "ignored-root.ts"],
+        },
+      },
+    );
+
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/no-hardcoded-theme-token",
+    );
+    expect(found.map((entry) => entry.file)).toEqual([
+      "ignored/kept.ts",
+      "nested/kept.ts",
+      "src/page.ts",
+    ]);
+  });
+
+  it("should apply project-root gitignore rules to nested workspaces", async () => {
+    const root = await fixture(
+      {
+        ".gitignore": "packages/app/ignored.ts\n",
+        "packages/app/package.json": JSON.stringify({
+          name: "@fixture/app",
+          dependencies: { "@askrjs/askr": "^0.0.70" },
+        }),
+        "packages/app/src/page.ts": `export const token = "--ak-color-text";`,
+        "packages/app/ignored.ts": `export const token = "--ak-color-surface";`,
+      },
+      {
+        manifest: {
+          name: "fixture-root",
+          private: true,
+          workspaces: ["packages/*"],
+        },
+        tsconfig: null,
+      },
+    );
+
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/no-hardcoded-theme-token",
+    );
+    expect(found).toEqual([
+      expect.objectContaining({ workspace: "@fixture/app", file: "src/page.ts" }),
+    ]);
+  });
+
   it("should honor exclusions and rule severity configuration", async () => {
     const root = await fixture(
       {
