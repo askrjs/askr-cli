@@ -381,6 +381,7 @@ describe("update CLI", () => {
     expect(manifest.engines.node).toBe(">=24.0.0");
     expect(Object.keys(manifest.dependencies).sort()).toEqual([
       "@npmcli/config",
+      "ignore",
       "js-yaml",
       "minimatch",
       "npm-registry-fetch",

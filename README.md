@@ -83,6 +83,9 @@ All diagnostics include a stable rule ID and workspace-relative source
 location. The analyzer distinguishes canonical Askr imports from unrelated
 same-named functions and only recommends `<For>` for state-backed reactive JSX
 collections, so static transforms with `.map()` remain valid.
+Source discovery honors project and nested `.gitignore` files; use
+`askr.analyze.exclude` in the workspace-root manifest for additional
+analyzer-only patterns.
 
 By default it transactionally applies only mechanical route-parameter and
 plain-JSON JSX configuration fixes. `--check` is read-only for CI. Semantic
