@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import createIgnore from "ignore";
 import { minimatch } from "minimatch";
 import ts from "typescript";
 import type { AnalyzeConfiguration, WorkspaceAnalysisContext } from "./types";
@@ -19,6 +20,13 @@ export const DEFAULT_ANALYZE_EXCLUDES = [
 ] as const;
 
 const SOURCE_EXTENSION = /\.[cm]?[jt]sx?$/;
+
+type IgnoreMatcher = ReturnType<typeof createIgnore>;
+
+interface IgnoreScope {
+  readonly directory: string;
+  readonly matcher: IgnoreMatcher;
+}
 
 function asObject(value: unknown, message: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -78,27 +86,112 @@ function isExcluded(root: string, filePath: string, patterns: readonly string[])
   );
 }
 
+function isWithin(root: string, target: string): boolean {
+  const relative = path.relative(root, target);
+  return (
+    relative === "" ||
+    (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+  );
+}
+
+function isIgnoredByScopes(
+  filePath: string,
+  directory: boolean,
+  scopes: readonly IgnoreScope[],
+): boolean {
+  let ignored = false;
+  for (const scope of scopes) {
+    if (!isWithin(scope.directory, filePath)) continue;
+    const relative = normalizeRelative(scope.directory, filePath);
+    if (!relative) continue;
+    const result = scope.matcher.test(directory ? `${relative}/` : relative);
+    if (result.ignored) ignored = true;
+    else if (result.unignored) ignored = false;
+  }
+  return ignored;
+}
+
+class GitIgnoreHierarchy {
+  readonly #root: string;
+  readonly #scopes = new Map<string, Promise<IgnoreScope | null>>();
+
+  constructor(root: string) {
+    this.#root = path.resolve(root);
+  }
+
+  scope(directory: string): Promise<IgnoreScope | null> {
+    const resolved = path.resolve(directory);
+    const existing = this.#scopes.get(resolved);
+    if (existing) return existing;
+    const pending = fs
+      .readFile(path.join(resolved, ".gitignore"), "utf8")
+      .then((patterns) => ({
+        directory: resolved,
+        matcher: createIgnore({ ignorecase: process.platform === "win32" }).add(patterns),
+      }))
+      .catch((error: unknown) => {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+        throw error;
+      });
+    this.#scopes.set(resolved, pending);
+    return pending;
+  }
+
+  async enter(directory: string): Promise<IgnoreScope[] | null> {
+    const resolved = path.resolve(directory);
+    if (!isWithin(this.#root, resolved)) return [];
+    const relative = path.relative(this.#root, resolved);
+    const parts = relative ? relative.split(path.sep) : [];
+    const scopes: IgnoreScope[] = [];
+    let current = this.#root;
+    const rootScope = await this.scope(current);
+    if (rootScope) scopes.push(rootScope);
+    for (const part of parts) {
+      const child = path.join(current, part);
+      if (isIgnoredByScopes(child, true, scopes)) return null;
+      current = child;
+      const scope = await this.scope(current);
+      if (scope) scopes.push(scope);
+    }
+    return scopes;
+  }
+
+  async ignores(filePath: string): Promise<boolean> {
+    const scopes = await this.enter(path.dirname(filePath));
+    return scopes === null || isIgnoredByScopes(filePath, false, scopes);
+  }
+}
+
 async function discoverSourceFiles(
   directory: string,
-  root: string,
+  projectRoot: string,
   exclusions: readonly string[],
-): Promise<string[]> {
+): Promise<{ files: string[]; ignores: (filePath: string) => Promise<boolean> }> {
+  const ignoreRoot = isWithin(projectRoot, directory) ? projectRoot : directory;
+  const hierarchy = new GitIgnoreHierarchy(ignoreRoot);
   const files: string[] = [];
-  const visit = async (current: string): Promise<void> => {
+  const visit = async (current: string, scopes: readonly IgnoreScope[]): Promise<void> => {
     const entries = await fs.readdir(current, { withFileTypes: true });
     entries.sort((left, right) => left.name.localeCompare(right.name));
     for (const entry of entries) {
       const child = path.join(current, entry.name);
-      if (isExcluded(root, child, exclusions)) continue;
+      if (
+        isExcluded(directory, child, exclusions) ||
+        isIgnoredByScopes(child, entry.isDirectory(), scopes)
+      ) {
+        continue;
+      }
       if (entry.isDirectory()) {
-        await visit(child);
+        const childScope = await hierarchy.scope(child);
+        await visit(child, childScope ? [...scopes, childScope] : scopes);
       } else if (entry.isFile() && SOURCE_EXTENSION.test(entry.name)) {
         files.push(child);
       }
     }
   };
-  await visit(directory);
-  return files;
+  const scopes = await hierarchy.enter(directory);
+  if (scopes) await visit(directory, scopes);
+  return { files, ignores: (filePath) => hierarchy.ignores(filePath) };
 }
 
 function formatConfigDiagnostic(diagnostic: ts.Diagnostic): string {
@@ -106,6 +199,7 @@ function formatConfigDiagnostic(diagnostic: ts.Diagnostic): string {
 }
 
 async function compilerInputs(
+  projectRoot: string,
   workspace: WorkspaceManifest,
   configuration: AnalyzeConfiguration,
 ): Promise<{
@@ -156,12 +250,22 @@ async function compilerInputs(
 
   const discovered = await discoverSourceFiles(
     workspace.directory,
-    workspace.directory,
+    projectRoot,
     configuration.exclude,
   );
-  const rootNames = [...new Set([...configuredFiles, ...discovered])]
-    .filter((filePath) => !isExcluded(workspace.directory, filePath, configuration.exclude))
-    .sort((left, right) => left.localeCompare(right));
+  const configuredIncluded = (
+    await Promise.all(
+      configuredFiles.map(async (filePath) =>
+        !isExcluded(workspace.directory, filePath, configuration.exclude) &&
+        !(await discovered.ignores(filePath))
+          ? filePath
+          : null,
+      ),
+    )
+  ).filter((filePath): filePath is string => filePath !== null);
+  const rootNames = [...new Set([...configuredIncluded, ...discovered.files])].sort((left, right) =>
+    left.localeCompare(right),
+  );
   return { rootNames, options, tsconfig: hasConfig ? tsconfig : null };
 }
 
@@ -170,7 +274,7 @@ export async function createWorkspaceAnalysisContext(
   workspace: WorkspaceManifest,
   configuration: AnalyzeConfiguration,
 ): Promise<{ context: WorkspaceAnalysisContext; tsconfig: string | null }> {
-  const inputs = await compilerInputs(workspace, configuration);
+  const inputs = await compilerInputs(root, workspace, configuration);
   const compilerHost = ts.createCompilerHost(inputs.options, true);
   const moduleResolutionCache = ts.createModuleResolutionCache(
     workspace.directory,

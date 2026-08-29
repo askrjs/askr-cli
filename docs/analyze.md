@@ -182,9 +182,11 @@ Configure the analyzer in the workspace root `package.json`:
 }
 ```
 
-Rule values are `error`, `warning`, `info`, or `off`. Exclusions are applied
-relative to each workspace. The analyzer always ignores dependency, VCS,
-coverage, generated, and common build-output directories by default.
+Rule values are `error`, `warning`, `info`, or `off`. Source discovery honors
+`.gitignore` files from the project root through each selected workspace,
+including nested rules and negation. `askr.analyze.exclude` adds analyzer-only
+patterns relative to each workspace. The analyzer also always ignores dependency,
+VCS, coverage, generated, and common build-output directories by default.
 
 ## CI
 

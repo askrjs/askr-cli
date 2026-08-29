@@ -9,14 +9,27 @@ import { expect, test } from "vitest";
 const execFileAsync = promisify(execFile);
 const repository = fileURLToPath(new URL("../../", import.meta.url));
 
-async function run(command: string, args: string[], cwd: string): Promise<string> {
-  const { stdout, stderr } = await execFileAsync(command, args, {
-    cwd,
-    env: { ...process.env, NO_COLOR: "1" },
-    maxBuffer: 20 * 1024 * 1024,
-  });
-  if (stderr) process.stderr.write(stderr);
-  return stdout;
+async function run(
+  command: string,
+  args: string[],
+  cwd: string,
+  expectedExit = 0,
+): Promise<string> {
+  try {
+    const { stdout, stderr } = await execFileAsync(command, args, {
+      cwd,
+      env: { ...process.env, NO_COLOR: "1" },
+      maxBuffer: 20 * 1024 * 1024,
+    });
+    if (stderr) process.stderr.write(stderr);
+    if (expectedExit !== 0) throw new Error(`Expected exit ${expectedExit}, received 0.`);
+    return stdout;
+  } catch (error) {
+    const failure = error as Error & { code?: number; stdout?: string; stderr?: string };
+    if (failure.code !== expectedExit) throw error;
+    if (failure.stderr) process.stderr.write(failure.stderr);
+    return failure.stdout ?? "";
+  }
 }
 
 test("should ensure packed CLI works with the minimum supported Askr peer", async () => {
@@ -66,6 +79,25 @@ export const staticConfig = {
     );
 
     await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund"], root);
+    await fs.mkdir(path.join(root, "src"));
+    await fs.writeFile(
+      path.join(root, "src", "page.ts"),
+      'export const token = "--ak-color-text";\n',
+    );
+    await fs.writeFile(
+      path.join(root, "ignored.ts"),
+      'export const token = "--ak-color-surface";\n',
+    );
+    await fs.writeFile(path.join(root, ".gitignore"), "ignored.ts\n");
+    const analysis = JSON.parse(
+      await run(path.join(root, "node_modules", ".bin", "askr"), ["analyze", "--json"], root, 1),
+    );
+    expect(
+      analysis.diagnostics
+        .filter((entry: { ruleId: string }) => entry.ruleId === "askr/no-hardcoded-theme-token")
+        .map((entry: { file: string }) => entry.file),
+    ).toEqual(["src/page.ts"]);
+
     await run(
       path.join(root, "node_modules", ".bin", "askr"),
       ["ssg", "--config", "./ssg.config.ts", "--output", "./dist"],
