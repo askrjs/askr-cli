@@ -648,10 +648,10 @@ test("should ensure runCreateCli scaffolds a function-first full-stack project",
     expect(packageJson).toMatch(/"@askrjs\/schema"/);
     expect(packageJson).toMatch(/"@askrjs\/i18n"/);
     expect(packageJson).toMatch(/"@askrjs\/otel"/);
-    expect(packageManifest.dependencies["@askrjs/askr"]).toBe(">=0.2.0 <0.3.0");
-    expect(packageManifest.dependencies["@askrjs/themes"]).toBe(">=0.2.0 <0.3.0");
-    expect(packageManifest.dependencies["@askrjs/ui"]).toBe(">=0.2.0 <0.3.0");
-    expect(packageManifest.devDependencies["@askrjs/vite"]).toBe(">=0.2.0 <0.3.0");
+    expect(packageManifest.dependencies["@askrjs/askr"]).toBe(">=0.3.0 <0.4.0");
+    expect(packageManifest.dependencies["@askrjs/themes"]).toBe(">=0.3.0 <0.4.0");
+    expect(packageManifest.dependencies["@askrjs/ui"]).toBe(">=0.3.0 <0.4.0");
+    expect(packageManifest.devDependencies["@askrjs/vite"]).toBe(">=0.3.0 <0.4.0");
     expect(indexHtml.match(/<!--askr-app-->/g)).toHaveLength(1);
     expect(indexHtml.match(/<!--askr-head-->/g)).toHaveLength(1);
     expect(gitignore).toContain("node_modules");
@@ -684,15 +684,15 @@ test("should ensure template package floors require the clean-break scope vocabu
       await fs.readFile(new URL(`../templates/${template}/package.json`, import.meta.url), "utf8"),
     ) as { dependencies: Record<string, string> };
 
-    expect(manifest.dependencies["@askrjs/askr"], template).toBe(">=0.2.0 <0.3.0");
+    expect(manifest.dependencies["@askrjs/askr"], template).toBe(">=0.3.0 <0.4.0");
     if (manifest.dependencies["@askrjs/themes"]) {
-      expect(manifest.dependencies["@askrjs/themes"], template).toBe(">=0.2.0 <0.3.0");
+      expect(manifest.dependencies["@askrjs/themes"], template).toBe(">=0.3.0 <0.4.0");
     }
     if (manifest.dependencies["@askrjs/ui"]) {
-      expect(manifest.dependencies["@askrjs/ui"], template).toBe(">=0.2.0 <0.3.0");
+      expect(manifest.dependencies["@askrjs/ui"], template).toBe(">=0.3.0 <0.4.0");
     }
     if (manifest.dependencies["@askrjs/auth"]) {
-      expect(manifest.dependencies["@askrjs/auth"], template).toBe(">=0.2.0 <0.3.0");
+      expect(manifest.dependencies["@askrjs/auth"], template).toBe(">=0.3.0 <0.4.0");
     }
   }
 });
@@ -832,7 +832,7 @@ test("should ensure runAddCli transactionally scaffolds both database dialects",
       };
       expect(definition).toContain(`from '@askrjs/orm/${dialect}'`);
       expect(definition).toContain(`driver: ${dialect}()`);
-      expect(manifest.dependencies["@askrjs/orm"]).toBe(">=0.2.0 <0.3.0");
+      expect(manifest.dependencies["@askrjs/orm"]).toBe(">=0.3.0 <0.4.0");
       expect(manifest.dependencies.pg).toBe(dialect === "postgres" ? "^8.16.0" : undefined);
       await expect(
         fs.access(path.join(tempRoot, "src", "database", "migrations", ".gitkeep")),
@@ -859,7 +859,7 @@ test("should ensure concurrent database generators report one complete winner", 
     expect(definition.includes("sqlite()") || definition.includes("postgres()")).toBe(true);
     expect(
       JSON.parse(await fs.readFile(path.join(tempRoot, "package.json"), "utf8")).dependencies,
-    ).toHaveProperty("@askrjs/orm", ">=0.2.0 <0.3.0");
+    ).toHaveProperty("@askrjs/orm", ">=0.3.0 <0.4.0");
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }

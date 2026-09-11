@@ -2475,15 +2475,12 @@ const bootRegistryRule: AnalyzeRule = {
           return;
         }
         if (!objectProperty(config, "registry")) {
-          const legacy = objectProperty(config, "routes") ?? objectProperty(config, "manifest");
           diagnostics.push(
             diagnostic(
               context,
-              legacy ?? config,
+              config,
               this,
-              legacy
-                ? `${name}() uses a legacy route source instead of registry.`
-                : `${name}() is missing its required registry property.`,
+              `${name}() is missing its required registry property.`,
               "Pass the RouteRegistry returned by createRouteRegistry() as registry.",
             ),
           );
