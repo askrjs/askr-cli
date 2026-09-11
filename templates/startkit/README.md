@@ -1,6 +1,6 @@
 # {{appName}} starter kit
 
-A production-ready Askr starter built to feel like a real product from day one.
+An opinionated Askr starter built to feel like a real product from day one.
 
 It ships with opinionated defaults for routing boundaries, layout composition,
 state handling, and interface polish so you can focus on product behavior instead
