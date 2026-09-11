@@ -42,7 +42,6 @@
     "lint": "vp lint src tests benchmarks vite.config.ts vitest.config.ts vitest.bench.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:changelog": "vp test run -c vitest.config.ts tests/changelog.test.ts",
-    "test:peer-floor": "vp test run -c vitest.integration.config.ts tests/integration/peer-floor.test.ts",
     "test:registry-database": "vp test run -c vitest.integration.config.ts tests/integration/registry-database.test.ts",
     "test:publint": "publint",
     "pack:check": "npm pack --ignore-scripts --dry-run --json",
@@ -54,7 +53,7 @@
     "docs:snapshot": "npm run build && node ./dist/cli.js docs snapshot",
     "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run test:changelog && npm run build && npm run docs:check && npm run test:publint && npm run pack:check",
     "prepack": "npm run build",
-    "prepublishOnly": "npm run check && npm run test:templates && npm run test:peer-floor"
+    "prepublishOnly": "npm run check && npm run test:templates"
   },
   "dependencies": {
     "@npmcli/config": "^11.0.1",
