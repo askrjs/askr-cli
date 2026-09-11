@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-11
+
+### Changed
+
+- Prepare the coordinated breaking AskrJS 0.3.0 release and remove the deprecated 0.2.x peer-floor qualification.
+
 ## [0.2.3] - 2026-08-28
 
 ### Fixed
@@ -122,7 +128,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Make database tooling work consistently across supported operating systems.
 
-[Unreleased]: https://github.com/askrjs/askr-cli/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/askrjs/askr-cli/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/askrjs/askr-cli/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/askrjs/askr-cli/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/askrjs/askr-cli/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/askrjs/askr-cli/compare/v0.2.0...v0.2.1
