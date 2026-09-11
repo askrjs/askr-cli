@@ -11,7 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Prepare the coordinated breaking AskrJS 0.3.0 release and remove the deprecated 0.2.x peer-floor qualification.
+- Prepare the coordinated breaking AskrJS 0.3.0 release and move the packed Askr peer-floor qualification to 0.3.0.
+
+### Removed
+
+- **Breaking:** `askr ssg` no longer accepts a `routes` array as a config route
+  source. Configs must export a `registry`.
+- **Breaking:** removed the deprecated `force` option from the update planner.
+  Pass `mode: "upgrade"` instead.
 
 ## [0.2.3] - 2026-08-28
 

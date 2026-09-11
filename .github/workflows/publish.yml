@@ -18,7 +18,7 @@ jobs:
       packages: read
 
   registry-database:
-    name: Public database command verification
+    name: Public database command smoke test
     needs: publish
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -36,5 +36,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run registry database verification
+      - name: Run registry database smoke test
         run: npm run test:registry-database
