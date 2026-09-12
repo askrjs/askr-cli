@@ -11,7 +11,7 @@ import {
   DialogTrigger,
 } from '@askrjs/ui/dialog';
 import { Input } from '@askrjs/ui/input';
-import { Field, Inline } from '@askrjs/themes/components';
+import { Block, Field } from '@askrjs/themes/components';
 import {
   Select,
   SelectContent,
@@ -172,7 +172,7 @@ export default function SettingsPage() {
             </Select>
           </Field>
 
-          <Inline class="settings-example-actions" align="center" wrap>
+          <Block direction="row" gap="sm" align="center" wrap>
             <Button class="button-secondary" disabled>
               Disabled action example
             </Button>
@@ -210,7 +210,7 @@ export default function SettingsPage() {
                 </DialogContent>
               </DialogPortal>
             </Dialog>
-          </Inline>
+          </Block>
         </section>
       </div>
     </section>

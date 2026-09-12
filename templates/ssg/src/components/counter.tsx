@@ -1,6 +1,6 @@
 import { state, derive } from '@askrjs/askr';
 import { Button } from '@askrjs/ui';
-import { Box, Stack } from '@askrjs/themes/components';
+import { Block, Stack } from '@askrjs/themes/components';
 import Badge from './badge';
 
 export default function Counter() {
@@ -8,8 +8,8 @@ export default function Counter() {
   const parity = derive(() => (count() % 2 === 0 ? 'even' : 'odd'));
 
   return (
-    <Box class="card counter">
-      <Stack gap="3">
+    <Block class="card counter">
+      <Stack gap="md">
         <h2>Hydration check</h2>
         <p class="text-muted">
           This counter should still feel live after static generation.
@@ -25,6 +25,6 @@ export default function Counter() {
           <Button onPress={() => setCount((c) => c + 1)}>+ Increment</Button>
         </div>
       </Stack>
-    </Box>
+    </Block>
   );
 }

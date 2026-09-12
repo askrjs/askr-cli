@@ -1,6 +1,7 @@
 import { state } from '@askrjs/askr';
 import { Input } from '@askrjs/ui';
 import {
+  Block,
   Button,
   Field,
   FieldHint,
@@ -15,7 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@askrjs/themes/components';
-import { Block, Stack } from '@askrjs/themes/components';
+import { Stack } from '@askrjs/themes/components';
 
 export default function SettingsPage() {
   const [endpoint, setEndpoint] = state(
@@ -26,9 +27,9 @@ export default function SettingsPage() {
   ];
 
   return (
-    <Stack gap="5">
+    <Stack gap="xl">
       <section class="page-heading">
-        <Stack gap="2">
+        <Stack gap="sm">
           <Badge>environment</Badge>
           <h1>Settings</h1>
           <p class="lead">
@@ -77,7 +78,7 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Stack gap="3">
+            <Stack gap="md">
               <Badge>pending-write copy enabled</Badge>
               <Badge>projection lag visible</Badge>
               <Badge>manual refresh available</Badge>

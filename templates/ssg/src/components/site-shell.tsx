@@ -1,12 +1,6 @@
 import { Link } from '@askrjs/askr/router';
-import { Header } from '@askrjs/themes/components';
-import {
-  Block,
-  Box,
-  Container,
-  Section,
-  Stack,
-} from '@askrjs/themes/components';
+import { Block, Header } from '@askrjs/themes/components';
+import { Container, Section, Stack } from '@askrjs/themes/components';
 import { Nav, NavLink } from '@askrjs/themes/components';
 import Badge from './badge';
 
@@ -21,13 +15,13 @@ export function SiteHeader() {
   return (
     <Header position="sticky">
       <Container size="xl" paddingY="md">
-        <Box class="navbar-shell">
-          <Box class="navbar-brand">
+        <Block class="navbar-shell">
+          <Block class="navbar-brand">
             <Link class="brand" href="/">
               <strong>{'{{appName}}'}</strong>
               <span>Static site generation sample</span>
             </Link>
-          </Box>
+          </Block>
 
           <Nav
             as="div"
@@ -39,7 +33,7 @@ export function SiteHeader() {
               <NavLink href={item.href}>{item.label}</NavLink>
             ))}
           </Nav>
-        </Box>
+        </Block>
       </Container>
     </Header>
   );
@@ -48,7 +42,7 @@ export function SiteHeader() {
 export function PageFrame({ children }: { children?: unknown }) {
   return (
     <Container size="xl" paddingY="2xl">
-      <Stack gap="8">{children}</Stack>
+      <Stack gap="3xl">{children}</Stack>
     </Container>
   );
 }
@@ -67,7 +61,7 @@ export function SectionHeader({
   return (
     <Section class="section-header" paddingY="xl">
       <Block gap="md">
-        <Stack gap="3" class="section-header-copy">
+        <Stack gap="md" class="section-header-copy">
           <Badge>{eyebrow}</Badge>
           <h1>{title}</h1>
           <p class="section-header-description">{description}</p>
@@ -80,7 +74,7 @@ export function SectionHeader({
 }
 
 export function CardGrid({ children }: { children?: unknown }) {
-  return <Box class="card-grid">{children}</Box>;
+  return <Block class="card-grid">{children}</Block>;
 }
 
 export function Card({
@@ -95,17 +89,17 @@ export function Card({
   children?: unknown;
 }) {
   return (
-    <Box class="card">
-      <Stack gap="3">
+    <Block class="card">
+      <Stack gap="md">
         {eyebrow ? <Badge>{eyebrow}</Badge> : null}
         <h2>{title}</h2>
         {description ? <p>{description}</p> : null}
         {children}
       </Stack>
-    </Box>
+    </Block>
   );
 }
 
 export function ActionRow({ children }: { children?: unknown }) {
-  return <Box class="action-row">{children}</Box>;
+  return <Block class="action-row">{children}</Block>;
 }

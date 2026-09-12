@@ -13,7 +13,7 @@ import {
 } from '@askrjs/ui/alert-dialog';
 import { Button } from '@askrjs/ui/button';
 import {
-  Inline,
+  Block,
   Pagination,
   PaginationContent,
   PaginationItem,
@@ -147,7 +147,7 @@ export default function AccountsPage() {
           errorText={accountsResource.error?.message ?? null}
         />
 
-        <Inline class="account-bulk-actions" align="center" wrap>
+        <Block direction="row" gap="lg" align="center" wrap>
           <span class="muted">{selectedIdsState().length} selected</span>
 
           <AlertDialog>
@@ -210,7 +210,7 @@ export default function AccountsPage() {
               </PaginationItem>
             </PaginationContent>
           </Pagination>
-        </Inline>
+        </Block>
       </section>
     </section>
   );
