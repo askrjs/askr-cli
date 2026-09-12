@@ -67,10 +67,6 @@
     inline-size: min(100%, 420px);
   }
 
-  .app-shell {
-    min-block-size: 100dvh;
-  }
-
   .app-shell-nav {
     flex: 0 0 17rem;
   }
@@ -152,11 +148,7 @@
     }
   }
 
-  @media (max-width: 960px) {
-    .app-shell {
-      flex-direction: column;
-    }
-
+  @media (max-width: 63.999rem) {
     .app-shell-nav {
       flex-basis: auto;
       inline-size: 100%;

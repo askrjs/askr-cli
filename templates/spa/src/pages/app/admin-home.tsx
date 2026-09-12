@@ -1,18 +1,9 @@
 import { resource } from '@askrjs/askr/resources';
 import { createPlot } from '@askrjs/charts';
 import { AlertCircleIcon, RefreshCwIcon } from '@askrjs/lucide';
-import { Button } from '@askrjs/themes/components';
-import {
-  Alert,
-  Badge,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Skeleton,
-} from '@askrjs/themes/components';
-import { Block, Inline, Section, Stack } from '@askrjs/themes/components';
+import { Block, Button } from '@askrjs/themes/components';
+import { Alert, Badge, Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton } from '@askrjs/themes/components';
+import { Section, Stack } from '@askrjs/themes/components';
 import { EmptyState } from '@askrjs/themes/components';
 import MetricCard from '../../components/shared/metric-card';
 import StatusBadge from '../../components/shared/status-badge';
@@ -40,9 +31,9 @@ export default function AdminHomePage() {
   }
 
   return (
-    <Stack gap="5">
+    <Stack gap="xl">
       <section class="page-heading">
-        <Stack gap="2">
+        <Stack gap="sm">
           <Badge>projection v{snapshot?.version ?? '...'}</Badge>
           <h1>Workspace home</h1>
           <p class="lead">
@@ -50,12 +41,12 @@ export default function AdminHomePage() {
             event-sourced read models.
           </p>
         </Stack>
-        <Inline gap="2" align="center">
+        <Block direction="row" gap="sm" align="center">
           {operations.pending && snapshot ? <Badge>refreshing</Badge> : null}
           <Button variant="secondary" onPress={() => operations.refresh()}>
             <RefreshCwIcon size={14} aria-hidden="true" /> Refresh
           </Button>
-        </Inline>
+        </Block>
       </section>
 
       {operations.pending && !snapshot ? (

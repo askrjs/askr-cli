@@ -1,9 +1,9 @@
 import { MoonIcon, SunIcon } from '@askrjs/lucide';
 import { Link } from '@askrjs/askr/router';
-import { Button } from '@askrjs/themes/components';
-import { Container, Inline } from '@askrjs/themes/components';
+import { Block, Button } from '@askrjs/themes/components';
+import { Container } from '@askrjs/themes/components';
 import { Header } from '@askrjs/themes/components';
-import { NavBrand, NavGroup, Navbar, NavLink } from '@askrjs/themes/components';
+import { NavBrand, NavGroup, NavLink, Navbar } from '@askrjs/themes/components';
 import { ThemeToggle } from '@askrjs/themes/theme';
 
 export default function PublicLayout({ children }: { children?: unknown }) {
@@ -25,7 +25,7 @@ export default function PublicLayout({ children }: { children?: unknown }) {
               <NavLink href="/login">Sign in</NavLink>
             </NavGroup>
             <NavGroup align="end">
-              <Inline gap="2" align="center">
+              <Block direction="row" gap="sm" align="center">
                 <ThemeToggle
                   variant="ghost"
                   size="icon"
@@ -36,7 +36,7 @@ export default function PublicLayout({ children }: { children?: unknown }) {
                 <Button asChild>
                   <Link href="/login">Open console</Link>
                 </Button>
-              </Inline>
+              </Block>
             </NavGroup>
           </Navbar>
         </Container>

@@ -410,7 +410,9 @@ test("should ensure runCreateCli scaffolds SPA with the route-first themed app s
 
     expect(rootLayoutFile).toMatch(/ThemeScope/);
     expect(rootLayoutFile).toMatch(/defaultTheme=["']tabby["']/);
-    expect(appLayoutFile).toMatch(/Shell/);
+    // The app frame is now Block + Main rather than the removed Shell alias.
+    expect(appLayoutFile).toMatch(/<Block[^>]*minHeight="screen"/);
+    expect(appLayoutFile).toMatch(/<Main/);
     expect(appLayoutFile).toMatch(/Sidebar/);
     expect(appLayoutFile).toMatch(/ThemeToggle/);
     expect(appLayoutFile).toMatch(/appNavItems/);

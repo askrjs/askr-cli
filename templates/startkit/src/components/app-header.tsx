@@ -1,18 +1,6 @@
 import { currentRoute, Link } from '@askrjs/askr/router';
 import { Input } from '@askrjs/ui/input';
-import {
-  Avatar,
-  AvatarFallback,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuPortal,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  Inline,
-} from '@askrjs/themes/components';
+import { Avatar, AvatarFallback, Block, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuPortal, DropdownMenuSeparator, DropdownMenuTrigger } from '@askrjs/themes/components';
 import { SearchIcon } from '@askrjs/lucide';
 import { buildLoginHref, getRouteLabel, settingsRoute } from '../lib/routes';
 import { showToast } from '../toast';
@@ -23,7 +11,7 @@ export default function AppHeader() {
 
   return (
     <header class="app-header">
-      <Inline class="app-header-content" align="center" justify="between" wrap>
+      <Block direction="row" gap="lg" align="center" justify="between" wrap>
         <div class="breadcrumbs">
           <span>App</span>
           <span aria-hidden="true">/</span>
@@ -82,7 +70,7 @@ export default function AppHeader() {
             </DropdownMenuContent>
           </DropdownMenuPortal>
         </DropdownMenu>
-      </Inline>
+      </Block>
     </header>
   );
 }

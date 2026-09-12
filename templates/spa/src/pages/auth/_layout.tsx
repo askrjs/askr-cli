@@ -1,7 +1,7 @@
 import { Link } from '@askrjs/askr/router';
 import { MoonIcon, SunIcon } from '@askrjs/lucide';
-import { Button } from '@askrjs/themes/components';
-import { Container, Inline } from '@askrjs/themes/components';
+import { Block, Button } from '@askrjs/themes/components';
+import { Container } from '@askrjs/themes/components';
 import { Header } from '@askrjs/themes/components';
 import { ThemeToggle } from '@askrjs/themes/theme';
 
@@ -10,12 +10,12 @@ export default function AuthLayout({ children }: { children?: unknown }) {
     <div class="auth-shell">
       <Header position="sticky" class="auth-header">
         <Container size="full">
-          <Inline justify="between" align="center" gap="3" wrap>
+          <Block direction="row" justify="between" align="center" gap="md" wrap>
             <Link href="/" class="brand-link">
               <span class="brand-mark">A</span>
               <strong>{'{{appName}}'}</strong>
             </Link>
-            <Inline gap="2" align="center" wrap>
+            <Block direction="row" gap="sm" align="center" wrap>
               <ThemeToggle
                 variant="ghost"
                 size="icon"
@@ -26,8 +26,8 @@ export default function AuthLayout({ children }: { children?: unknown }) {
               <Button variant="secondary" asChild>
                 <Link href="/">Back to site</Link>
               </Button>
-            </Inline>
-          </Inline>
+            </Block>
+          </Block>
         </Container>
       </Header>
       <main class="auth-main">
