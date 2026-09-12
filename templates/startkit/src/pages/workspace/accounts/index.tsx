@@ -12,7 +12,12 @@ import {
   AlertDialogTrigger,
 } from '@askrjs/ui/alert-dialog';
 import { Button } from '@askrjs/ui/button';
-import { Block, Pagination, PaginationContent, PaginationItem } from '@askrjs/themes/components';
+import {
+  Block,
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+} from '@askrjs/themes/components';
 import { ArchiveIcon, PlusIcon } from '@askrjs/lucide';
 import PageHeader from '../../../components/page-header';
 import AccountFilters from '../../../features/accounts/account-filters';

@@ -1,4 +1,10 @@
-import { Block, Card, CardDescription, CardHeader, CardTitle } from '@askrjs/themes/components';
+import {
+  Block,
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@askrjs/themes/components';
 
 export type MetricCardProps = {
   label: string;

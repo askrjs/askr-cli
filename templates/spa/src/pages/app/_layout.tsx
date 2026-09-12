@@ -10,7 +10,12 @@ import { Link, navigate } from '@askrjs/askr/router';
 import { Block, Button, Main } from '@askrjs/themes/components';
 import { Container, Stack } from '@askrjs/themes/components';
 import { Header } from '@askrjs/themes/components';
-import { NavBrand, NavGroup, NavLink, Sidebar } from '@askrjs/themes/components';
+import {
+  NavBrand,
+  NavGroup,
+  NavLink,
+  Sidebar,
+} from '@askrjs/themes/components';
 import { Badge } from '@askrjs/themes/components';
 import { ThemeToggle } from '@askrjs/themes/theme';
 import { appNavItems } from '../../shared/navigation';
@@ -24,40 +29,46 @@ const icons = {
 export default function AppLayout({ children }: { children?: unknown }) {
   return (
     <Block minHeight="screen" direction="row">
-        <Sidebar
-          aria-label="Workspace navigation"
-          breakpoint="md"
-          collapsible="icon"
-        >
-          <NavBrand>
-            <Link href="/app" class="brand-link">
-              <span class="brand-mark">A</span>
-              <strong>{'{{appName}}'}</strong>
-            </Link>
-          </NavBrand>
-          <NavGroup label="Workspace">
-            {appNavItems.map((item) => (
-              <NavLink href={item.href} match={item.match}>
-                <Block direction="row" as="span" gap="sm" align="center">
-                  {icons[item.icon]}
-                  <span>{item.label}</span>
-                </Block>
-              </NavLink>
-            ))}
-          </NavGroup>
-          <NavGroup label="Session" align="end">
-            <NavLink href="/" match="exact">
+      <Sidebar
+        aria-label="Workspace navigation"
+        breakpoint="md"
+        collapsible="icon"
+      >
+        <NavBrand>
+          <Link href="/app" class="brand-link">
+            <span class="brand-mark">A</span>
+            <strong>{'{{appName}}'}</strong>
+          </Link>
+        </NavBrand>
+        <NavGroup label="Workspace">
+          {appNavItems.map((item) => (
+            <NavLink href={item.href} match={item.match}>
               <Block direction="row" as="span" gap="sm" align="center">
-                <LogOutIcon size={16} aria-hidden="true" />
-                <span>Sign out</span>
+                {icons[item.icon]}
+                <span>{item.label}</span>
               </Block>
             </NavLink>
-          </NavGroup>
-        </Sidebar>
+          ))}
+        </NavGroup>
+        <NavGroup label="Session" align="end">
+          <NavLink href="/" match="exact">
+            <Block direction="row" as="span" gap="sm" align="center">
+              <LogOutIcon size={16} aria-hidden="true" />
+              <span>Sign out</span>
+            </Block>
+          </NavLink>
+        </NavGroup>
+      </Sidebar>
       <Main>
         <Header position="sticky" class="app-header">
           <Container size="full">
-            <Block direction="row" justify="between" align="center" gap="md" wrap>
+            <Block
+              direction="row"
+              justify="between"
+              align="center"
+              gap="md"
+              wrap
+            >
               <Stack>
                 <span class="eyebrow">Operations console</span>
                 <strong>Agent workflow control plane</strong>

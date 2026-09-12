@@ -1369,9 +1369,9 @@ test("should ensure askr ssg executes TSX route modules with the project JSX run
     );
     await fs.writeFile(
       configPath,
-      'import { createRouteRegistry, route } from "@askrjs/askr/router"; import { Page } from "./page.tsx"; '
-        + 'export const siteUrl = "https://example.com"; '
-        + 'export const registry = createRouteRegistry(() => { route("/", Page); });\n',
+      'import { createRouteRegistry, route } from "@askrjs/askr/router"; import { Page } from "./page.tsx"; ' +
+        'export const siteUrl = "https://example.com"; ' +
+        'export const registry = createRouteRegistry(() => { route("/", Page); });\n',
       "utf8",
     );
 

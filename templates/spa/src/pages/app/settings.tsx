@@ -1,7 +1,21 @@
 import { state } from '@askrjs/askr';
 import { Input } from '@askrjs/ui';
-import { Block, Button, Field, FieldHint, InputGroup, InputGroupText } from '@askrjs/themes/components';
-import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@askrjs/themes/components';
+import {
+  Block,
+  Button,
+  Field,
+  FieldHint,
+  InputGroup,
+  InputGroupText,
+} from '@askrjs/themes/components';
+import {
+  Badge,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@askrjs/themes/components';
 import { Stack } from '@askrjs/themes/components';
 
 export default function SettingsPage() {

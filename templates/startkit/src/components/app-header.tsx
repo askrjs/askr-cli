@@ -1,6 +1,18 @@
 import { currentRoute, Link } from '@askrjs/askr/router';
 import { Input } from '@askrjs/ui/input';
-import { Avatar, AvatarFallback, Block, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuPortal, DropdownMenuSeparator, DropdownMenuTrigger } from '@askrjs/themes/components';
+import {
+  Avatar,
+  AvatarFallback,
+  Block,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@askrjs/themes/components';
 import { SearchIcon } from '@askrjs/lucide';
 import { buildLoginHref, getRouteLabel, settingsRoute } from '../lib/routes';
 import { showToast } from '../toast';

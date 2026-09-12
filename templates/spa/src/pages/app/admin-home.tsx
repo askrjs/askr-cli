@@ -2,7 +2,16 @@ import { resource } from '@askrjs/askr/resources';
 import { createPlot } from '@askrjs/charts';
 import { AlertCircleIcon, RefreshCwIcon } from '@askrjs/lucide';
 import { Block, Button } from '@askrjs/themes/components';
-import { Alert, Badge, Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton } from '@askrjs/themes/components';
+import {
+  Alert,
+  Badge,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Skeleton,
+} from '@askrjs/themes/components';
 import { Section, Stack } from '@askrjs/themes/components';
 import { EmptyState } from '@askrjs/themes/components';
 import MetricCard from '../../components/shared/metric-card';
