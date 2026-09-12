@@ -7,9 +7,9 @@ import {
   SunIcon,
 } from '@askrjs/lucide';
 import { Link, navigate } from '@askrjs/askr/router';
-import { Button } from '@askrjs/themes/components';
-import { Container, Inline, Stack } from '@askrjs/themes/components';
-import { Header, Shell, ShellMain, ShellNav } from '@askrjs/themes/components';
+import { Block, Button, Main } from '@askrjs/themes/components';
+import { Container, Stack } from '@askrjs/themes/components';
+import { Header } from '@askrjs/themes/components';
 import {
   NavBrand,
   NavGroup,
@@ -28,48 +28,52 @@ const icons = {
 
 export default function AppLayout({ children }: { children?: unknown }) {
   return (
-    <Shell variant="sidebar" class="app-shell">
-      <ShellNav>
-        <Sidebar
-          aria-label="Workspace navigation"
-          breakpoint="md"
-          collapsible="icon"
-        >
-          <NavBrand>
-            <Link href="/app" class="brand-link">
-              <span class="brand-mark">A</span>
-              <strong>{'{{appName}}'}</strong>
-            </Link>
-          </NavBrand>
-          <NavGroup label="Workspace">
-            {appNavItems.map((item) => (
-              <NavLink href={item.href} match={item.match}>
-                <Inline as="span" gap="2" align="center">
-                  {icons[item.icon]}
-                  <span>{item.label}</span>
-                </Inline>
-              </NavLink>
-            ))}
-          </NavGroup>
-          <NavGroup label="Session" align="end">
-            <NavLink href="/" match="exact">
-              <Inline as="span" gap="2" align="center">
-                <LogOutIcon size={16} aria-hidden="true" />
-                <span>Sign out</span>
-              </Inline>
+    <Block minHeight="screen" direction="row">
+      <Sidebar
+        aria-label="Workspace navigation"
+        breakpoint="md"
+        collapsible="icon"
+      >
+        <NavBrand>
+          <Link href="/app" class="brand-link">
+            <span class="brand-mark">A</span>
+            <strong>{'{{appName}}'}</strong>
+          </Link>
+        </NavBrand>
+        <NavGroup label="Workspace">
+          {appNavItems.map((item) => (
+            <NavLink href={item.href} match={item.match}>
+              <Block direction="row" as="span" gap="sm" align="center">
+                {icons[item.icon]}
+                <span>{item.label}</span>
+              </Block>
             </NavLink>
-          </NavGroup>
-        </Sidebar>
-      </ShellNav>
-      <ShellMain>
+          ))}
+        </NavGroup>
+        <NavGroup label="Session" align="end">
+          <NavLink href="/" match="exact">
+            <Block direction="row" as="span" gap="sm" align="center">
+              <LogOutIcon size={16} aria-hidden="true" />
+              <span>Sign out</span>
+            </Block>
+          </NavLink>
+        </NavGroup>
+      </Sidebar>
+      <Main>
         <Header position="sticky" class="app-header">
           <Container size="full">
-            <Inline justify="between" align="center" gap="3" wrap>
-              <Stack gap="none">
+            <Block
+              direction="row"
+              justify="between"
+              align="center"
+              gap="md"
+              wrap
+            >
+              <Stack>
                 <span class="eyebrow">Operations console</span>
                 <strong>Agent workflow control plane</strong>
               </Stack>
-              <Inline gap="2" align="center" wrap>
+              <Block direction="row" gap="sm" align="center" wrap>
                 <Badge>event stream healthy</Badge>
                 <ThemeToggle
                   variant="ghost"
@@ -81,14 +85,14 @@ export default function AppLayout({ children }: { children?: unknown }) {
                 <Button variant="secondary" onPress={() => navigate('/')}>
                   Public site
                 </Button>
-              </Inline>
-            </Inline>
+              </Block>
+            </Block>
           </Container>
         </Header>
         <Container size="full" class="app-main">
           {children}
         </Container>
-      </ShellMain>
-    </Shell>
+      </Main>
+    </Block>
   );
 }

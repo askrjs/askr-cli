@@ -36,7 +36,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Stack gap="4">
+          <Stack gap="md">
             <Field>
               <label htmlFor="email">Work email</label>
               <InputGroup>

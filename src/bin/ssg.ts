@@ -31,7 +31,6 @@ interface ParsedSsgArgs {
 }
 
 interface LoadedConfig {
-  routes?: unknown[];
   registry?: unknown;
   seed?: unknown;
   dataOverrides?: unknown;
@@ -72,7 +71,6 @@ interface SsgDeps {
   existsSync?: typeof existsSync;
   importConfig?: (filePath: string) => Promise<unknown>;
   createStaticGen?: (options: {
-    routes?: unknown[];
     registry?: unknown;
     outputDir: string;
     seed?: unknown;
@@ -82,15 +80,6 @@ interface SsgDeps {
     document?: unknown;
     assets?: unknown[];
   }) => StaticGen;
-}
-
-interface RouteAdapter {
-  createRouteRegistry(definition: () => void): unknown;
-  route(
-    path: string,
-    component: (...args: unknown[]) => unknown,
-    options?: Record<string, unknown>,
-  ): unknown;
 }
 
 const helpText = `
@@ -155,54 +144,6 @@ async function loadCreateStaticGen(): Promise<NonNullable<SsgDeps["createStaticG
     throw new Error("Failed to load createStaticGen from @askrjs/askr/ssg");
   }
   return mod.createStaticGen;
-}
-
-async function loadRouteAdapter(): Promise<RouteAdapter> {
-  const mod = (await import("@askrjs/askr/router")) as Partial<RouteAdapter>;
-  if (typeof mod.createRouteRegistry !== "function" || typeof mod.route !== "function") {
-    throw new Error("Failed to load route registry APIs from @askrjs/askr/router");
-  }
-  return mod as RouteAdapter;
-}
-
-function registryFromLegacyRoutes(routes: unknown[], adapter: RouteAdapter): unknown {
-  return adapter.createRouteRegistry(() => {
-    for (const [index, value] of routes.entries()) {
-      if (!value || typeof value !== "object" || Array.isArray(value)) {
-        throw new TypeError(`SSG route at index ${index} must be an object`);
-      }
-      const {
-        path: routePath,
-        handler,
-        component,
-        props,
-        params,
-        ...options
-      } = value as Record<string, unknown>;
-      const implementation = handler ?? component;
-      if (typeof routePath !== "string" || typeof implementation !== "function") {
-        throw new TypeError(
-          `SSG route at index ${index} must provide a string path and a handler or component function`,
-        );
-      }
-      const implementationFunction = implementation as (...args: unknown[]) => unknown;
-      const routeComponent =
-        props && typeof props === "object" && !Array.isArray(props)
-          ? (routeParams: unknown, context: unknown) =>
-              implementationFunction(
-                { ...(props as Record<string, unknown>), ...(routeParams as object) },
-                context,
-              )
-          : implementationFunction;
-      const routeOptions = {
-        ...options,
-        ...(params !== undefined && options.entries === undefined
-          ? { entries: () => [params] }
-          : {}),
-      };
-      adapter.route(routePath, routeComponent, routeOptions);
-    }
-  });
 }
 
 export function parseCliArgs(args: string[]): ParsedSsgArgs {
@@ -378,7 +319,6 @@ export async function runSsgCli(
     const configModule = imported as {
       default?: LoadedConfig;
       staticConfig?: LoadedConfig;
-      routes?: unknown[];
       registry?: unknown;
       seed?: unknown;
       dataOverrides?: unknown;
@@ -390,11 +330,9 @@ export async function runSsgCli(
       outputReport?: SsgOutputReportConfig | false;
     };
     const candidate = configModule.default ?? configModule.staticConfig ?? configModule;
-    const hasRoutes = Array.isArray(candidate.routes);
-    const hasRegistry = candidate.registry !== undefined;
 
-    if (hasRoutes === hasRegistry) {
-      io.error("Error: Config must provide exactly one route source: routes or registry");
+    if (candidate.registry === undefined) {
+      io.error("Error: Config must provide a registry route source");
       return 1;
     }
     const config = candidate as LoadedConfig;
@@ -404,23 +342,14 @@ export async function runSsgCli(
       return 1;
     }
 
-    io.log(
-      hasRoutes
-        ? `Generating ${config.routes?.length ?? 0} routes...`
-        : "Generating registered routes...",
-    );
+    io.log("Generating registered routes...");
 
     const createStaticGen =
       typeof resolvedDeps.createStaticGen === "function"
         ? resolvedDeps.createStaticGen
         : await loadCreateStaticGen();
 
-    const routeSource =
-      hasRoutes && typeof resolvedDeps.createStaticGen !== "function"
-        ? { registry: registryFromLegacyRoutes(config.routes ?? [], await loadRouteAdapter()) }
-        : hasRoutes
-          ? { routes: config.routes }
-          : { registry: config.registry };
+    const routeSource = { registry: config.registry };
 
     cliStagingDir = await createSiblingStage(resolvedOutputDir, "askr-ssg");
     if (parsed.incremental && !parsed.forceFull && (await pathExists(resolvedOutputDir))) {

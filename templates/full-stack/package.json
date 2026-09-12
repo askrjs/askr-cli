@@ -15,23 +15,23 @@
     "check": "askr check"
   },
   "dependencies": {
-    "@askrjs/askr": ">=0.2.0 <0.3.0",
-    "@askrjs/auth": ">=0.2.0 <0.3.0",
-    "@askrjs/i18n": ">=0.2.0 <0.3.0",
-    "@askrjs/node": ">=0.2.0 <0.3.0",
-    "@askrjs/otel": ">=0.2.0 <0.3.0",
-    "@askrjs/schema": ">=0.2.0 <0.3.0",
-    "@askrjs/server": ">=0.2.0 <0.3.0",
-    "@askrjs/themes": ">=0.2.0 <0.3.0",
-    "@askrjs/ui": ">=0.2.0 <0.3.0",
+    "@askrjs/askr": ">=0.3.0 <0.4.0",
+    "@askrjs/auth": ">=0.3.0 <0.4.0",
+    "@askrjs/i18n": ">=0.3.0 <0.4.0",
+    "@askrjs/node": ">=0.3.0 <0.4.0",
+    "@askrjs/otel": ">=0.3.0 <0.4.0",
+    "@askrjs/schema": ">=0.3.0 <0.4.0",
+    "@askrjs/server": ">=0.3.0 <0.4.0",
+    "@askrjs/themes": ">=0.3.0 <0.4.0",
+    "@askrjs/ui": ">=0.3.0 <0.4.0",
     "@opentelemetry/api": "^1.9.0"
   },
   "devDependencies": {
-    "@askrjs/vite": ">=0.2.0 <0.3.0",
+    "@askrjs/vite": ">=0.3.0 <0.4.0",
     "@types/node": "^20.19.0",
     "jsdom": "^29.1.1",
     "typescript": "^7.0.2",
-    "vite-plus": "^0.2.4",
+    "vite-plus": "^0.3.1",
     "vitest": "^4.1.10"
   },
   "engines": {

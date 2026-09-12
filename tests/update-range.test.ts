@@ -37,7 +37,7 @@ function proposal(
   return planUpdates({
     occurrences: [occurrence(specification)],
     packuments: new Map([["fixture", packument(target, versions)]]),
-    force,
+    mode: force ? "upgrade" : undefined,
   }).decisions[0].occurrences[0];
 }
 
@@ -137,7 +137,7 @@ describe("update range planner", () => {
           },
         ],
       ]),
-      force: true,
+      mode: "upgrade",
     });
 
     expect(plan.decisions[0].occurrences[0]).toMatchObject({
@@ -204,8 +204,8 @@ describe("update range planner", () => {
 
   test("should keep a public peer floor given the selected release remains supported", () => {
     const plan = planUpdates({
-      occurrences: [peerOccurrence(">=0.2.0 <0.3.0", "@askrjs/askr")],
-      packuments: new Map([["@askrjs/askr", packument("0.2.2", ["0.2.0", "0.2.1", "0.2.2"])]]),
+      occurrences: [peerOccurrence(">=0.3.0 <0.4.0", "@askrjs/askr")],
+      packuments: new Map([["@askrjs/askr", packument("0.3.2", ["0.3.0", "0.3.2"])]]),
     });
 
     expect(plan.decisions[0].occurrences[0]).toMatchObject({

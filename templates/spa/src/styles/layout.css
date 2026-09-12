@@ -5,8 +5,7 @@
   }
 
   .public-shell,
-  .auth-shell,
-  .app-shell {
+  .auth-shell {
     min-block-size: 100dvh;
   }
 

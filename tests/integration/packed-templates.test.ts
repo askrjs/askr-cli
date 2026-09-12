@@ -11,12 +11,28 @@ const repository = fileURLToPath(new URL("../../", import.meta.url));
 const allTemplates = ["full-stack", "spa", "ssr", "ssg", "startkit"];
 
 async function run(command: string, args: string[], cwd: string): Promise<string> {
-  const { stdout } = await execFileAsync(command, args, {
-    cwd,
-    env: { ...process.env, NO_COLOR: "1" },
-    maxBuffer: 20 * 1024 * 1024,
-  });
-  return stdout;
+  try {
+    const { stdout } = await execFileAsync(command, args, {
+      cwd,
+      env: { ...process.env, NO_COLOR: "1" },
+      maxBuffer: 20 * 1024 * 1024,
+    });
+    return stdout;
+  } catch (cause) {
+    // execFile only reports "Command failed: <cmd>", which hides which template
+    // check broke and why. Surface the child output with the failure.
+    const { stdout, stderr } = cause as { stdout?: string; stderr?: string };
+    throw new Error(
+      [
+        `${command} ${args.join(" ")} failed in ${cwd}`,
+        stdout ? `stdout:\n${stdout}` : "",
+        stderr ? `stderr:\n${stderr}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      { cause },
+    );
+  }
 }
 
 test("should ensure packed CLI passes checks for every shipped template", async () => {

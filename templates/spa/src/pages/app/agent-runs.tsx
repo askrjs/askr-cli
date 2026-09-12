@@ -6,13 +6,14 @@ import {
 } from '@askrjs/lucide';
 import {
   Badge,
+  Block,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from '@askrjs/themes/components';
-import { Block, Inline, Stack } from '@askrjs/themes/components';
+import { Stack } from '@askrjs/themes/components';
 import StatusBadge, {
   type RunStatus,
 } from '../../components/shared/status-badge';
@@ -48,9 +49,9 @@ const runs: Array<{
 
 export default function AgentRunsPage() {
   return (
-    <Stack gap="5">
+    <Stack gap="xl">
       <section class="page-heading">
-        <Stack gap="2">
+        <Stack gap="sm">
           <Badge>agent workflows</Badge>
           <h1>Agent runs</h1>
           <p class="lead">
@@ -64,7 +65,7 @@ export default function AgentRunsPage() {
         {runs.map((run) => (
           <Card>
             <CardHeader>
-              <Inline justify="between" align="start" gap="3">
+              <Block direction="row" justify="between" align="start" gap="md">
                 <span class="card-icon">
                   {run.status === 'succeeded' ? (
                     <CheckCircle2Icon size={18} aria-hidden="true" />
@@ -75,15 +76,15 @@ export default function AgentRunsPage() {
                   )}
                 </span>
                 <StatusBadge status={run.status} />
-              </Inline>
+              </Block>
               <CardTitle>{run.title}</CardTitle>
               <CardDescription>{run.description}</CardDescription>
             </CardHeader>
             <CardContent>
-              <Inline gap="2" align="center">
+              <Block direction="row" gap="sm" align="center">
                 <Clock3Icon size={14} aria-hidden="true" />
                 <span>{run.event}</span>
-              </Inline>
+              </Block>
             </CardContent>
           </Card>
         ))}

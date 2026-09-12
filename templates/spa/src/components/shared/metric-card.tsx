@@ -1,10 +1,10 @@
 import {
+  Block,
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
 } from '@askrjs/themes/components';
-import { Inline } from '@askrjs/themes/components';
 
 export type MetricCardProps = {
   label: string;
@@ -16,10 +16,10 @@ export default function MetricCard({ label, value, trend }: MetricCardProps) {
   return (
     <Card class="metric-card">
       <CardHeader>
-        <Inline justify="between" align="center" gap="3">
+        <Block direction="row" justify="between" align="center" gap="md">
           <CardDescription>{label}</CardDescription>
           <span class="metric-trend">{trend}</span>
-        </Inline>
+        </Block>
         <CardTitle>{value}</CardTitle>
       </CardHeader>
     </Card>

@@ -410,11 +410,13 @@ test("should ensure runCreateCli scaffolds SPA with the route-first themed app s
 
     expect(rootLayoutFile).toMatch(/ThemeScope/);
     expect(rootLayoutFile).toMatch(/defaultTheme=["']tabby["']/);
-    expect(appLayoutFile).toMatch(/Shell/);
+    // The app frame is now Block + Main rather than the removed Shell alias.
+    expect(appLayoutFile).toMatch(/<Block[^>]*minHeight="screen"/);
+    expect(appLayoutFile).toMatch(/<Main/);
     expect(appLayoutFile).toMatch(/Sidebar/);
     expect(appLayoutFile).toMatch(/ThemeToggle/);
     expect(appLayoutFile).toMatch(/appNavItems/);
-    expect(packageJson).toMatch(/"@askrjs\/charts": ">=0\.2\.0 <0\.3\.0"/);
+    expect(packageJson).toMatch(/"@askrjs\/charts": ">=0\.3\.0 <0\.4\.0"/);
     expect(routesFile).toMatch(/registerPublicRoutes/);
     expect(routesFile).toMatch(/registerAuthRoutes/);
     expect(routesFile).toMatch(/registerAppRoutes/);
@@ -485,7 +487,7 @@ test("should ensure runCreateCli scaffolds SSG with shared route registration an
     expect(packageJson).toMatch(
       /"generate": "askr ssg --config \.\/ssg\.config\.ts --output \.\/dist"/,
     );
-    expect(packageJson).toMatch(/"@askrjs\/cli": ">=0\.2\.0 <0\.3\.0"/);
+    expect(packageJson).toMatch(/"@askrjs\/cli": ">=0\.3\.0 <0\.4\.0"/);
     expect(packageJson).toMatch(/"test": "vp test run -c \.\/vitest\.config\.ts"/);
     expect(packageJson).toMatch(/"fmt": "vp fmt \."/);
     expect(mainFile).toMatch(/registry:\s*pageRegistry/);
@@ -648,10 +650,10 @@ test("should ensure runCreateCli scaffolds a function-first full-stack project",
     expect(packageJson).toMatch(/"@askrjs\/schema"/);
     expect(packageJson).toMatch(/"@askrjs\/i18n"/);
     expect(packageJson).toMatch(/"@askrjs\/otel"/);
-    expect(packageManifest.dependencies["@askrjs/askr"]).toBe(">=0.2.0 <0.3.0");
-    expect(packageManifest.dependencies["@askrjs/themes"]).toBe(">=0.2.0 <0.3.0");
-    expect(packageManifest.dependencies["@askrjs/ui"]).toBe(">=0.2.0 <0.3.0");
-    expect(packageManifest.devDependencies["@askrjs/vite"]).toBe(">=0.2.0 <0.3.0");
+    expect(packageManifest.dependencies["@askrjs/askr"]).toBe(">=0.3.0 <0.4.0");
+    expect(packageManifest.dependencies["@askrjs/themes"]).toBe(">=0.3.0 <0.4.0");
+    expect(packageManifest.dependencies["@askrjs/ui"]).toBe(">=0.3.0 <0.4.0");
+    expect(packageManifest.devDependencies["@askrjs/vite"]).toBe(">=0.3.0 <0.4.0");
     expect(indexHtml.match(/<!--askr-app-->/g)).toHaveLength(1);
     expect(indexHtml.match(/<!--askr-head-->/g)).toHaveLength(1);
     expect(gitignore).toContain("node_modules");
@@ -684,15 +686,15 @@ test("should ensure template package floors require the clean-break scope vocabu
       await fs.readFile(new URL(`../templates/${template}/package.json`, import.meta.url), "utf8"),
     ) as { dependencies: Record<string, string> };
 
-    expect(manifest.dependencies["@askrjs/askr"], template).toBe(">=0.2.0 <0.3.0");
+    expect(manifest.dependencies["@askrjs/askr"], template).toBe(">=0.3.0 <0.4.0");
     if (manifest.dependencies["@askrjs/themes"]) {
-      expect(manifest.dependencies["@askrjs/themes"], template).toBe(">=0.2.0 <0.3.0");
+      expect(manifest.dependencies["@askrjs/themes"], template).toBe(">=0.3.0 <0.4.0");
     }
     if (manifest.dependencies["@askrjs/ui"]) {
-      expect(manifest.dependencies["@askrjs/ui"], template).toBe(">=0.2.0 <0.3.0");
+      expect(manifest.dependencies["@askrjs/ui"], template).toBe(">=0.3.0 <0.4.0");
     }
     if (manifest.dependencies["@askrjs/auth"]) {
-      expect(manifest.dependencies["@askrjs/auth"], template).toBe(">=0.2.0 <0.3.0");
+      expect(manifest.dependencies["@askrjs/auth"], template).toBe(">=0.3.0 <0.4.0");
     }
   }
 });
@@ -832,7 +834,7 @@ test("should ensure runAddCli transactionally scaffolds both database dialects",
       };
       expect(definition).toContain(`from '@askrjs/orm/${dialect}'`);
       expect(definition).toContain(`driver: ${dialect}()`);
-      expect(manifest.dependencies["@askrjs/orm"]).toBe(">=0.2.0 <0.3.0");
+      expect(manifest.dependencies["@askrjs/orm"]).toBe(">=0.3.0 <0.4.0");
       expect(manifest.dependencies.pg).toBe(dialect === "postgres" ? "^8.16.0" : undefined);
       await expect(
         fs.access(path.join(tempRoot, "src", "database", "migrations", ".gitkeep")),
@@ -859,7 +861,7 @@ test("should ensure concurrent database generators report one complete winner", 
     expect(definition.includes("sqlite()") || definition.includes("postgres()")).toBe(true);
     expect(
       JSON.parse(await fs.readFile(path.join(tempRoot, "package.json"), "utf8")).dependencies,
-    ).toHaveProperty("@askrjs/orm", ">=0.2.0 <0.3.0");
+    ).toHaveProperty("@askrjs/orm", ">=0.3.0 <0.4.0");
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
@@ -1188,7 +1190,7 @@ test("should ensure runSsgCli preserves live output when sitemap metadata fails"
         cwd: () => root,
         existsSync: () => true,
         importConfig: async () => ({
-          routes: [{ path: "/" }],
+          registry: { records: [{ path: "/" }] },
           siteUrl: "https://example.com",
           sitemap: { resolve: () => Promise.reject(new Error("metadata failed")) },
         }),
@@ -1246,7 +1248,7 @@ test("should ensure concurrent SSG invocations publish only complete output tree
       {
         cwd: () => root,
         existsSync: () => true,
-        importConfig: async () => ({ routes: [{ path: "/" }], sitemap: false }),
+        importConfig: async () => ({ registry: { records: [{ path: "/" }] }, sitemap: false }),
         createStaticGen: ({ outputDir }) => ({
           generate: async () => {
             const value = String((run += 1));
@@ -1291,7 +1293,7 @@ test("should ensure runSsgCli requires a canonical site URL unless sitemap gener
     {
       cwd: () => "/workspace",
       existsSync: () => true,
-      importConfig: async () => ({ routes: [{ path: "/" }] }),
+      importConfig: async () => ({ registry: { records: [{ path: "/" }] } }),
       createStaticGen: () => ({ generate }),
     },
     io,
@@ -1308,7 +1310,7 @@ test("should ensure runSsgCli loads TypeScript configs without an external loade
   const configPath = path.join(tempRoot, "ssg.config.ts");
   await fs.writeFile(
     configPath,
-    'const routes: Array<{ path: string }> = [{ path: "/" }]; export const siteUrl = "https://example.com"; export { routes };\n',
+    'const registry = { records: [{ path: "/" }] }; export const siteUrl = "https://example.com"; export { registry };\n',
     "utf8",
   );
   const createStaticGen = ({ outputDir }: { outputDir: string }) => ({
@@ -1367,7 +1369,9 @@ test("should ensure askr ssg executes TSX route modules with the project JSX run
     );
     await fs.writeFile(
       configPath,
-      'import { Page } from "./page.tsx"; export const siteUrl = "https://example.com"; export const routes = [{ path: "/", component: Page }];\n',
+      'import { createRouteRegistry, route } from "@askrjs/askr/router"; import { Page } from "./page.tsx"; ' +
+        'export const siteUrl = "https://example.com"; ' +
+        'export const registry = createRouteRegistry(() => { route("/", Page); });\n',
       "utf8",
     );
 
@@ -1469,7 +1473,7 @@ test("should ensure runSsgCli preserves the previous full output when sitemap ge
         cwd: () => tempRoot,
         existsSync: () => true,
         importConfig: async () => ({
-          routes: [{ path: "/" }],
+          registry: { records: [{ path: "/" }] },
           siteUrl: "https://example.com",
           sitemap: {
             resolve: () => {
@@ -1518,7 +1522,7 @@ test("should ensure runSsgCli writes the default report before publishing staged
       {
         cwd: () => tempRoot,
         existsSync: () => true,
-        importConfig: async () => ({ routes: [{ path: "/" }], sitemap: false }),
+        importConfig: async () => ({ registry: { records: [{ path: "/" }] }, sitemap: false }),
         createStaticGen: (options) => ({
           generate: async () => {
             await fs.mkdir(options.outputDir, { recursive: true });
@@ -1563,7 +1567,7 @@ test("should ensure runSsgCli applies the output report deployment base path", a
         cwd: () => tempRoot,
         existsSync: () => true,
         importConfig: async () => ({
-          routes: [{ path: "/" }],
+          registry: { records: [{ path: "/" }] },
           sitemap: false,
           outputReport: { basePath: "/website" },
         }),
@@ -1617,7 +1621,7 @@ test("should ensure runSsgCli preserves live output when a prefixed asset is mis
         cwd: () => tempRoot,
         existsSync: () => true,
         importConfig: async () => ({
-          routes: [{ path: "/" }],
+          registry: { records: [{ path: "/" }] },
           sitemap: false,
           outputReport: { basePath: "/website" },
         }),
@@ -1668,7 +1672,7 @@ test("should ensure runSsgCli preserves live output when an output budget fails"
         cwd: () => tempRoot,
         existsSync: () => true,
         importConfig: async () => ({
-          routes: [{ path: "/" }],
+          registry: { records: [{ path: "/" }] },
           sitemap: false,
           outputReport: { budgets: { routes: { raw: 1 } } },
         }),
@@ -1716,7 +1720,7 @@ test("should ensure runSsgCli reports the complete staged result for incremental
       {
         cwd: () => tempRoot,
         existsSync: () => true,
-        importConfig: async () => ({ routes: [{ path: "/" }], sitemap: false }),
+        importConfig: async () => ({ registry: { records: [{ path: "/" }] }, sitemap: false }),
         createStaticGen: (options) => ({
           generate: async () => {
             await fs.writeFile(path.join(options.outputDir, "index.html"), "<main>new</main>");
@@ -1767,7 +1771,7 @@ test("should ensure runSsgCli removes a retained output report when reporting is
         cwd: () => tempRoot,
         existsSync: () => true,
         importConfig: async () => ({
-          routes: [{ path: "/" }],
+          registry: { records: [{ path: "/" }] },
           sitemap: false,
           outputReport: false,
         }),

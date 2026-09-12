@@ -6,7 +6,7 @@ import {
   ShieldCheckIcon,
 } from '@askrjs/lucide';
 import { Link } from '@askrjs/askr/router';
-import { Button } from '@askrjs/themes/components';
+import { Block, Button } from '@askrjs/themes/components';
 import {
   Badge,
   Card,
@@ -15,14 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@askrjs/themes/components';
-import {
-  Block,
-  Box,
-  Container,
-  Inline,
-  Section,
-  Stack,
-} from '@askrjs/themes/components';
+import { Container, Section, Stack } from '@askrjs/themes/components';
 import { EmptyState } from '@askrjs/themes/components';
 
 const capabilities = [
@@ -63,7 +56,7 @@ export default function HomePage() {
                   system.
                 </p>
               </Stack>
-              <Inline gap="3" wrap>
+              <Block direction="row" gap="md" wrap>
                 <Button asChild>
                   <Link href="/login">
                     Open console <ArrowRightIcon size={16} aria-hidden="true" />
@@ -72,15 +65,15 @@ export default function HomePage() {
                 <Button variant="secondary" asChild>
                   <Link href="/app">View demo dashboard</Link>
                 </Button>
-              </Inline>
+              </Block>
             </Stack>
 
             <Card variant="raised" class="hero-card">
               <CardHeader>
-                <Inline gap="2" align="center">
+                <Block direction="row" gap="sm" align="center">
                   <span class="status-dot" />
                   <Badge>Projection current</Badge>
-                </Inline>
+                </Block>
                 <CardTitle>Command center</CardTitle>
                 <CardDescription>
                   A concise preview of the authenticated shell users see after
@@ -88,19 +81,19 @@ export default function HomePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Stack gap="3">
-                  <Box class="hero-row" p="3">
+                <Stack gap="md">
+                  <Block class="hero-row" padding="md">
                     <strong>12 active runs</strong>
                     <span>3 need review</span>
-                  </Box>
-                  <Box class="hero-row" p="3">
+                  </Block>
+                  <Block class="hero-row" padding="md">
                     <strong>98.7% success rate</strong>
                     <span>last 24 hours</span>
-                  </Box>
-                  <Box class="hero-row" p="3">
+                  </Block>
+                  <Block class="hero-row" padding="md">
                     <strong>event id 18,442</strong>
                     <span>read model synced</span>
-                  </Box>
+                  </Block>
                 </Stack>
               </CardContent>
             </Card>
@@ -129,7 +122,7 @@ export default function HomePage() {
           <EmptyState
             icon={<CheckCircle2Icon size={26} aria-hidden="true" />}
             title="Built from solved primitives"
-            description="The page uses Container, Section, Block, Stack, Inline, Box, Card, Badge, Button, Header, Navbar, and EmptyState from @askrjs/themes."
+            description="The page uses Container, Section, Block, Stack, Card, Badge, Button, Header, Navbar, and EmptyState from @askrjs/themes."
             actions={
               <Button asChild>
                 <Link href="/app/agents">Inspect agent runs</Link>
