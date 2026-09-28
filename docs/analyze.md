@@ -94,7 +94,8 @@ module is not treated as an Askr API.
   Symbol query key/scope parts; dynamic values are left alone.
 - `askr/import-subpath` groups named root imports by their owning public Askr
   subpath in one transactional fix per declaration while retaining aliases,
-  type modifiers, and valid root specifiers.
+  type modifiers, and valid root specifiers. It routes lazy controls to
+  `@askrjs/askr/control` and query APIs and types to `@askrjs/askr/data`.
 - `askr/no-hardcoded-theme-token` reports runtime color literals outside tests
   and the framework/theme owner packages.
 - `askr/no-effect-data-loading` reports direct fetch-to-component-state flows
