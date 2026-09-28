@@ -39,8 +39,9 @@ module is not treated as an Askr API.
 - `askr/stable-render-call` enforces stable top-level calls for state, derived
   values, selectors, resources, lifecycle operations, actions, queries, and
   mutations where the AST establishes a component render context.
-- `askr/stable-control-boundary` reports `For`, `Show`, `Case`, and statically
-  resolved `defineScope()` boundaries created conditionally during rendering.
+- `askr/stable-control-boundary` reports statically resolved `defineScope()`
+  calls created conditionally during rendering. `For`, `Show`, and `Case` are
+  lazy controls and may be rendered conditionally.
 - `askr/render-scope-required` reports render-owned primitives created in
   statically non-render callbacks such as handlers, timers, Promise
   continuations, and task bodies. It also reports module-scope or non-render
