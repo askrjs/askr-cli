@@ -1074,7 +1074,7 @@ describe("analyzer rules", () => {
         }
       `,
       "src/imports.ts": `
-        import { For, createQuery as query, resource, state as cell } from "@askrjs/askr";
+        import { For, createQueryCollection, createQuery as query, resource, state as cell, type QueryDefinition } from "@askrjs/askr";
         void [For, query, resource, cell];
       `,
       "src/valid.tsx": `
