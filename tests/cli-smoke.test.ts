@@ -2124,7 +2124,7 @@ test("should ensure runSkillsCli passes shared-data-consistency review for truth
     await fs.writeFile(
       path.join(tempRoot, "src", "features", "accounts", "accounts.query.ts"),
       [
-        "import { createMutation, createQuery } from '@askrjs/askr/query';",
+        "import { createMutation, createQuery } from '@askrjs/askr/data';",
         "",
         "export const accountsQuery = createQuery({",
         "  key: ['accounts'],",
