@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-28
+
+### Changed
+
+- Align CLI dependencies, starter templates, and generated database dependencies with the AskrJS 0.4 release.
+
 ## [0.3.0] - 2026-09-11
 
 ### Changed
@@ -135,7 +141,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Make database tooling work consistently across supported operating systems.
 
-[Unreleased]: https://github.com/askrjs/askr-cli/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/askrjs/askr-cli/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/askrjs/askr-cli/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/askrjs/askr-cli/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/askrjs/askr-cli/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/askrjs/askr-cli/compare/v0.2.1...v0.2.2
