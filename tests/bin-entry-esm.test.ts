@@ -39,10 +39,10 @@ function packument(name: string, versions: string[], latest: string): Record<str
   };
 }
 
-const packuments: Record<string, () => Record<string, unknown>> = {
-  "fixture-plain": () => packument("fixture-plain", ["1.0.0", "1.1.0"], "1.1.0"),
-  "@fixture/scoped": () => packument("@fixture/scoped", ["3.0.0", "3.2.0", "4.0.0"], "4.0.0"),
-};
+const packuments = new Map<string, () => Record<string, unknown>>([
+  ["fixture-plain", () => packument("fixture-plain", ["1.0.0", "1.1.0"], "1.1.0")],
+  ["@fixture/scoped", () => packument("@fixture/scoped", ["3.0.0", "3.2.0", "4.0.0"], "4.0.0")],
+]);
 
 function childEnvironment(root: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
@@ -127,7 +127,7 @@ beforeAll(async () => {
   server = http.createServer((request, response) => {
     const requested = decodeURIComponent((request.url ?? "/").slice(1));
     requestedPaths.push(requested);
-    const body = packuments[requested];
+    const body = packuments.get(requested);
     if (!body) {
       response.writeHead(404, { "content-type": "application/json" });
       response.end(JSON.stringify({ error: "Not found" }));
