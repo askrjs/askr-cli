@@ -55,6 +55,7 @@ function childEnvironment(root: string): NodeJS.ProcessEnv {
   return {
     ...env,
     NO_COLOR: "1",
+    NODE_NO_WARNINGS: "1",
     npm_config_registry: registryUrl,
     npm_config_userconfig: path.join(root, ".user-npmrc"),
     npm_config_globalconfig: path.join(root, ".global-npmrc"),
@@ -115,7 +116,9 @@ function manifestDependencies(value: string): Record<string, string> {
 beforeAll(async () => {
   // Build inside node_modules so the bundle resolves the repository's real
   // installed dependencies exactly as a consumer's node_modules would.
-  outDir = await fs.mkdtemp(path.join(repository, "node_modules", ".cache", "askr-bin-esm-"));
+  const cacheRoot = path.join(repository, "node_modules", ".cache");
+  await fs.mkdir(cacheRoot, { recursive: true });
+  outDir = await fs.mkdtemp(path.join(cacheRoot, "askr-bin-esm-"));
   await execFileAsync(process.execPath, [vpBin, "pack", "--out-dir", outDir], {
     cwd: repository,
     maxBuffer: 20 * 1024 * 1024,
@@ -158,7 +161,7 @@ describe("built CLI entry points under Node ESM", () => {
     const { stderr } = await execFileAsync(
       process.execPath,
       ["--input-type=module", "--eval", script],
-      { cwd: repository, env: { ...process.env, NO_COLOR: "1" } },
+      { cwd: repository, env: { ...process.env, NO_COLOR: "1", NODE_NO_WARNINGS: "1" } },
     );
     expect(stderr).toBe("");
   }, 60_000);
