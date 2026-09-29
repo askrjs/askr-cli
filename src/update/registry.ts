@@ -1,9 +1,25 @@
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Config from "@npmcli/config";
-import npmDefinitions from "@npmcli/config/lib/definitions";
 import registryFetch from "npm-registry-fetch";
 import type { Packument } from "./types";
+
+interface NpmDefinitions {
+  definitions: Record<string, unknown>;
+  flatten: (...args: unknown[]) => unknown;
+  shorthands: Record<string, unknown>;
+}
+
+// `@npmcli/config/lib/definitions` is a CommonJS directory module with no
+// `exports` map. Node's ES module loader rejects bare directory specifiers
+// (ERR_UNSUPPORTED_DIR_IMPORT), so load it through CommonJS resolution, which
+// follows the directory's index.js exactly as npm itself does.
+const requireFromHere = createRequire(import.meta.url);
+
+function loadNpmDefinitions(): NpmDefinitions {
+  return requireFromHere("@npmcli/config/lib/definitions") as NpmDefinitions;
+}
 
 export interface NpmConfiguration {
   cwd: string;
@@ -40,7 +56,7 @@ export async function loadNpmConfiguration(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<NpmConfiguration> {
   const effectiveEnvironment = executionEnvironment(env);
-  const { definitions, flatten, shorthands } = npmDefinitions;
+  const { definitions, flatten, shorthands } = loadNpmDefinitions();
   const npmPath = path.dirname(fileURLToPath(import.meta.resolve("@npmcli/config/package.json")));
   const configuration = new Config({
     npmPath,

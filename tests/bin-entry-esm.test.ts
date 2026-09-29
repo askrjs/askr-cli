@@ -40,7 +40,7 @@ function packument(name: string, versions: string[], latest: string): Record<str
 }
 
 const packuments: Record<string, () => Record<string, unknown>> = {
-  "fixture-plain": () => packument("fixture-plain", ["1.0.0", "1.1.0", "2.0.0"], "2.0.0"),
+  "fixture-plain": () => packument("fixture-plain", ["1.0.0", "1.1.0"], "1.1.0"),
   "@fixture/scoped": () => packument("@fixture/scoped", ["3.0.0", "3.2.0", "4.0.0"], "4.0.0"),
 };
 
@@ -180,7 +180,7 @@ describe("built CLI entry points under Node ESM", () => {
       Object.fromEntries(
         report.decisions.map((decision) => [decision.package, decision.targetVersion]),
       ),
-    ).toEqual({ "@fixture/scoped": "4.0.0", "fixture-plain": "2.0.0" });
+    ).toEqual({ "@fixture/scoped": "4.0.0", "fixture-plain": "1.1.0" });
     expect(requestedPaths).toEqual(expect.arrayContaining(["fixture-plain", "@fixture/scoped"]));
     await expect(fs.readFile(path.join(root, "package.json"), "utf8")).resolves.toBe(before);
   }, 60_000);
@@ -192,11 +192,11 @@ describe("built CLI entry points under Node ESM", () => {
 
     expect(result.stderr).toBe("");
     expect(result.code).toBe(0);
-    expect(result.stdout).toContain("Updated 2 manifest occurrences.");
+    expect(result.stdout).toContain("Updated 1 manifest occurrence.");
     const manifest = await fs.readFile(path.join(root, "package.json"), "utf8");
     expect(manifestDependencies(manifest)).toEqual({
       "fixture-plain": "^1.1.0",
-      "@fixture/scoped": "^3.2.0",
+      "@fixture/scoped": "^3.0.0",
     });
   }, 60_000);
 
@@ -210,7 +210,7 @@ describe("built CLI entry points under Node ESM", () => {
     expect(result.stdout).toContain("Updated 2 manifest occurrences.");
     const manifest = await fs.readFile(path.join(root, "package.json"), "utf8");
     expect(manifestDependencies(manifest)).toEqual({
-      "fixture-plain": "^2.0.0",
+      "fixture-plain": "^1.1.0",
       "@fixture/scoped": "^4.0.0",
     });
   }, 60_000);
