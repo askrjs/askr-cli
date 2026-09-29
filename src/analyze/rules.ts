@@ -2798,26 +2798,18 @@ const stableControlBoundaryRule: AnalyzeRule = {
   id: "askr/stable-control-boundary",
   category: "correctness",
   severity: "error",
-  description: "Conditional control boundaries must not change identity between renders.",
+  description: "Explicit scopes must not change identity between renders.",
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
       const bindings = sourceBindings(sourceFile);
       const facts = sourceFacts(sourceFile);
-      if (
-        !facts.jsx.some((fact) => ["For", "Show", "Case"].includes(fact.name)) &&
-        !facts.calls.some((fact) => fact.name === "defineScope")
-      ) {
+      if (!facts.calls.some((fact) => fact.name === "defineScope")) {
         continue;
       }
       visit(sourceFile, (node) => {
         let candidate: ts.Node | null = null;
         if (
-          (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
-          ["For", "Show", "Case"].includes(canonicalJsxName(node.tagName, bindings) ?? "")
-        ) {
-          candidate = node;
-        } else if (
           ts.isCallExpression(node) &&
           canonicalCallName(node.expression, bindings) === "defineScope"
         ) {
@@ -2831,8 +2823,8 @@ const stableControlBoundaryRule: AnalyzeRule = {
             context,
             candidate,
             this,
-            "An Askr control boundary is created conditionally, so its render identity is unstable.",
-            "Create the boundary unconditionally and put the condition in <Show>, <Match>, or its inputs.",
+            "An Askr scope is created conditionally, so its render identity is unstable.",
+            "Create the scope unconditionally and read it from the render-owned component.",
           ),
         );
       });
@@ -3310,11 +3302,50 @@ const IMPORT_SUBPATHS: Readonly<Record<string, string>> = {
   hydrateSPA: "boot",
   createIsland: "boot",
   createIslands: "boot",
+  Case: "control",
+  CaseProps: "control",
+  For: "control",
+  ForGetterProps: "control",
+  ForProps: "control",
+  Match: "control",
+  MatchProps: "control",
+  Show: "control",
+  ShowProps: "control",
+  createDataRuntime: "data",
   createQuery: "data",
+  createQueryCollection: "data",
   createMutation: "data",
+  createQueryPrefetchContext: "data",
+  DataRuntime: "data",
+  DataRuntimeOptions: "data",
+  defineQuery: "data",
+  defineServerQueries: "data",
+  dehydrateDataRuntime: "data",
+  getDefaultDataRuntime: "data",
+  hydrateDataRuntime: "data",
   invalidate: "data",
   invalidateOnInterval: "data",
+  InvalidateOnIntervalOptions: "data",
+  InvalidateOptions: "data",
+  Mutation: "data",
+  MutationOptions: "data",
+  prefetchQuery: "data",
+  Query: "data",
+  QueryCollection: "data",
+  QueryCollectionEntry: "data",
+  QueryCollectionKey: "data",
+  QueryCollectionOptions: "data",
+  QueryConsistency: "data",
+  QueryDefinition: "data",
+  QueryKeyPart: "data",
+  QueryPrefetchContext: "data",
   queryScope: "data",
+  QueryScope: "data",
+  QueryStaleReason: "data",
+  serveQuery: "data",
+  ServerQueryEntry: "data",
+  ServerQueryHandler: "data",
+  ServerQueryRegistry: "data",
   route: "router",
   page: "router",
   index: "router",

@@ -416,7 +416,7 @@ test("should ensure runCreateCli scaffolds SPA with the route-first themed app s
     expect(appLayoutFile).toMatch(/Sidebar/);
     expect(appLayoutFile).toMatch(/ThemeToggle/);
     expect(appLayoutFile).toMatch(/appNavItems/);
-    expect(packageJson).toMatch(/"@askrjs\/charts": ">=0\.3\.0 <0\.4\.0"/);
+    expect(packageJson).toMatch(/"@askrjs\/charts": ">=0\.4\.0 <0\.5\.0"/);
     expect(routesFile).toMatch(/registerPublicRoutes/);
     expect(routesFile).toMatch(/registerAuthRoutes/);
     expect(routesFile).toMatch(/registerAppRoutes/);
@@ -487,7 +487,7 @@ test("should ensure runCreateCli scaffolds SSG with shared route registration an
     expect(packageJson).toMatch(
       /"generate": "askr ssg --config \.\/ssg\.config\.ts --output \.\/dist"/,
     );
-    expect(packageJson).toMatch(/"@askrjs\/cli": ">=0\.3\.0 <0\.4\.0"/);
+    expect(packageJson).toMatch(/"@askrjs\/cli": ">=0\.4\.0 <0\.5\.0"/);
     expect(packageJson).toMatch(/"test": "vp test run -c \.\/vitest\.config\.ts"/);
     expect(packageJson).toMatch(/"fmt": "vp fmt \."/);
     expect(mainFile).toMatch(/registry:\s*pageRegistry/);
@@ -650,10 +650,10 @@ test("should ensure runCreateCli scaffolds a function-first full-stack project",
     expect(packageJson).toMatch(/"@askrjs\/schema"/);
     expect(packageJson).toMatch(/"@askrjs\/i18n"/);
     expect(packageJson).toMatch(/"@askrjs\/otel"/);
-    expect(packageManifest.dependencies["@askrjs/askr"]).toBe(">=0.3.0 <0.4.0");
-    expect(packageManifest.dependencies["@askrjs/themes"]).toBe(">=0.3.0 <0.4.0");
-    expect(packageManifest.dependencies["@askrjs/ui"]).toBe(">=0.3.0 <0.4.0");
-    expect(packageManifest.devDependencies["@askrjs/vite"]).toBe(">=0.3.0 <0.4.0");
+    expect(packageManifest.dependencies["@askrjs/askr"]).toBe(">=0.4.0 <0.5.0");
+    expect(packageManifest.dependencies["@askrjs/themes"]).toBe(">=0.4.0 <0.5.0");
+    expect(packageManifest.dependencies["@askrjs/ui"]).toBe(">=0.4.0 <0.5.0");
+    expect(packageManifest.devDependencies["@askrjs/vite"]).toBe(">=0.4.0 <0.5.0");
     expect(indexHtml.match(/<!--askr-app-->/g)).toHaveLength(1);
     expect(indexHtml.match(/<!--askr-head-->/g)).toHaveLength(1);
     expect(gitignore).toContain("node_modules");
@@ -680,21 +680,21 @@ test("should ensure runCreateCli scaffolds a function-first full-stack project",
   }
 });
 
-test("should ensure template package floors require the clean-break scope vocabulary", async () => {
+test("should ensure templates require the 0.4 platform floor", async () => {
   for (const template of ["full-stack", "spa", "ssr", "ssg", "startkit"]) {
     const manifest = JSON.parse(
       await fs.readFile(new URL(`../templates/${template}/package.json`, import.meta.url), "utf8"),
     ) as { dependencies: Record<string, string> };
 
-    expect(manifest.dependencies["@askrjs/askr"], template).toBe(">=0.3.0 <0.4.0");
+    expect(manifest.dependencies["@askrjs/askr"], template).toBe(">=0.4.0 <0.5.0");
     if (manifest.dependencies["@askrjs/themes"]) {
-      expect(manifest.dependencies["@askrjs/themes"], template).toBe(">=0.3.0 <0.4.0");
+      expect(manifest.dependencies["@askrjs/themes"], template).toBe(">=0.4.0 <0.5.0");
     }
     if (manifest.dependencies["@askrjs/ui"]) {
-      expect(manifest.dependencies["@askrjs/ui"], template).toBe(">=0.3.0 <0.4.0");
+      expect(manifest.dependencies["@askrjs/ui"], template).toBe(">=0.4.0 <0.5.0");
     }
     if (manifest.dependencies["@askrjs/auth"]) {
-      expect(manifest.dependencies["@askrjs/auth"], template).toBe(">=0.3.0 <0.4.0");
+      expect(manifest.dependencies["@askrjs/auth"], template).toBe(">=0.4.0 <0.5.0");
     }
   }
 });
@@ -834,7 +834,7 @@ test("should ensure runAddCli transactionally scaffolds both database dialects",
       };
       expect(definition).toContain(`from '@askrjs/orm/${dialect}'`);
       expect(definition).toContain(`driver: ${dialect}()`);
-      expect(manifest.dependencies["@askrjs/orm"]).toBe(">=0.3.0 <0.4.0");
+      expect(manifest.dependencies["@askrjs/orm"]).toBe(">=0.4.0 <0.5.0");
       expect(manifest.dependencies.pg).toBe(dialect === "postgres" ? "^8.16.0" : undefined);
       await expect(
         fs.access(path.join(tempRoot, "src", "database", "migrations", ".gitkeep")),
@@ -861,7 +861,7 @@ test("should ensure concurrent database generators report one complete winner", 
     expect(definition.includes("sqlite()") || definition.includes("postgres()")).toBe(true);
     expect(
       JSON.parse(await fs.readFile(path.join(tempRoot, "package.json"), "utf8")).dependencies,
-    ).toHaveProperty("@askrjs/orm", ">=0.3.0 <0.4.0");
+    ).toHaveProperty("@askrjs/orm", ">=0.4.0 <0.5.0");
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
@@ -2124,7 +2124,7 @@ test("should ensure runSkillsCli passes shared-data-consistency review for truth
     await fs.writeFile(
       path.join(tempRoot, "src", "features", "accounts", "accounts.query.ts"),
       [
-        "import { createMutation, createQuery } from '@askrjs/askr/query';",
+        "import { createMutation, createQuery } from '@askrjs/askr/data';",
         "",
         "export const accountsQuery = createQuery({",
         "  key: ['accounts'],",

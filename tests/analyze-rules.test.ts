@@ -1074,7 +1074,7 @@ describe("analyzer rules", () => {
         }
       `,
       "src/imports.ts": `
-        import { For, createQuery as query, resource, state as cell } from "@askrjs/askr";
+        import { For, createQueryCollection, createQuery as query, resource, state as cell, type QueryDefinition } from "@askrjs/askr";
         void [For, query, resource, cell];
       `,
       "src/valid.tsx": `
@@ -1087,6 +1087,16 @@ describe("analyzer rules", () => {
           resource(() => count(), [count()]);
           return <><For each={[]} byIndex>{() => <span data-value={() => count()} />}</For>
             <Link href="sms:+15551234567" /><Deferred /></>;
+        }
+      `,
+      "src/conditional-controls.tsx": `
+        import { Case, For, Match, Show } from "@askrjs/askr/control";
+        export function Conditional(props: { open: boolean; items: readonly { id: string }[] }) {
+          return <>
+            {props.open ? <For each={props.items} by={(item) => item.id}>{(item) => <span>{item.id}</span>}</For> : null}
+            {props.open ? <Show when={true}>visible</Show> : null}
+            {props.items.map((item) => <Case key={item.id}><Match when={true}>{item.id}</Match></Case>)}
+          </>;
         }
       `,
       "src/deferred.tsx": "export default function Deferred() { return <div />; }",
@@ -1121,6 +1131,19 @@ describe("analyzer rules", () => {
           ].includes(entry.ruleId),
       ),
     ).toEqual([]);
+    expect(
+      found.filter(
+        (entry) =>
+          entry.file === "src/conditional-controls.tsx" &&
+          entry.ruleId === "askr/stable-control-boundary",
+      ),
+    ).toEqual([]);
+    expect(
+      found.filter(
+        (entry) =>
+          entry.file === "src/backlog.tsx" && entry.ruleId === "askr/stable-control-boundary",
+      ),
+    ).toHaveLength(1);
     expect(found.find((entry) => entry.ruleId === "askr/import-subpath")?.fix).toMatchObject({
       safe: true,
     });

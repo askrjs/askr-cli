@@ -39,8 +39,9 @@ module is not treated as an Askr API.
 - `askr/stable-render-call` enforces stable top-level calls for state, derived
   values, selectors, resources, lifecycle operations, actions, queries, and
   mutations where the AST establishes a component render context.
-- `askr/stable-control-boundary` reports `For`, `Show`, `Case`, and statically
-  resolved `defineScope()` boundaries created conditionally during rendering.
+- `askr/stable-control-boundary` reports statically resolved `defineScope()`
+  calls created conditionally during rendering. `For`, `Show`, and `Case` are
+  lazy controls and may be rendered conditionally.
 - `askr/render-scope-required` reports render-owned primitives created in
   statically non-render callbacks such as handlers, timers, Promise
   continuations, and task bodies. It also reports module-scope or non-render
@@ -93,7 +94,8 @@ module is not treated as an Askr API.
   Symbol query key/scope parts; dynamic values are left alone.
 - `askr/import-subpath` groups named root imports by their owning public Askr
   subpath in one transactional fix per declaration while retaining aliases,
-  type modifiers, and valid root specifiers.
+  type modifiers, and valid root specifiers. It routes lazy controls to
+  `@askrjs/askr/control` and query APIs and types to `@askrjs/askr/data`.
 - `askr/no-hardcoded-theme-token` reports runtime color literals outside tests
   and the framework/theme owner packages.
 - `askr/no-effect-data-loading` reports direct fetch-to-component-state flows

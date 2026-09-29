@@ -65,6 +65,51 @@ afterEach(async () => {
 });
 
 describe("analyze CLI", () => {
+  it("should move lazy controls and query contracts to their canonical subpaths", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-analyze-imports-"));
+    roots.push(root);
+    await fs.mkdir(path.join(root, "src"));
+    await fs.writeFile(
+      path.join(root, "package.json"),
+      `${JSON.stringify({ name: "fixture" }, null, 2)}\n`,
+    );
+    await fs.writeFile(
+      path.join(root, "tsconfig.json"),
+      `${JSON.stringify(
+        {
+          compilerOptions: {
+            jsx: "react-jsx",
+            jsxImportSource: "@askrjs/askr",
+            module: "ESNext",
+            moduleResolution: "Bundler",
+          },
+          include: ["src"],
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    const filePath = path.join(root, "src", "imports.tsx");
+    await fs.writeFile(
+      filePath,
+      'import { For, createQueryCollection, createQuery as query, resource, state as cell, type QueryDefinition } from "@askrjs/askr";\n',
+    );
+
+    const report = await runAnalysis({ cwd: root, workspacePatterns: [], check: false });
+    expect(report.appliedFixes).toContainEqual(
+      expect.objectContaining({ ruleId: "askr/import-subpath", file: "src/imports.tsx" }),
+    );
+    expect(await fs.readFile(filePath, "utf8")).toBe(
+      [
+        'import { state as cell } from "@askrjs/askr";',
+        'import { For } from "@askrjs/askr/control";',
+        'import { createQueryCollection, createQuery as query, type QueryDefinition } from "@askrjs/askr/data";',
+        'import { resource } from "@askrjs/askr/resources";',
+        "",
+      ].join("\n"),
+    );
+  });
+
   it("should parse repeated workspace filters and command options", () => {
     expect(
       parseAnalyzeArgs([
