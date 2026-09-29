@@ -7,7 +7,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatSkillReviewReport, listSkillReviewPrompts, runSkillReview } from "./skill-review";
 import { isDirectExecution } from "./is-direct-execution";
-import { createSiblingStage, publishStagedDirectory } from "../directory-swap";
+import {
+  createSiblingStage,
+  swapStagedDirectoryLocked,
+  withDirectoryTargetLock,
+} from "../directory-swap";
 
 type CliIo = Pick<Console, "error" | "log">;
 
@@ -283,15 +287,22 @@ async function replaceBundledSkills(
   targetSkillsDir: string,
   bundledNames: string[],
 ): Promise<void> {
-  const stage = await stageSkillsDirectory(targetSkillsDir);
-  try {
-    await removeManagedSkillArtifacts(stage, bundledNames);
-    await copyBundledSkills(stage, bundledNames);
-    await publishStagedDirectory(stage, targetSkillsDir);
-  } catch (error) {
-    await fs.rm(stage, { recursive: true, force: true });
-    throw error;
-  }
+  // Hold the target lock across the whole read-modify-publish cycle. Copying the
+  // live tree outside the lock let a concurrent sync rename it mid-copy, which
+  // fails on Windows (EPERM while handles are open) and can stage a missing or
+  // partial tree elsewhere.
+  await fs.mkdir(path.dirname(targetSkillsDir), { recursive: true });
+  await withDirectoryTargetLock(targetSkillsDir, async () => {
+    const stage = await stageSkillsDirectory(targetSkillsDir);
+    try {
+      await removeManagedSkillArtifacts(stage, bundledNames);
+      await copyBundledSkills(stage, bundledNames);
+      await swapStagedDirectoryLocked(stage, targetSkillsDir);
+    } catch (error) {
+      await fs.rm(stage, { recursive: true, force: true });
+      throw error;
+    }
+  });
 }
 
 export async function installBundledSkills(
