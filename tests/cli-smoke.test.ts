@@ -2646,3 +2646,164 @@ test("should ensure concurrent skill syncs publish complete trees", async () => 
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
 });
+
+test("should ensure many concurrent skill syncs all succeed and preserve unrelated skills", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-stress-"));
+  try {
+    const skillsRoot = path.join(tempRoot, "skills");
+    await fs.mkdir(path.join(skillsRoot, "custom-skill"), { recursive: true });
+    await fs.writeFile(path.join(skillsRoot, "custom-skill", "SKILL.md"), "custom", "utf8");
+
+    // Syncs serialize on the target lock (~0.5s each on Windows CI), so keep the
+    // count modest and the timeout explicit.
+    const runs = Array.from({ length: 6 }, () => createIo());
+    const results = await Promise.all(
+      runs.map(({ io }) => runSkillsCli(["sync", "--cwd", tempRoot], io)),
+    );
+
+    expect(runs.flatMap(({ errors }) => errors)).toEqual([]);
+    expect(results).toEqual(runs.map(() => 0));
+    await expect(
+      fs.readFile(path.join(skillsRoot, "custom-skill", "SKILL.md"), "utf8"),
+    ).resolves.toBe("custom");
+    const entries = await fs.readdir(tempRoot);
+    expect(entries).toEqual(["skills"]);
+    expect((await fs.readdir(skillsRoot)).filter((name) => name.startsWith("askr-"))).toHaveLength(
+      26,
+    );
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+}, 20_000);
+
+test("should ensure concurrent skill installs admit exactly one into an empty target", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-install-race-"));
+  try {
+    const runs = [createIo(), createIo()];
+    const results = await Promise.all(
+      runs.map(({ io }) => runSkillsCli(["install", "--cwd", tempRoot], io)),
+    );
+
+    expect([...results].sort()).toEqual([0, 1]);
+    expect(runs.flatMap(({ errors }) => errors).join("\n")).toMatch(
+      /Refusing to install into non-empty/,
+    );
+    expect(
+      (await fs.readdir(path.join(tempRoot, "skills"))).filter((name) => name.startsWith("askr-")),
+    ).toHaveLength(26);
+    expect(await fs.readdir(tempRoot)).toEqual(["skills"]);
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("should ensure skill sync never swaps the live tree while another sync is copying it", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-handles-"));
+  const skillsRoot = path.join(tempRoot, "skills");
+  const lockPath = `${skillsRoot}.askr-lock`;
+  await fs.mkdir(path.join(skillsRoot, "custom-skill"), { recursive: true });
+  await fs.writeFile(path.join(skillsRoot, "custom-skill", "SKILL.md"), "custom", "utf8");
+
+  // Emulate Windows: a directory with open handles beneath it cannot be renamed.
+  let copiesInFlight = 0;
+  let swapsDuringCopy = 0;
+  let gated = false;
+  let releaseGate!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    releaseGate = resolve;
+  });
+  const originalCp = fs.cp.bind(fs);
+  const originalRename = fs.rename.bind(fs);
+  const originalMkdir = fs.mkdir.bind(fs);
+  const cp = vi.spyOn(fs, "cp").mockImplementation((async (...args: Parameters<typeof fs.cp>) => {
+    if (path.resolve(String(args[0])) !== skillsRoot) return originalCp(...args);
+    copiesInFlight += 1;
+    try {
+      if (!gated) {
+        gated = true;
+        await gate;
+      }
+      return await originalCp(...args);
+    } finally {
+      copiesInFlight -= 1;
+    }
+  }) as typeof fs.cp);
+  const rename = vi.spyOn(fs, "rename").mockImplementation((async (
+    ...args: Parameters<typeof fs.rename>
+  ) => {
+    if (path.resolve(String(args[0])) === skillsRoot && copiesInFlight > 0) {
+      swapsDuringCopy += 1;
+      releaseGate();
+      throw Object.assign(new Error(`EPERM: operation not permitted, rename '${args[0]}'`), {
+        code: "EPERM",
+      });
+    }
+    return originalRename(...args);
+  }) as typeof fs.rename);
+  const mkdir = vi.spyOn(fs, "mkdir").mockImplementation((async (
+    ...args: Parameters<typeof fs.mkdir>
+  ) => {
+    try {
+      return await originalMkdir(...args);
+    } catch (error) {
+      // A second sync waiting on the lock lets the first one finish its copy.
+      if (path.resolve(String(args[0])) === lockPath) releaseGate();
+      throw error;
+    }
+  }) as typeof fs.mkdir);
+
+  try {
+    const results = await Promise.all([
+      runSkillsCli(["sync", "--cwd", tempRoot], createIo().io),
+      runSkillsCli(["sync", "--cwd", tempRoot], createIo().io),
+    ]);
+
+    expect(swapsDuringCopy).toBe(0);
+    expect(results).toEqual([0, 0]);
+    await expect(
+      fs.readFile(path.join(skillsRoot, "custom-skill", "SKILL.md"), "utf8"),
+    ).resolves.toBe("custom");
+  } finally {
+    cp.mockRestore();
+    rename.mockRestore();
+    mkdir.mockRestore();
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("should ensure skill sync retries a transient Windows EPERM when replacing the tree", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-eperm-"));
+  const skillsRoot = path.join(tempRoot, "skills");
+  await fs.mkdir(path.join(skillsRoot, "custom-skill"), { recursive: true });
+  await fs.writeFile(path.join(skillsRoot, "custom-skill", "SKILL.md"), "custom", "utf8");
+  const originalRename = fs.rename.bind(fs);
+  let failures = 0;
+  const rename = vi.spyOn(fs, "rename").mockImplementation((async (
+    ...args: Parameters<typeof fs.rename>
+  ) => {
+    if (failures === 0 && path.resolve(String(args[0])) === skillsRoot) {
+      failures += 1;
+      throw Object.assign(new Error(`EPERM: operation not permitted, rename '${args[0]}'`), {
+        code: "EPERM",
+      });
+    }
+    return originalRename(...args);
+  }) as typeof fs.rename);
+  const { io, errors } = createIo();
+
+  try {
+    expect(await runSkillsCli(["sync", "--cwd", tempRoot], io)).toBe(0);
+    expect(errors).toEqual([]);
+    expect(failures).toBe(1);
+    await expect(
+      fs.access(path.join(skillsRoot, "askr-app-builder", "SKILL.md")),
+    ).resolves.toBeUndefined();
+    await expect(
+      fs.readFile(path.join(skillsRoot, "custom-skill", "SKILL.md"), "utf8"),
+    ).resolves.toBe("custom");
+    expect(await fs.readdir(tempRoot)).toEqual(["skills"]);
+  } finally {
+    rename.mockRestore();
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});

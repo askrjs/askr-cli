@@ -7,7 +7,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatSkillReviewReport, listSkillReviewPrompts, runSkillReview } from "./skill-review";
 import { isDirectExecution } from "./is-direct-execution";
-import { createSiblingStage, publishStagedDirectory } from "../directory-swap";
+import {
+  createSiblingStage,
+  swapStagedDirectoryLocked,
+  withDirectoryTargetLock,
+} from "../directory-swap";
 
 type CliIo = Pick<Console, "error" | "log">;
 
@@ -279,62 +283,57 @@ async function stageSkillsDirectory(targetSkillsDir: string): Promise<string> {
   return stage;
 }
 
-async function replaceBundledSkills(
-  targetSkillsDir: string,
-  bundledNames: string[],
-): Promise<void> {
-  const stage = await stageSkillsDirectory(targetSkillsDir);
-  try {
-    await removeManagedSkillArtifacts(stage, bundledNames);
-    await copyBundledSkills(stage, bundledNames);
-    await publishStagedDirectory(stage, targetSkillsDir);
-  } catch (error) {
-    await fs.rm(stage, { recursive: true, force: true });
-    throw error;
+async function assertSkillsTarget(targetSkillsDir: string, requireEmpty: boolean): Promise<void> {
+  const targetStat = await fs.stat(targetSkillsDir).catch(() => null);
+  if (targetStat && !targetStat.isDirectory()) {
+    throw new Error(`Skills target exists and is not a directory: ${targetSkillsDir}`);
   }
+  if (!requireEmpty) return;
+  const existingEntries = await fs.readdir(targetSkillsDir).catch(() => [] as string[]);
+  if (existingEntries.length > 0) {
+    throw new Error(`Refusing to install into non-empty ${targetSkillsDir}.`);
+  }
+}
+
+async function replaceBundledSkills(options: {
+  cwd?: string;
+  requireEmpty: boolean;
+}): Promise<{ bundledNames: string[]; targetSkillsDir: string }> {
+  const targetRoot = path.resolve(options.cwd ?? process.cwd());
+  const targetSkillsDir = path.join(targetRoot, PROJECT_SKILLS_DIR);
+  const bundledNames = await listBundledSkills();
+
+  // Hold the target lock across the whole check-copy-update-publish cycle.
+  // Copying the live tree outside the lock let a concurrent sync rename it
+  // mid-copy, which fails on Windows (EPERM while handles are open) and can
+  // stage a missing or partial tree on any OS.
+  await fs.mkdir(targetRoot, { recursive: true });
+  await withDirectoryTargetLock(targetSkillsDir, async () => {
+    await assertSkillsTarget(targetSkillsDir, options.requireEmpty);
+    const stage = await stageSkillsDirectory(targetSkillsDir);
+    try {
+      await removeManagedSkillArtifacts(stage, bundledNames);
+      await copyBundledSkills(stage, bundledNames);
+      await swapStagedDirectoryLocked(stage, targetSkillsDir);
+    } catch (error) {
+      await fs.rm(stage, { recursive: true, force: true });
+      throw error;
+    }
+  });
+
+  return { bundledNames, targetSkillsDir };
 }
 
 export async function installBundledSkills(
   options: { cwd?: string; force?: boolean } = {},
 ): Promise<{ bundledNames: string[]; targetSkillsDir: string }> {
-  const targetRoot = path.resolve(options.cwd ?? process.cwd());
-  const targetSkillsDir = path.join(targetRoot, PROJECT_SKILLS_DIR);
-  const bundledNames = await listBundledSkills();
-  const targetStat = await fs.stat(targetSkillsDir).catch(() => null);
-  if (targetStat && !targetStat.isDirectory()) {
-    throw new Error(`Skills target exists and is not a directory: ${targetSkillsDir}`);
-  }
-  const existingEntries = await fs.readdir(targetSkillsDir).catch(() => [] as string[]);
-
-  if (existingEntries.length > 0 && !options.force) {
-    throw new Error(`Refusing to install into non-empty ${targetSkillsDir}.`);
-  }
-
-  await replaceBundledSkills(targetSkillsDir, bundledNames);
-
-  return {
-    bundledNames,
-    targetSkillsDir,
-  };
+  return replaceBundledSkills({ cwd: options.cwd, requireEmpty: !options.force });
 }
 
 export async function syncBundledSkills(
   options: { cwd?: string } = {},
 ): Promise<{ bundledNames: string[]; targetSkillsDir: string }> {
-  const targetRoot = path.resolve(options.cwd ?? process.cwd());
-  const targetSkillsDir = path.join(targetRoot, PROJECT_SKILLS_DIR);
-  const bundledNames = await listBundledSkills();
-  const targetStat = await fs.stat(targetSkillsDir).catch(() => null);
-  if (targetStat && !targetStat.isDirectory()) {
-    throw new Error(`Skills target exists and is not a directory: ${targetSkillsDir}`);
-  }
-
-  await replaceBundledSkills(targetSkillsDir, bundledNames);
-
-  return {
-    bundledNames,
-    targetSkillsDir,
-  };
+  return replaceBundledSkills({ cwd: options.cwd, requireEmpty: false });
 }
 
 async function installSkills(parsed: ParsedArgs, io: CliIo): Promise<number> {

@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSiblingStage, publishStagedDirectory } from "../src/directory-swap";
 
 const roots: string[] = [];
@@ -38,6 +38,37 @@ describe("directory publication", () => {
     ).rejects.toThrow();
 
     expect(await fs.readFile(path.join(target, "old.txt"), "utf8")).toBe("old");
+  });
+
+  it("should restore the original directory when a Windows rename error persists", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-directory-eperm-"));
+    roots.push(root);
+    const target = path.join(root, "target");
+    await fs.mkdir(target);
+    await fs.writeFile(path.join(target, "old.txt"), "old");
+    const stage = await createSiblingStage(target, "test");
+    await fs.writeFile(path.join(stage, "new.txt"), "new");
+    const originalRename = fs.rename.bind(fs);
+    let stageAttempts = 0;
+    const rename = vi.spyOn(fs, "rename").mockImplementation((async (
+      ...args: Parameters<typeof fs.rename>
+    ) => {
+      if (path.resolve(String(args[0])) === stage) {
+        stageAttempts += 1;
+        throw Object.assign(new Error("EBUSY: resource busy or locked"), { code: "EBUSY" });
+      }
+      return originalRename(...args);
+    }) as typeof fs.rename);
+
+    try {
+      await expect(publishStagedDirectory(stage, target)).rejects.toMatchObject({ code: "EBUSY" });
+    } finally {
+      rename.mockRestore();
+    }
+
+    expect(stageAttempts).toBeGreaterThan(1);
+    expect(await fs.readFile(path.join(target, "old.txt"), "utf8")).toBe("old");
+    await expect(fs.access(`${target}.askr-lock`)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("should recover a lock left by an interrupted publisher", async () => {

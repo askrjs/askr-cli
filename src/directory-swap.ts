@@ -79,29 +79,57 @@ export async function createSiblingStage(target: string, label: string): Promise
   return fs.mkdtemp(path.join(parent, `.${path.basename(resolved)}.${label}-`));
 }
 
-export async function publishStagedDirectory(stage: string, target: string): Promise<void> {
-  return withDirectoryTargetLock(target, async () => {
-    const resolvedTarget = path.resolve(target);
-    const backup = path.join(
-      path.dirname(resolvedTarget),
-      `.${path.basename(resolvedTarget)}.askr-backup-${randomUUID()}`,
-    );
-    const hadTarget = await exists(resolvedTarget);
-    let movedTarget = false;
+const TRANSIENT_RENAME_CODES = new Set(["EPERM", "EBUSY", "EACCES"]);
+const RENAME_RETRY_DELAYS_MS = [10, 20, 40, 80, 160, 320, 640];
 
+/**
+ * Renames `from` to `to`, retrying briefly when Windows reports that another
+ * handle (antivirus, indexer, a concurrent reader) is still open beneath the
+ * directory. Non-transient errors and exhausted retries are rethrown unchanged.
+ */
+async function renameWithRetry(from: string, to: string): Promise<void> {
+  for (let attempt = 0; ; attempt += 1) {
     try {
-      if (hadTarget) {
-        await fs.rename(resolvedTarget, backup);
-        movedTarget = true;
-      }
-      await fs.rename(stage, resolvedTarget);
+      await fs.rename(from, to);
+      return;
     } catch (error) {
-      if (movedTarget && !(await exists(resolvedTarget)) && (await exists(backup))) {
-        await fs.rename(backup, resolvedTarget);
-      }
-      throw error;
+      const code = error instanceof Error && "code" in error ? String(error.code) : "";
+      const delay = RENAME_RETRY_DELAYS_MS[attempt];
+      if (!TRANSIENT_RENAME_CODES.has(code) || delay === undefined) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
+  }
+}
 
-    if (movedTarget) await fs.rm(backup, { recursive: true, force: true }).catch(() => undefined);
-  });
+/**
+ * Swaps a complete stage into `target`. The caller must already hold
+ * `withDirectoryTargetLock(target)`; use `publishStagedDirectory` otherwise.
+ */
+export async function swapStagedDirectoryLocked(stage: string, target: string): Promise<void> {
+  const resolvedTarget = path.resolve(target);
+  const backup = path.join(
+    path.dirname(resolvedTarget),
+    `.${path.basename(resolvedTarget)}.askr-backup-${randomUUID()}`,
+  );
+  const hadTarget = await exists(resolvedTarget);
+  let movedTarget = false;
+
+  try {
+    if (hadTarget) {
+      await renameWithRetry(resolvedTarget, backup);
+      movedTarget = true;
+    }
+    await renameWithRetry(stage, resolvedTarget);
+  } catch (error) {
+    if (movedTarget && !(await exists(resolvedTarget)) && (await exists(backup))) {
+      await renameWithRetry(backup, resolvedTarget);
+    }
+    throw error;
+  }
+
+  if (movedTarget) await fs.rm(backup, { recursive: true, force: true }).catch(() => undefined);
+}
+
+export async function publishStagedDirectory(stage: string, target: string): Promise<void> {
+  return withDirectoryTargetLock(target, () => swapStagedDirectoryLocked(stage, target));
 }
