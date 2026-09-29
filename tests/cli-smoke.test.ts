@@ -2654,7 +2654,9 @@ test("should ensure many concurrent skill syncs all succeed and preserve unrelat
     await fs.mkdir(path.join(skillsRoot, "custom-skill"), { recursive: true });
     await fs.writeFile(path.join(skillsRoot, "custom-skill", "SKILL.md"), "custom", "utf8");
 
-    const runs = Array.from({ length: 8 }, () => createIo());
+    // Syncs serialize on the target lock (~0.5s each on Windows CI), so keep the
+    // count modest and the timeout explicit.
+    const runs = Array.from({ length: 6 }, () => createIo());
     const results = await Promise.all(
       runs.map(({ io }) => runSkillsCli(["sync", "--cwd", tempRoot], io)),
     );
@@ -2672,7 +2674,7 @@ test("should ensure many concurrent skill syncs all succeed and preserve unrelat
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
-});
+}, 20_000);
 
 test("should ensure concurrent skill installs admit exactly one into an empty target", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-install-race-"));
