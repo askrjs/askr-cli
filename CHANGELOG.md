@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Concurrent `askr skills sync` runs against the same project no longer fail
   intermittently on Windows. The live `skills/` tree is now copied, updated, and
   swapped under a single directory lock, and the swap retries transient
-  `EPERM`/`EBUSY`/`EACCES` rename errors
+  `EPERM`/`EBUSY`/`EACCES` rename errors. Concurrent `askr skills install`
+  runs without `--force` now admit exactly one install into an empty target
   ([#153](https://github.com/askrjs/askr-cli/issues/153)).
 
 ## [0.4.0] - 2026-09-28

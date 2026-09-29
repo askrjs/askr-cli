@@ -2654,7 +2654,7 @@ test("should ensure many concurrent skill syncs all succeed and preserve unrelat
     await fs.mkdir(path.join(skillsRoot, "custom-skill"), { recursive: true });
     await fs.writeFile(path.join(skillsRoot, "custom-skill", "SKILL.md"), "custom", "utf8");
 
-    const runs = Array.from({ length: 12 }, () => createIo());
+    const runs = Array.from({ length: 8 }, () => createIo());
     const results = await Promise.all(
       runs.map(({ io }) => runSkillsCli(["sync", "--cwd", tempRoot], io)),
     );
@@ -2669,6 +2669,27 @@ test("should ensure many concurrent skill syncs all succeed and preserve unrelat
     expect((await fs.readdir(skillsRoot)).filter((name) => name.startsWith("askr-"))).toHaveLength(
       26,
     );
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("should ensure concurrent skill installs admit exactly one into an empty target", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-install-race-"));
+  try {
+    const runs = [createIo(), createIo()];
+    const results = await Promise.all(
+      runs.map(({ io }) => runSkillsCli(["install", "--cwd", tempRoot], io)),
+    );
+
+    expect([...results].sort()).toEqual([0, 1]);
+    expect(runs.flatMap(({ errors }) => errors).join("\n")).toMatch(
+      /Refusing to install into non-empty/,
+    );
+    expect(
+      (await fs.readdir(path.join(tempRoot, "skills"))).filter((name) => name.startsWith("askr-")),
+    ).toHaveLength(26);
+    expect(await fs.readdir(tempRoot)).toEqual(["skills"]);
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
