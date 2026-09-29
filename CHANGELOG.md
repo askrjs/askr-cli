@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `askr outdated`, `askr update`, and `askr upgrade` no longer crash with
+  `ERR_UNSUPPORTED_DIR_IMPORT` when loading npm configuration under Node ESM
+  ([#150](https://github.com/askrjs/askr-cli/issues/150)).
+
 ## [0.4.0] - 2026-09-28
 
 ### Changed
