@@ -39,9 +39,9 @@ function packument(name: string, versions: string[], latest: string): Record<str
   };
 }
 
-const packuments = new Map<string, () => Record<string, unknown>>([
-  ["fixture-plain", () => packument("fixture-plain", ["1.0.0", "1.1.0"], "1.1.0")],
-  ["@fixture/scoped", () => packument("@fixture/scoped", ["3.0.0", "3.2.0", "4.0.0"], "4.0.0")],
+const packuments = new Map<string, { versions: string[]; latest: string }>([
+  ["fixture-plain", { versions: ["1.0.0", "1.1.0"], latest: "1.1.0" }],
+  ["@fixture/scoped", { versions: ["3.0.0", "3.2.0", "4.0.0"], latest: "4.0.0" }],
 ]);
 
 function childEnvironment(root: string): NodeJS.ProcessEnv {
@@ -127,14 +127,14 @@ beforeAll(async () => {
   server = http.createServer((request, response) => {
     const requested = decodeURIComponent((request.url ?? "/").slice(1));
     requestedPaths.push(requested);
-    const body = packuments.get(requested);
-    if (!body) {
+    const fixture = packuments.get(requested);
+    if (!fixture) {
       response.writeHead(404, { "content-type": "application/json" });
       response.end(JSON.stringify({ error: "Not found" }));
       return;
     }
     response.writeHead(200, { "content-type": "application/json" });
-    response.end(JSON.stringify(body()));
+    response.end(JSON.stringify(packument(requested, fixture.versions, fixture.latest)));
   });
   await new Promise<void>((resolve) => server!.listen(0, "127.0.0.1", resolve));
   const { port } = server.address() as AddressInfo;
