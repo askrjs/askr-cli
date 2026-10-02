@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `EPERM`/`EBUSY`/`EACCES` rename errors. Concurrent `askr skills install`
   runs without `--force` now admit exactly one install into an empty target
   ([#153](https://github.com/askrjs/askr-cli/issues/153)).
+- `askr ssg --incremental` copies the live output folder into its staging
+  folder under the directory lock, so concurrent incremental builds into one
+  folder can no longer stage from a half-swapped tree or race the final swap.
+  The lock is held only for the copy, not for site generation
+  ([#155](https://github.com/askrjs/askr-cli/issues/155)).
 
 ## [0.4.0] - 2026-09-28
 
