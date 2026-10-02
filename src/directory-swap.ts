@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { constants } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -77,6 +78,24 @@ export async function createSiblingStage(target: string, label: string): Promise
   const parent = path.dirname(resolved);
   await fs.mkdir(parent, { recursive: true });
   return fs.mkdtemp(path.join(parent, `.${path.basename(resolved)}.${label}-`));
+}
+
+/**
+ * Copies the live `target` into `stage` while holding the target lock, so the
+ * copy can never observe a folder another build is half-way through swapping.
+ * The lock covers only the copy, not site generation. Resolves to `false` when
+ * the target does not exist and nothing was copied.
+ */
+export async function copyTargetIntoStage(target: string, stage: string): Promise<boolean> {
+  return withDirectoryTargetLock(target, async () => {
+    const resolvedTarget = path.resolve(target);
+    if (!(await exists(resolvedTarget))) return false;
+    await fs.cp(resolvedTarget, stage, {
+      recursive: true,
+      mode: constants.COPYFILE_FICLONE,
+    });
+    return true;
+  });
 }
 
 const TRANSIENT_RENAME_CODES = new Set(["EPERM", "EBUSY", "EACCES"]);

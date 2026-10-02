@@ -2,7 +2,12 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createSiblingStage, publishStagedDirectory } from "../src/directory-swap";
+import {
+  copyTargetIntoStage,
+  createSiblingStage,
+  publishStagedDirectory,
+  withDirectoryTargetLock,
+} from "../src/directory-swap";
 
 const roots: string[] = [];
 
@@ -84,5 +89,51 @@ describe("directory publication", () => {
     await expect(publishStagedDirectory(stage, target)).resolves.toBeUndefined();
     await expect(fs.readFile(path.join(target, "complete.txt"), "utf8")).resolves.toBe("new");
     await expect(fs.access(lock)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("should not stage a copy while another build is swapping the target", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-directory-copy-race-"));
+    roots.push(root);
+    const target = path.join(root, "target");
+    await fs.mkdir(target);
+    await fs.writeFile(path.join(target, "old.txt"), "old");
+    const stage = await createSiblingStage(target, "copy");
+
+    let release!: () => void;
+    const swapping = new Promise<void>((resolve) => (release = resolve));
+    let swapStarted!: () => void;
+    const started = new Promise<void>((resolve) => (swapStarted = resolve));
+    // A concurrent build holds the lock and has the target half-swapped.
+    const swap = withDirectoryTargetLock(target, async () => {
+      await fs.rm(target, { recursive: true, force: true });
+      swapStarted();
+      await swapping;
+      await fs.mkdir(target);
+      await fs.writeFile(path.join(target, "new.txt"), "new");
+    });
+    await started;
+
+    let copied = false;
+    const copy = copyTargetIntoStage(target, stage).then((result) => {
+      copied = true;
+      return result;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(copied).toBe(false);
+
+    release();
+    await swap;
+    expect(await copy).toBe(true);
+    expect(await fs.readdir(stage)).toEqual(["new.txt"]);
+  });
+
+  it("should report that nothing was staged when the target does not exist", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-directory-copy-missing-"));
+    roots.push(root);
+    const target = path.join(root, "target");
+    const stage = await createSiblingStage(target, "copy");
+
+    expect(await copyTargetIntoStage(target, stage)).toBe(false);
+    expect(await fs.readdir(stage)).toEqual([]);
   });
 });
