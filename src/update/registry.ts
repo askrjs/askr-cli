@@ -87,7 +87,7 @@ async function fetchPackage(
   configuration: NpmConfiguration,
   _specifications: readonly string[],
 ): Promise<unknown> {
-  return registryFetch.json(packageName.replace("/", "%2f"), {
+  return registryFetch.json(packageName.replaceAll("/", "%2f"), {
     ...configuration.options,
     spec: packageName,
     headers: {
