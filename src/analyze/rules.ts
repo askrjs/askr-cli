@@ -1349,6 +1349,11 @@ const routeRegistryRule: AnalyzeRule = {
       const bindings = sourceBindings(sourceFile);
       visit(sourceFile, (node) => {
         if (!ts.isCallExpression(node)) return;
+        const name = canonicalCallName(node.expression, bindings);
+        if (name === "createRouteRegistry") registryCalls.push(node);
+        // Framework calls cannot be workspace factories. Their registry/group
+        // definitions are handled below; index only workspace callback flow.
+        if (name) return;
         const called = resolvedFunction(node.expression, context);
         if (called) {
           const calls = callsByFunction.get(called) ?? [];
@@ -1362,8 +1367,6 @@ const routeRegistryRule: AnalyzeRule = {
           uses.push({ call: node, index });
           argumentUses.set(callback, uses);
         });
-        if (canonicalCallName(node.expression, bindings) === "createRouteRegistry")
-          registryCalls.push(node);
       });
     }
 
@@ -3114,7 +3117,7 @@ const forRowClosureCaptureRule: AnalyzeRule = {
             ) {
               captured.add(candidate.expression.text);
             }
-            if (ts.isIdentifier(candidate)) {
+            if (snapshots.size > 0 && ts.isIdentifier(candidate)) {
               const symbol = context.checker.getSymbolAtLocation(candidate);
               if (
                 symbol &&
