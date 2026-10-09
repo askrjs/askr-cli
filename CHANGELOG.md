@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Generate starter-kit icon prop types from the owning core icon entrypoint,
+  preparing templates for the Lucide 0.5 public helper/type contraction.
+
 - Wire the analyzer budget reporter into benchmark mode, initialize benchmark
   fixtures through global setup, and reject failed, missing, non-finite, or
   sample-free measurements. Fixture assertion failures now fail the benchmark
