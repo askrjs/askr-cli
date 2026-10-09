@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Wire the analyzer budget reporter into benchmark mode, initialize benchmark
+  fixtures through global setup, and reject failed, missing, non-finite, or
+  sample-free measurements. Fixture assertion failures now fail the benchmark
+  command instead of yielding a successful `NaN` comparison.
+- Retain the analyzer's strict local performance targets and establish a
+  measured GitHub-hosted Ubuntu envelope against the pre-fix implementation.
+- Refresh `http-cache-semantics` to 4.3.0 and `source-map-js` to 1.2.2 within
+  their existing dependency ranges; the clean-install dependency audit is clear.
+- Consolidate the analyzer's `askr/no-hardcoded-theme-token` documentation into
+  one entry covering token and color policies
+  ([#166](https://github.com/askrjs/askr-cli/issues/166)).
+- Recognize plural test filenames, test directories, module extensions, and
+  Windows paths when exempting color fixtures. Other analyzer rules still run
+  in those files ([#167](https://github.com/askrjs/askr-cli/issues/167)).
+- Follow synchronous workspace registry factories and imported callback helpers
+  without treating unresolved callable arguments as definite violations. Keep
+  timer and event callbacks outside registry ownership, and resolve local source
+  imports through symlinked project paths
+  ([#168](https://github.com/askrjs/askr-cli/issues/168)).
 - `askr outdated`, `askr update`, and `askr upgrade` no longer crash with
   `ERR_UNSUPPORTED_DIR_IMPORT` when loading npm configuration under Node ESM
   ([#150](https://github.com/askrjs/askr-cli/issues/150)).
