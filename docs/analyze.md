@@ -171,7 +171,13 @@ of type-checking dependency declarations it never reports.
 `npm run bench:analyze` runs the analyzer's Vitest benchmark suite. It covers a
 50-file workspace, a 250-file workspace, and five workspaces containing 250
 files in total. The benchmark reporter enforces mean-time budgets of 100 ms,
-250 ms, and 300 ms respectively. The general `npm run bench` gate also checks a
+250 ms, and 300 ms respectively on the local profile. GitHub-hosted Ubuntu uses
+an explicit 150/550/550 ms envelope: the pre-fix analyzer measured 104/459/426 ms
+with the corrected harness in [baseline run 37943456683](https://github.com/askrjs/askr-cli/actions/runs/37943456683).
+The old harness did not enforce these measurements. Both profiles reject missing,
+failed, non-finite, and sample-free results; every fixture must produce its
+expected source-file and diagnostic counts. Local targets remain unchanged.
+The general `npm run bench` gate also checks a
 cold installed-CLI scan of the 35-file startkit template against a 350 ms p95
 budget.
 

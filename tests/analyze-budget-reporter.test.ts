@@ -18,18 +18,32 @@ function modules(mean = 10, samples = 8): TestModule[] {
 
 describe("analyzer benchmark qualification", () => {
   it.each([NaN, Infinity, -1])("should reject invalid mean %s", (mean) => {
-    expect(() => new AnalyzeBudgetReporter().onTestRunEnd(modules(mean))).toThrow(
+    expect(() => new AnalyzeBudgetReporter("local").onTestRunEnd(modules(mean))).toThrow(
       /invalid|missing/,
     );
   });
 
   it("should reject absent benchmarks and zero measured samples", () => {
-    expect(() => new AnalyzeBudgetReporter().onTestRunEnd([])).toThrow(/missing/);
-    expect(() => new AnalyzeBudgetReporter().onTestRunEnd(modules(10, 0))).toThrow(/sample/);
+    expect(() => new AnalyzeBudgetReporter("local").onTestRunEnd([])).toThrow(/missing/);
+    expect(() => new AnalyzeBudgetReporter("local").onTestRunEnd(modules(10, 0))).toThrow(/sample/);
   });
 
   it("should admit measured results within budget and reject an over-budget mean", () => {
-    expect(() => new AnalyzeBudgetReporter().onTestRunEnd(modules())).not.toThrow();
-    expect(() => new AnalyzeBudgetReporter().onTestRunEnd(modules(101))).toThrow(/exceeds 100/);
+    expect(() => new AnalyzeBudgetReporter("local").onTestRunEnd(modules())).not.toThrow();
+    expect(() => new AnalyzeBudgetReporter("local").onTestRunEnd(modules(101))).toThrow(
+      /exceeds 100/,
+    );
+  });
+
+  it("should enforce the separately measured hosted Linux profile", () => {
+    expect(() =>
+      new AnalyzeBudgetReporter("hosted-linux").onTestRunEnd(modules(100)),
+    ).not.toThrow();
+    expect(() => new AnalyzeBudgetReporter("hosted-linux").onTestRunEnd(modules(551))).toThrow(
+      /exceeds 550/,
+    );
+    expect(() => new AnalyzeBudgetReporter("hosted-linux").onTestRunEnd(modules(NaN))).toThrow(
+      /invalid/,
+    );
   });
 });

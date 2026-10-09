@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fixtures through global setup, and reject failed, missing, non-finite, or
   sample-free measurements. Fixture assertion failures now fail the benchmark
   command instead of yielding a successful `NaN` comparison.
+- Retain the analyzer's strict local performance targets and establish a
+  measured GitHub-hosted Ubuntu envelope against the pre-fix implementation.
+- Refresh `http-cache-semantics` to 4.3.0 and `source-map-js` to 1.2.2 within
+  their existing dependency ranges; the clean-install dependency audit is clear.
 - Consolidate the analyzer's `askr/no-hardcoded-theme-token` documentation into
   one entry covering token and color policies
   ([#166](https://github.com/askrjs/askr-cli/issues/166)).
