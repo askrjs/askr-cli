@@ -36,6 +36,12 @@ module is not treated as an Askr API.
 - `askr/no-hardcoded-theme-token` reports `--ak-*` token names in runtime
   JavaScript and TypeScript string, template, and JSX attribute literals. The
   exact `@askrjs/themes` workspace is exempt because it owns those declarations.
+  The same rule reports runtime color literals outside framework and theme owner
+  packages. Color fixtures are exempt in `test/`, `tests/`, and `__tests__/`
+  directories and files ending in `.test`, `.tests`, or `.spec` with a supported
+  JavaScript or TypeScript extension, including `.mjs`, `.cjs`, `.mts`, and `.cts`.
+  Both `/` and `\\` path separators are recognized. This exemption applies only
+  to color literals: token names, cancellation, and other rules still run in tests.
 - `askr/stable-render-call` enforces stable top-level calls for state, derived
   values, selectors, resources, lifecycle operations, actions, queries, and
   mutations where the AST establishes a component render context.
@@ -69,7 +75,13 @@ module is not treated as an Askr API.
   directly during a proven component render.
 - `askr/no-async-component` reports async JSX components.
 - `askr/route-registry` keeps route DSL calls inside a synchronous
-  `createRouteRegistry()` definition.
+  `createRouteRegistry()` definition. It follows workspace function arguments
+  through synchronous registry factories and directly invoked helpers, including
+  local imports. Nested timers, event handlers, and uninvoked functions do not
+  inherit registry ownership. Unresolved callable definitions and external
+  factory flow remain uncertain rather than producing a definite misuse error;
+  missing, statically non-callable, and async definitions still produce errors.
+  Parameter forwarding is bounded to 16 steps and stops at cycles.
 - `askr/route-path-syntax` mirrors the runtime's static path validation,
   including leading and duplicate slashes, complete `{name}` interpolation,
   non-empty unique parameter names, final named splats, and non-empty page
@@ -96,8 +108,6 @@ module is not treated as an Askr API.
   subpath in one transactional fix per declaration while retaining aliases,
   type modifiers, and valid root specifiers. It routes lazy controls to
   `@askrjs/askr/control` and query APIs and types to `@askrjs/askr/data`.
-- `askr/no-hardcoded-theme-token` reports runtime color literals outside tests
-  and the framework/theme owner packages.
 - `askr/no-effect-data-loading` reports direct fetch-to-component-state flows
   in `task()` callbacks; arbitrary service-call inference is intentionally out
   of scope.

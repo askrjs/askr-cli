@@ -275,6 +275,7 @@ export async function createWorkspaceAnalysisContext(
   configuration: AnalyzeConfiguration,
 ): Promise<{ context: WorkspaceAnalysisContext; tsconfig: string | null }> {
   const inputs = await compilerInputs(root, workspace, configuration);
+  const realProjectRoot = ts.sys.realpath?.(root) ?? root;
   const compilerHost = ts.createCompilerHost(inputs.options, true);
   const moduleResolutionCache = ts.createModuleResolutionCache(
     workspace.directory,
@@ -299,7 +300,7 @@ export async function createWorkspaceAnalysisContext(
       const resolved = resolution.resolvedModule;
       if (!resolved) return resolution;
       const realPath = ts.sys.realpath?.(resolved.resolvedFileName) ?? resolved.resolvedFileName;
-      const relativeToProject = path.relative(root, realPath);
+      const relativeToProject = path.relative(realProjectRoot, realPath);
       const isProjectFile =
         relativeToProject !== ".." &&
         !relativeToProject.startsWith(`..${path.sep}`) &&

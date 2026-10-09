@@ -355,6 +355,106 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/no-async-component")).toHaveLength(1);
   });
 
+  it("should follow synchronous registry factory parameters across modules", async () => {
+    const root = await fixture({
+      "src/factory.ts": `
+        import { createRouteRegistry, group } from "@askrjs/askr/router";
+        export function withLayout(define: () => void) {
+          return createRouteRegistry(() => group({}, () => define()));
+        }
+        export function directRegistry(define: () => void) {
+          return createRouteRegistry(define);
+        }
+        export function forwardedRegistry(define: () => void) {
+          return directRegistry(define);
+        }
+      `,
+      "src/routes.ts": `
+        import { createRouteRegistry, route } from "@askrjs/askr/router";
+        import { withLayout, directRegistry, forwardedRegistry } from "./factory";
+        withLayout(() => route("/wrapped", () => null));
+        const define = () => route("/named", () => null);
+        directRegistry(define);
+        forwardedRegistry(() => route("/forwarded", () => null));
+        function recursiveSection() { if (false) recursiveSection(); route("/recursive", () => null); }
+        createRouteRegistry(() => recursiveSection());
+      `,
+    });
+    expect(
+      (await diagnostics(root)).filter((entry) => entry.ruleId === "askr/route-registry"),
+    ).toEqual([]);
+  });
+
+  it("should resolve workspace factory imports through a symlinked project root", async () => {
+    const root = await fixture({
+      "src/factory.ts": `
+        import { createRouteRegistry } from "@askrjs/askr/router";
+        export function registry(define: () => void) { return createRouteRegistry(define); }
+      `,
+      "src/routes.ts": `
+        import { route } from "@askrjs/askr/router";
+        import { registry } from "./factory";
+        registry(() => route("/", () => null));
+      `,
+    });
+    const aliases = await fixture({});
+    const alias = path.join(aliases, "linked-project");
+    await fs.symlink(root, alias, "junction");
+    expect(
+      (await diagnostics(alias)).filter((entry) => entry.ruleId === "askr/route-registry"),
+    ).toEqual([]);
+  });
+
+  it("should avoid definite registry errors for unresolved callable definitions and factories", async () => {
+    const root = await fixture({
+      "src/routes.ts": `
+        import { createRouteRegistry, route } from "@askrjs/askr/router";
+        import { externalRegistry } from "external-package";
+        declare const dynamicRegistry: (define: () => void) => unknown;
+        declare const definition: () => void;
+        const namedDefinition = () => route("/named-external", () => null);
+        function localWrapper(define: () => void) { return externalRegistry(define); }
+        function on(define: () => void) { return externalRegistry(define); }
+        createRouteRegistry(definition);
+        externalRegistry(() => route("/external", () => null));
+        externalRegistry(namedDefinition);
+        localWrapper(() => route("/wrapped-external", () => null));
+        on(() => route("/custom-on", () => null));
+        dynamicRegistry(() => route("/dynamic", () => null));
+      `,
+    });
+    expect(
+      (await diagnostics(root)).filter((entry) => entry.ruleId === "askr/route-registry"),
+    ).toEqual([]);
+  });
+
+  it("should keep module-scope, deferred factory, timer and event registrations invalid", async () => {
+    const root = await fixture({
+      "src/routes.ts": `
+        import { createRouteRegistry, route } from "@askrjs/askr/router";
+        route("/outside", () => null);
+        createRouteRegistry(() => {
+          setTimeout(() => route("/timer", () => null), 0);
+          document.addEventListener("click", () => route("/event", () => null));
+          const neverCalled = () => route("/uninvoked", () => null);
+        });
+        function deferredRegistry(define: () => void) {
+          return createRouteRegistry(() => setTimeout(() => define(), 0));
+        }
+        deferredRegistry(() => route("/deferred", () => null));
+        createRouteRegistry(async () => {
+          await Promise.resolve();
+          route("/after-await", () => null);
+        });
+      `,
+    });
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/route-registry",
+    );
+    expect(found.filter((entry) => /outside/.test(entry.message))).toHaveLength(5);
+    expect(found.filter((entry) => /async definition/.test(entry.message))).toHaveLength(1);
+  });
+
   it("should enforce the complete runtime route-path contract", async () => {
     const root = await fixture({
       "src/routes.tsx": `
@@ -752,6 +852,58 @@ describe("analyzer rules", () => {
     expect(found.map((entry) => entry.file)).toEqual(
       expect.arrayContaining(["src/theme.tsx", "src/extra.js"]),
     );
+  });
+
+  it("should exempt test color fixtures without exempting production paths or other rules", async () => {
+    const exempt = [
+      "src/palette.test.ts",
+      "src/palette.tests.tsx",
+      "src/palette.spec.jsx",
+      "src/palette.tests.mts",
+      "src/palette.tests.cts",
+      "src/palette.tests.mjs",
+      "src/palette.tests.cjs",
+      "src/tests/palette.ts",
+      "src/test/palette.js",
+      "src/__tests__/nested/palette.ts",
+      "src/fixtures\\tests\\palette.ts",
+    ];
+    const production = [
+      "src/contest.ts",
+      "src/testimonials/palette.ts",
+      "src/tests-utils/palette.ts",
+      "src/palette.tests-helper.ts",
+      "src/palette.test.config.ts",
+    ];
+    const root = await fixture({
+      ...Object.fromEntries(
+        [...exempt, ...production].map((file) => [file, 'export const color = "#5c2d91";']),
+      ),
+      "src/tests/tokens.ts": 'export const token = "--ak-color-text";',
+      "src/tests/cancellation.ts": `
+        import { createQuery } from "@askrjs/askr/data";
+        export function Page() {
+          createQuery({ key: "private", fetch: () => fetch("/private") });
+          return null;
+        }
+      `,
+    });
+    const report = await runAnalysis({ cwd: root, workspacePatterns: [], check: true });
+    const found = report.diagnostics.filter(
+      (entry) => entry.ruleId === "askr/no-hardcoded-theme-token",
+    );
+    expect(found.map((entry) => entry.file).sort()).toEqual(
+      [...production, "src/tests/tokens.ts"].sort(),
+    );
+    expect(found.every((entry) => entry.severity === "warning")).toBe(true);
+    expect(
+      report.diagnostics.some(
+        (entry) =>
+          entry.ruleId === "askr/data-cancellation" && entry.file === "src/tests/cancellation.ts",
+      ),
+    ).toBe(true);
+    expect(report.schemaVersion).toBe(1);
+    expect(report.appliedFixes).toEqual([]);
   });
 
   it("should ignore comments and nonliteral token flow", async () => {

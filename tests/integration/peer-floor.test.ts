@@ -89,6 +89,27 @@ export const staticConfig = {
       'export const token = "--ak-color-surface";\n',
     );
     await fs.writeFile(path.join(root, ".gitignore"), "ignored.ts\n");
+    await fs.writeFile(
+      path.join(root, "src", "factory.ts"),
+      `import { createRouteRegistry, group } from "@askrjs/askr/router";
+export function registry(define: () => void) {
+  return createRouteRegistry(() => group({}, () => define()));
+}
+`,
+    );
+    await fs.writeFile(
+      path.join(root, "src", "routes.ts"),
+      `import { route } from "@askrjs/askr/router";
+import { registry } from "./factory";
+registry(() => route("/valid", () => null));
+route("/invalid", () => null);
+`,
+    );
+    await fs.mkdir(path.join(root, "src", "tests"));
+    await fs.writeFile(
+      path.join(root, "src", "tests", "palette.tests.mts"),
+      'export const color = "#f00";\n',
+    );
     const analysis = JSON.parse(
       await run(path.join(root, "node_modules", ".bin", "askr"), ["analyze", "--json"], root, 1),
     );
@@ -97,6 +118,14 @@ export const staticConfig = {
         .filter((entry: { ruleId: string }) => entry.ruleId === "askr/no-hardcoded-theme-token")
         .map((entry: { file: string }) => entry.file),
     ).toEqual(["src/page.ts"]);
+    expect(
+      analysis.diagnostics
+        .filter((entry: { ruleId: string }) => entry.ruleId === "askr/route-registry")
+        .map((entry: { file: string; severity: string }) => ({
+          file: entry.file,
+          severity: entry.severity,
+        })),
+    ).toEqual([{ file: "src/routes.ts", severity: "error" }]);
 
     await run(
       path.join(root, "node_modules", ".bin", "askr"),

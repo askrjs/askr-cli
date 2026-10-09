@@ -7,6 +7,7 @@ import {
   type ImportedAskrBinding,
 } from "./catalog";
 import { workspaceRelativeFile } from "./project";
+import { isTestSourcePath } from "./source-paths";
 import type {
   AnalyzeDiagnostic,
   AnalyzeRule,
@@ -1324,7 +1325,7 @@ function routeRegistrationAncestor(
   definitions: ReadonlySet<ts.SignatureDeclaration>,
 ): boolean {
   for (let current = node.parent; current; current = current.parent) {
-    if (ts.isFunctionLike(current) && definitions.has(current)) return true;
+    if (ts.isFunctionLike(current)) return definitions.has(current);
   }
   return false;
 }
@@ -1338,27 +1339,157 @@ const routeRegistryRule: AnalyzeRule = {
     const diagnostics: AnalyzeDiagnostic[] = [];
     const routeCalls = new Set(["route", "page", "index", "group", "fallback"]);
     const definitions = new Set<ts.SignatureDeclaration>();
+    const callsByFunction = new Map<ts.SignatureDeclaration, ts.CallExpression[]>();
+    const argumentUses = new Map<
+      ts.SignatureDeclaration,
+      { call: ts.CallExpression; index: number }[]
+    >();
+    const registryCalls: ts.CallExpression[] = [];
     for (const sourceFile of context.sourceFiles) {
       const bindings = sourceBindings(sourceFile);
       visit(sourceFile, (node) => {
-        if (
-          ts.isCallExpression(node) &&
-          canonicalCallName(node.expression, bindings) === "createRouteRegistry"
-        ) {
-          const definition = resolvedFunction(node.arguments[0], context);
-          if (definition) definitions.add(definition);
+        if (!ts.isCallExpression(node)) return;
+        const called = resolvedFunction(node.expression, context);
+        if (called) {
+          const calls = callsByFunction.get(called) ?? [];
+          calls.push(node);
+          callsByFunction.set(called, calls);
         }
+        node.arguments.forEach((argument, index) => {
+          const callback = resolvedFunction(argument, context);
+          if (!callback) return;
+          const uses = argumentUses.get(callback) ?? [];
+          uses.push({ call: node, index });
+          argumentUses.set(callback, uses);
+        });
+        if (canonicalCallName(node.expression, bindings) === "createRouteRegistry")
+          registryCalls.push(node);
       });
     }
+
+    // Resolve only workspace function arguments, with a cycle/depth bound.
+    // Parameter invocation remains distinct from an uninvoked nested callback.
+    const resolveDefinitions = (
+      expression: ts.Expression | undefined,
+      active = new Set<ts.ParameterDeclaration>(),
+    ): ts.SignatureDeclaration[] => {
+      const direct = resolvedFunction(expression, context);
+      if (direct) return [direct];
+      if (!expression || !ts.isIdentifier(expression)) return [];
+      const declaration = context.checker.getSymbolAtLocation(expression)?.valueDeclaration;
+      if (
+        !declaration ||
+        !ts.isParameter(declaration) ||
+        active.has(declaration) ||
+        active.size >= 16
+      )
+        return [];
+      const owner = declaration.parent;
+      if (!ts.isFunctionLike(owner)) return [];
+      const index = owner.parameters.indexOf(declaration);
+      const next = new Set(active).add(declaration);
+      return (callsByFunction.get(owner) ?? []).flatMap((call) =>
+        resolveDefinitions(call.arguments[index], next),
+      );
+    };
+    for (const call of registryCalls)
+      for (const definition of resolveDefinitions(call.arguments[0])) definitions.add(definition);
+
     for (const definition of definitions) {
-      ts.forEachChild(definition, function walk(node) {
+      const body =
+        ts.isArrowFunction(definition) ||
+        ts.isFunctionExpression(definition) ||
+        ts.isFunctionDeclaration(definition)
+          ? definition.body
+          : undefined;
+      if (!body) continue;
+      const bindings = sourceBindings(definition.getSourceFile());
+      const walk = (node: ts.Node): void => {
+        if (node !== body && ts.isFunctionLike(node)) return;
         if (ts.isCallExpression(node)) {
-          const called = resolvedFunction(node.expression, context);
-          if (called) definitions.add(called);
+          for (const called of resolveDefinitions(node.expression))
+            if (!isAsyncFunction(called)) definitions.add(called);
+          const name = canonicalCallName(node.expression, bindings);
+          const callback =
+            name === "group"
+              ? node.arguments[1]
+              : name === "page"
+                ? node.arguments.at(-1)
+                : undefined;
+          for (const called of resolveDefinitions(callback))
+            if (!isAsyncFunction(called)) definitions.add(called);
         }
         ts.forEachChild(node, walk);
-      });
+      };
+      walk(body);
     }
+
+    const unresolvedArgumentFlow = (
+      call: ts.CallExpression,
+      index: number,
+      active = new Set<ts.ParameterDeclaration>(),
+    ): boolean => {
+      const known = canonicalCallName(call.expression, sourceBindings(call.getSourceFile()));
+      const callerName = ts.isPropertyAccessExpression(call.expression)
+        ? call.expression.name.text
+        : ts.isIdentifier(call.expression)
+          ? call.expression.text
+          : "";
+      const local = resolvedFunction(call.expression, context);
+      const body =
+        local &&
+        (ts.isArrowFunction(local) ||
+          ts.isFunctionExpression(local) ||
+          ts.isFunctionDeclaration(local))
+          ? local.body
+          : undefined;
+      if (
+        known ||
+        (!body &&
+          [
+            "setTimeout",
+            "setInterval",
+            "queueMicrotask",
+            "requestAnimationFrame",
+            "addEventListener",
+            "then",
+            "catch",
+            "finally",
+            "on",
+            "once",
+          ].includes(callerName))
+      )
+        return false;
+      const parameter = local?.parameters[index];
+      if (
+        !body ||
+        !parameter ||
+        !ts.isIdentifier(parameter.name) ||
+        active.has(parameter) ||
+        active.size >= 16
+      )
+        return true;
+      const symbol = context.checker.getSymbolAtLocation(parameter.name);
+      const next = new Set(active).add(parameter);
+      let observed = false;
+      let unresolved = false;
+      const walk = (node: ts.Node): void => {
+        if (unresolved) return;
+        if (ts.isIdentifier(node) && context.checker.getSymbolAtLocation(node) === symbol) {
+          const parent = node.parent;
+          if (ts.isCallExpression(parent)) {
+            observed = true;
+            if (parent.expression !== node) {
+              const argumentIndex = parent.arguments.indexOf(node);
+              unresolved = argumentIndex < 0 || unresolvedArgumentFlow(parent, argumentIndex, next);
+            }
+          } else unresolved = true;
+        }
+        ts.forEachChild(node, walk);
+      };
+      walk(body);
+      return unresolved || !observed;
+    };
     for (const sourceFile of context.sourceFiles) {
       const bindings = sourceBindings(sourceFile);
       visit(sourceFile, (node) => {
@@ -1366,8 +1497,11 @@ const routeRegistryRule: AnalyzeRule = {
         const name = canonicalCallName(node.expression, bindings);
         if (name === "createRouteRegistry") {
           const definition = node.arguments[0];
-          const resolved = resolvedFunction(definition, context);
-          if (!resolved) {
+          const resolved = resolveDefinitions(definition);
+          if (
+            !definition ||
+            (resolved.length === 0 && staticallyNonFunction(definition, context.checker))
+          ) {
             diagnostics.push(
               diagnostic(
                 context,
@@ -1377,7 +1511,7 @@ const routeRegistryRule: AnalyzeRule = {
                 "Pass () => { ...route declarations... }.",
               ),
             );
-          } else if (isAsyncFunction(resolved)) {
+          } else if (resolved.some(isAsyncFunction)) {
             diagnostics.push(
               diagnostic(
                 context,
@@ -1391,6 +1525,18 @@ const routeRegistryRule: AnalyzeRule = {
           return;
         }
         if (!name || !routeCalls.has(name) || routeRegistrationAncestor(node, definitions)) return;
+        // Unresolved factory flow is uncertainty, including named callbacks and
+        // local wrappers. Known delayed/render calls still establish violations.
+        let callback: ts.Node | undefined = node.parent;
+        while (callback && !ts.isFunctionLike(callback)) callback = callback.parent;
+        if (
+          callback &&
+          ts.isFunctionLike(callback) &&
+          (argumentUses.get(callback) ?? []).some((use) =>
+            unresolvedArgumentFlow(use.call, use.index),
+          )
+        )
+          return;
         diagnostics.push(
           diagnostic(
             context,
@@ -3753,9 +3899,7 @@ const hardcodedThemeTokenRule: AnalyzeRule = {
     const color = /(?:#[0-9a-f]{3,8}\b|\brgba?\s*\(|\bhsla?\s*\()/i;
     for (const sourceFile of context.sourceFiles) {
       const checkColors =
-        !mayHardcodeColors &&
-        !/(?:^|[./_-])(?:test|spec)\.[cm]?[jt]sx?$/.test(sourceFile.fileName) &&
-        color.test(sourceFile.text);
+        !mayHardcodeColors && !isTestSourcePath(sourceFile.fileName) && color.test(sourceFile.text);
       const checkTokens = !ownsThemeTokens && sourceFile.text.includes("--ak-");
       if (!checkColors && !checkTokens) continue;
       visit(sourceFile, (node) => {
