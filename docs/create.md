@@ -115,6 +115,9 @@ Stack included:
 - `askr-themes` - default visual layer
 - `askr-lucide` - icon set
 
+Starter-kit components import shared `IconProps` from
+`@askrjs/askr/foundations/icon`; Lucide supplies the concrete icon components.
+
 The full-stack template additionally includes `@askrjs/schema`, `@askrjs/i18n`,
 `@askrjs/otel`, `@askrjs/auth`, `@askrjs/server`, `@askrjs/node`, and
 `@askrjs/vite/server`.
