@@ -49,6 +49,65 @@ afterEach(async () => {
 });
 
 describe("update CLI", () => {
+  test.each([
+    ["truncated JSON", "{", null, /Malformed package manifest/],
+    ["null JSON", "null", null, /Malformed package manifest/],
+    ["array JSON", "[]", null, /Malformed package manifest/],
+    ["scalar JSON", "42", null, /Malformed package manifest/],
+    ["null workspaces", { workspaces: null }, null, /Invalid package.json workspaces/],
+    ["mixed workspaces", { workspaces: [42] }, null, /Invalid package.json workspaces/],
+    [
+      "invalid packages",
+      { workspaces: { packages: false } },
+      null,
+      /Invalid package.json workspaces/,
+    ],
+    ["null askr config", { askr: null }, null, /Invalid askr update configuration/],
+    ["array askr config", { askr: [] }, null, /Invalid askr update configuration/],
+    [
+      "boolean update config",
+      { askr: { update: true } },
+      null,
+      /Invalid askr.update configuration/,
+    ],
+    ["string ignore", { askr: { update: { ignore: "foo" } } }, null, /Invalid askr.update.ignore/],
+    ["mixed ignore", { askr: { update: { ignore: [1] } } }, null, /Invalid askr.update.ignore/],
+    ["array tags", { askr: { update: { tags: [] } } }, null, /Invalid askr.update.tags/],
+    ["numeric tag", { askr: { update: { tags: { foo: 4 } } } }, null, /Invalid askr.update.tags/],
+    ["empty tag", { askr: { update: { tags: { foo: "" } } } }, null, /Invalid askr.update.tags/],
+    ["malformed pnpm YAML", {}, "packages: [", /Malformed pnpm workspace declaration/],
+    ["scalar pnpm YAML", {}, "true", /Invalid pnpm workspace declaration/],
+    ["missing pnpm packages", {}, "other: []", /Invalid pnpm workspace declaration/],
+    ["mixed pnpm packages", {}, "packages: [42]", /Invalid pnpm workspace declaration/],
+  ] as const)(
+    "rejects %s before registry access and preserves every input byte",
+    async (_name, manifest, extra, diagnostic) => {
+      const root = await tempRoot(
+        typeof manifest === "string" ? manifest : JSON.stringify(manifest),
+      );
+      await fs.writeFile(path.join(root, "unrelated.txt"), "unrelated\r\nexact bytes\0\n");
+      if (extra !== null) await fs.writeFile(path.join(root, "pnpm-workspace.yaml"), extra);
+      const names = (await fs.readdir(root)).sort();
+      const before = await Promise.all(names.map((name) => fs.readFile(path.join(root, name))));
+      let registryCalls = 0;
+      const capture = ioCapture();
+      expect(
+        await runUpdateCli(["--cwd", root, "--json"], capture.io, {
+          registry: async () => {
+            registryCalls += 1;
+            return { packuments: new Map(), failures: new Map() };
+          },
+        }),
+      ).toBe(1);
+      expect(registryCalls).toBe(0);
+      expect([...capture.errors, ...capture.logs].join("\n")).toMatch(diagnostic);
+      expect((await fs.readdir(root)).sort()).toEqual(names);
+      expect(await Promise.all(names.map((name) => fs.readFile(path.join(root, name))))).toEqual(
+        before,
+      );
+    },
+  );
+
   test("should leave a manifest byte-for-byte unchanged given a dry run when an update exists", async () => {
     const source = '{\r\n\t"name": "fixture",\r\n\t"dependencies": { "foo": "~1.0.0" }\r\n}';
     const root = await tempRoot(source);

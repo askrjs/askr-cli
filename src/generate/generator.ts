@@ -357,17 +357,17 @@ async function responseText(
   maxBytes: number,
   deadline: number,
 ): Promise<string> {
-  const declared = Number(response.headers["content-length"]);
-  if (Number.isFinite(declared) && declared > maxBytes)
-    throw new GenerationError(`OpenAPI reference exceeds ${maxBytes} bytes: ${uri}`);
-  const encoding = response.headers["content-encoding"];
-  if (encoding && encoding !== "identity")
-    throw new GenerationError(
-      `OpenAPI reference returned unsupported content encoding: ${encoding}`,
-    );
   const chunks: Uint8Array[] = [];
   let size = 0;
   try {
+    const declared = Number(response.headers["content-length"]);
+    if (Number.isFinite(declared) && declared > maxBytes)
+      throw new GenerationError(`OpenAPI reference exceeds ${maxBytes} bytes: ${uri}`);
+    const encoding = response.headers["content-encoding"];
+    if (encoding && encoding !== "identity")
+      throw new GenerationError(
+        `OpenAPI reference returned unsupported content encoding: ${encoding}`,
+      );
     await withDeadline(
       new Promise<void>((resolve, reject) => {
         response.message.on("data", (value: Buffer) => {
@@ -416,9 +416,9 @@ async function fetchSource(uri: string, options: ResolvedLoadOptions): Promise<S
     const addresses = await vettedAddresses(current, options, deadline);
     const response = await requestVetted(current, addresses, deadline);
     if (response.status >= 300 && response.status < 400) {
+      response.message.destroy();
       if (redirects >= options.maxRedirects)
         throw new GenerationError(`Too many redirects while fetching OpenAPI reference ${uri}`);
-      response.message.resume();
       const location = response.headers.location;
       if (!location)
         throw new GenerationError(`OpenAPI redirect is missing Location: ${current.href}`);
@@ -426,7 +426,7 @@ async function fetchSource(uri: string, options: ResolvedLoadOptions): Promise<S
       continue;
     }
     if (response.status < 200 || response.status >= 300) {
-      response.message.resume();
+      response.message.destroy();
       throw new GenerationError(
         `Unable to fetch OpenAPI reference ${current.href}: ${response.status} ${response.statusText}`,
       );

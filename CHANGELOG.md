@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Dispose rejected or redirected OpenAPI response bodies, including header
+  validation and redirect-limit failures. Stop streaming unused bodies after
+  reporting an error. Keep normal complete responses and load limits unchanged.
+- Keep lock preflight errors separate from rename contention so a denied
+  observation cannot silently admit a transaction. Preserve the existing
+  bounded retry for Windows lock observations and propagate other failures.
+
 - Retry a denied lock-directory scan during Windows publication handoff within
   the existing wait bound. Also retry denied owner-record reads and lock
   observations while a prior owner removes them. Retain the native error when

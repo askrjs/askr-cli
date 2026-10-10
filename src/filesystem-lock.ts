@@ -118,32 +118,32 @@ export async function acquireFilesystemLock(
         if (lockStat && (!lockStat.isDirectory() || lockStat.isSymbolicLink())) {
           throw ambiguousLock(lock);
         }
-        await fs.rename(stage, lock);
-        return async () => {
-          await fs.unlink(path.join(lock, ownerName));
-          // Another contender can already have replaced the empty old lock with
-          // its nonempty lock. Never recursively remove a successor's contents.
-          await removeEmptyLock(lock);
-        };
-      } catch (error) {
-        const code = error instanceof Error && "code" in error ? String(error.code) : "";
-        if (!RENAME_CONTENTION_CODES.has(code)) throw error;
-        lastError = error;
         try {
-          if (await removeOrphanedLock(lock)) continue;
-        } catch (inspectionError) {
-          // Windows can deny reads while another owner removes its lock record.
-          // Retry within the same deadline; a permanent denial retains its cause.
-          if (
-            !isNodeError(inspectionError, "EPERM") ||
-            !LOCK_READ_SYSCALLS.has(inspectionError.syscall ?? "")
-          ) {
-            throw inspectionError;
-          }
-          lastError = inspectionError;
+          await fs.rename(stage, lock);
+          return async () => {
+            await fs.unlink(path.join(lock, ownerName));
+            // Another contender can already have replaced the empty old lock with
+            // its nonempty lock. Never recursively remove a successor's contents.
+            await removeEmptyLock(lock);
+          };
+        } catch (error) {
+          const code = error instanceof Error && "code" in error ? String(error.code) : "";
+          if (!RENAME_CONTENTION_CODES.has(code)) throw error;
+          lastError = error;
         }
-        await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_MS));
+        if (await removeOrphanedLock(lock)) continue;
+      } catch (inspectionError) {
+        // Windows can deny reads while another owner removes its lock record.
+        // Keep read errors distinct from rename contention and deletion failures.
+        if (
+          !isNodeError(inspectionError, "EPERM") ||
+          !LOCK_READ_SYSCALLS.has(inspectionError.syscall ?? "")
+        ) {
+          throw inspectionError;
+        }
+        lastError = inspectionError;
       }
+      await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_MS));
     }
   } catch (error) {
     try {
