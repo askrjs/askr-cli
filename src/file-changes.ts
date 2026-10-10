@@ -10,8 +10,7 @@ export interface FileChange {
 }
 
 interface StagedChange extends FileChange {
-  readonly original: Buffer | null;
-  readonly mode: number;
+  readonly backupPath: string | null;
   readonly temporaryPath: string;
 }
 
@@ -117,25 +116,41 @@ async function remove(paths: readonly string[]): Promise<void> {
   );
 }
 
-async function restore(changes: readonly StagedChange[]): Promise<boolean> {
-  let complete = true;
+interface RestoreFailure {
+  readonly filePath: string;
+  readonly backupPath: string | null;
+}
+
+async function restore(changes: readonly StagedChange[]): Promise<RestoreFailure[]> {
+  const failures: RestoreFailure[] = [];
   for (const change of [...changes].reverse()) {
     try {
-      if (change.original === null) {
+      if (change.backupPath === null) {
         await fs.rm(change.filePath, { force: true });
         continue;
       }
-      const rollbackPath = path.join(
-        path.dirname(change.filePath),
-        `.${path.basename(change.filePath)}.askr-rollback-${randomUUID()}`,
-      );
-      await fs.writeFile(rollbackPath, change.original, { flag: "wx", mode: change.mode });
-      await fs.rename(rollbackPath, change.filePath);
+      await fs.rename(change.backupPath, change.filePath);
     } catch {
-      complete = false;
+      failures.push({ filePath: change.filePath, backupPath: change.backupPath });
     }
   }
-  return complete;
+  return failures;
+}
+
+async function writeOwnedFile(
+  filePath: string,
+  content: string | Buffer,
+  mode: number | undefined,
+  owned: string[],
+): Promise<void> {
+  const handle = await fs.open(filePath, "wx", mode ?? 0o644);
+  owned.push(filePath);
+  try {
+    await handle.writeFile(content);
+    if (mode !== undefined) await handle.chmod(mode);
+  } finally {
+    await handle.close();
+  }
 }
 
 export async function writeFileChanges(
@@ -170,21 +185,32 @@ async function writeStagedChanges(
   replace: (temporaryPath: string, filePath: string) => Promise<void>,
 ): Promise<void> {
   const staged: StagedChange[] = [];
+  const owned: string[] = [];
   try {
     for (const change of ordered) {
       await fs.mkdir(path.dirname(change.filePath), { recursive: true });
-      const stat = await fs.stat(change.filePath).catch(() => null);
+      const stat = await fs.stat(change.filePath).catch((error: unknown) => {
+        if (isNodeError(error, "ENOENT")) return null;
+        throw error;
+      });
       const original = stat ? await fs.readFile(change.filePath) : null;
+      const backupPath = stat
+        ? path.join(
+            path.dirname(change.filePath),
+            `.${path.basename(change.filePath)}.askr-rollback-${randomUUID()}`,
+          )
+        : null;
       const temporaryPath = path.join(
         path.dirname(change.filePath),
         `.${path.basename(change.filePath)}.askr-change-${randomUUID()}`,
       );
-      const mode = stat?.mode ?? 0o644;
-      await fs.writeFile(temporaryPath, change.content, { flag: "wx", mode });
-      staged.push({ ...change, original, mode, temporaryPath });
+      const mode = stat?.mode;
+      if (backupPath && original !== null) await writeOwnedFile(backupPath, original, mode, owned);
+      await writeOwnedFile(temporaryPath, change.content, mode, owned);
+      staged.push({ ...change, backupPath, temporaryPath });
     }
   } catch (error) {
-    await remove(staged.map((change) => change.temporaryPath));
+    await remove(owned);
     throw error;
   }
 
@@ -194,13 +220,21 @@ async function writeStagedChanges(
       await replace(change.temporaryPath, change.filePath);
       replaced.push(change);
     }
-  } catch {
-    const complete = await restore(replaced);
-    await remove(staged.map((change) => change.temporaryPath));
+  } catch (error) {
+    const failures = await restore(replaced);
+    const preserved = new Set(failures.map((failure) => failure.backupPath));
+    await remove(owned.filter((filePath) => !preserved.has(filePath)));
+    const recovery = failures.map(({ filePath, backupPath }) =>
+      backupPath
+        ? `Restore ${JSON.stringify(filePath)} from ${JSON.stringify(backupPath)}.`
+        : `Remove the newly created file ${JSON.stringify(filePath)}.`,
+    );
     throw new Error(
-      complete
+      failures.length === 0
         ? "File replacement failed; completed changes were rolled back."
-        : "File replacement failed and rollback was incomplete.",
+        : `File replacement failed and rollback was incomplete. ${recovery.join(" ")}`,
+      { cause: error },
     );
   }
+  await remove(owned);
 }
