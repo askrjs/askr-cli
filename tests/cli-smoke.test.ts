@@ -2714,7 +2714,6 @@ test("should ensure skill sync never swaps the live tree while another sync is c
   });
   const originalCp = fs.cp.bind(fs);
   const originalRename = fs.rename.bind(fs);
-  const originalMkdir = fs.mkdir.bind(fs);
   const cp = vi.spyOn(fs, "cp").mockImplementation((async (...args: Parameters<typeof fs.cp>) => {
     if (path.resolve(String(args[0])) !== skillsRoot) return originalCp(...args);
     copiesInFlight += 1;
@@ -2738,19 +2737,14 @@ test("should ensure skill sync never swaps the live tree while another sync is c
         code: "EPERM",
       });
     }
-    return originalRename(...args);
-  }) as typeof fs.rename);
-  const mkdir = vi.spyOn(fs, "mkdir").mockImplementation((async (
-    ...args: Parameters<typeof fs.mkdir>
-  ) => {
     try {
-      return await originalMkdir(...args);
+      return await originalRename(...args);
     } catch (error) {
       // A second sync waiting on the lock lets the first one finish its copy.
-      if (path.resolve(String(args[0])) === lockPath) releaseGate();
+      if (path.resolve(String(args[1])) === lockPath) releaseGate();
       throw error;
     }
-  }) as typeof fs.mkdir);
+  }) as typeof fs.rename);
 
   try {
     const results = await Promise.all([
@@ -2766,7 +2760,6 @@ test("should ensure skill sync never swaps the live tree while another sync is c
   } finally {
     cp.mockRestore();
     rename.mockRestore();
-    mkdir.mockRestore();
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
 });

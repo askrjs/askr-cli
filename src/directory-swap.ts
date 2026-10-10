@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { constants, type BigIntStats } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { acquireFilesystemLock } from "./filesystem-lock";
 
 async function directoryStat(target: string): Promise<BigIntStats | null> {
   let stat: BigIntStats;
@@ -134,35 +135,8 @@ async function recoverPublication(target: string): Promise<void> {
   }
 }
 
-const LOCK_RETRY_MS = 10;
-const LOCK_TIMEOUT_MS = 10_000;
-const ORPHANED_LOCK_AGE_MS = 30_000;
-
 function isNodeError(error: unknown, code: string): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error && error.code === code;
-}
-
-async function removeOrphanedLock(lock: string): Promise<boolean> {
-  try {
-    const owner = JSON.parse(await fs.readFile(path.join(lock, "owner.json"), "utf8")) as {
-      pid?: unknown;
-    };
-    if (Number.isInteger(owner.pid) && (owner.pid as number) > 0) {
-      try {
-        process.kill(owner.pid as number, 0);
-        return false;
-      } catch (error) {
-        if (!isNodeError(error, "ESRCH") && !isNodeError(error, "EINVAL")) return false;
-      }
-    } else {
-      return false;
-    }
-  } catch {
-    const stat = await fs.stat(lock).catch(() => null);
-    if (!stat || Date.now() - stat.mtimeMs < ORPHANED_LOCK_AGE_MS) return false;
-  }
-  await fs.rm(lock, { recursive: true, force: true });
-  return true;
 }
 
 export async function withDirectoryTargetLock<T>(
@@ -170,34 +144,12 @@ export async function withDirectoryTargetLock<T>(
   operation: () => Promise<T>,
 ): Promise<T> {
   const lock = `${path.resolve(target)}.askr-lock`;
-  const deadline = Date.now() + LOCK_TIMEOUT_MS;
-  while (true) {
-    try {
-      await fs.mkdir(lock);
-      await fs.writeFile(
-        path.join(lock, "owner.json"),
-        `${JSON.stringify({ pid: process.pid })}\n`,
-        {
-          flag: "wx",
-        },
-      );
-      break;
-    } catch (error) {
-      if (!isNodeError(error, "EEXIST")) {
-        await fs.rm(lock, { recursive: true, force: true }).catch(() => undefined);
-        throw error;
-      }
-      if (await removeOrphanedLock(lock)) continue;
-      if (Date.now() >= deadline)
-        throw new Error(`Timed out waiting for directory lock: ${target}`);
-      await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_MS));
-    }
-  }
+  const release = await acquireFilesystemLock(lock, `directory lock for ${JSON.stringify(target)}`);
   try {
     await recoverPublication(path.resolve(target));
     return await operation();
   } finally {
-    await fs.rm(lock, { recursive: true, force: true });
+    await release();
   }
 }
 

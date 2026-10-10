@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Prepare file and directory locks with unique owner records before publishing
+  them. Recover only the observed dead owner so delayed stale-lock recovery
+  cannot delete a successor's lock and allow overlapping updates. Preserve
+  ambiguous lock contents and junctions; report failed private-stage cleanup.
+
 - Publish generated OpenAPI clients through the same recoverable directory
   swap as other commands. Keep complete published output when backup cleanup
   fails, clean partial stages, and report retained stages after cleanup failure.
