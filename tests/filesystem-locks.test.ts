@@ -44,29 +44,56 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })));
 });
 
+const observationCases = ["directory", "file"].flatMap((kind) =>
+  (["scandir", "open", "read", "lstat"] as const).map((syscall) => ({ kind, syscall })),
+);
+function denyLockObservation(
+  syscall: "scandir" | "open" | "read" | "lstat",
+  lock: string,
+  fail: () => void,
+) {
+  if (syscall === "scandir") {
+    const readdir = fs.readdir.bind(fs);
+    vi.spyOn(fs, "readdir").mockImplementation((async (...args: Parameters<typeof fs.readdir>) => {
+      if (String(args[0]) === lock) fail();
+      return readdir(...args);
+    }) as typeof fs.readdir);
+  } else if (syscall === "open" || syscall === "read") {
+    const readFile = fs.readFile.bind(fs);
+    vi.spyOn(fs, "readFile").mockImplementation((async (
+      ...args: Parameters<typeof fs.readFile>
+    ) => {
+      if (String(args[0]) === path.join(lock, "owner.json")) fail();
+      return readFile(...args);
+    }) as typeof fs.readFile);
+  } else {
+    const lstat = fs.lstat.bind(fs);
+    vi.spyOn(fs, "lstat").mockImplementation((async (...args: Parameters<typeof fs.lstat>) => {
+      if (String(args[0]) === lock) fail();
+      return lstat(...args);
+    }) as typeof fs.lstat);
+  }
+}
+
 describe("filesystem lock ownership", () => {
-  it.each(["directory", "file"])(
-    "retries a transient Windows-style scandir denial while the %s lock is handed off",
-    async (kind) => {
+  it.each(observationCases)(
+    "retries a transient Windows-style $syscall denial while the $kind lock is handed off",
+    async ({ kind, syscall }) => {
       const { root, target, lock } = await fixture(kind);
       await fs.mkdir(lock);
       await fs.writeFile(path.join(lock, "owner.json"), '{"pid":2147483647}');
-      const readdir = fs.readdir.bind(fs);
-      const denied = Object.assign(new Error("injected pending-deletion directory scan"), {
+      const denied = Object.assign(new Error("injected pending-deletion lock observation"), {
         code: "EPERM",
-        syscall: "scandir",
-        path: lock,
+        syscall,
+        path: syscall === "open" || syscall === "read" ? path.join(lock, "owner.json") : lock,
       });
       let failed = false;
-      vi.spyOn(fs, "readdir").mockImplementation((async (
-        ...args: Parameters<typeof fs.readdir>
-      ) => {
-        if (String(args[0]) === lock && !failed) {
+      denyLockObservation(syscall, lock, () => {
+        if (!failed) {
           failed = true;
           throw denied;
         }
-        return readdir(...args);
-      }) as typeof fs.readdir);
+      });
       let entered = 0;
       await expect(
         operate(kind, target, async () => {
@@ -80,30 +107,24 @@ describe("filesystem lock ownership", () => {
     },
   );
 
-  it.each(["directory", "file"])(
-    "bounds a permanent %s lock scan denial and retains the native cause without deleting its owner",
-    async (kind) => {
+  it.each(observationCases)(
+    "bounds a permanent $kind lock $syscall denial and retains the native cause without deleting its owner",
+    async ({ kind, syscall }) => {
       const { root, target, lock } = await fixture(kind);
       await fs.mkdir(lock);
       const owner = path.join(lock, "owner.json");
       await fs.writeFile(owner, '{"pid":2147483647}');
-      const denied = Object.assign(new Error("injected permanent directory scan denial"), {
+      const denied = Object.assign(new Error("injected permanent lock observation denial"), {
         code: "EPERM",
-        syscall: "scandir",
-        path: lock,
+        syscall,
+        path: syscall === "open" || syscall === "read" ? owner : lock,
       });
       let now = Date.now();
       vi.spyOn(Date, "now").mockImplementation(() => now);
-      const readdir = fs.readdir.bind(fs);
-      vi.spyOn(fs, "readdir").mockImplementation((async (
-        ...args: Parameters<typeof fs.readdir>
-      ) => {
-        if (String(args[0]) === lock) {
-          now += 10_001;
-          throw denied;
-        }
-        return readdir(...args);
-      }) as typeof fs.readdir);
+      denyLockObservation(syscall, lock, () => {
+        now += 10_001;
+        throw denied;
+      });
       await expect(
         operate(kind, target, async () => {
           throw new Error("must not enter");
@@ -112,6 +133,7 @@ describe("filesystem lock ownership", () => {
         message: expect.stringContaining("Timed out waiting"),
         cause: denied,
       });
+      vi.restoreAllMocks();
       expect(await fs.readFile(owner, "utf8")).toBe('{"pid":2147483647}');
       if (kind === "file") expect(await fs.readFile(target, "utf8")).toBe("old");
       expect((await fs.readdir(root)).sort()).toEqual(
@@ -119,6 +141,46 @@ describe("filesystem lock ownership", () => {
           ? [path.basename(lock)]
           : [path.basename(lock), "manifest.json"].sort(),
       );
+    },
+  );
+
+  it.each(["unlink", "rmdir"] as const)(
+    "propagates an EPERM %s failure instead of treating a deletion failure as observation contention",
+    async (method) => {
+      const { root, target, lock } = await fixture("file");
+      await fs.mkdir(lock);
+      const owner = path.join(lock, "owner.json");
+      await fs.writeFile(owner, '{"pid":2147483647}');
+      const failure = Object.assign(new Error("injected lock deletion denial"), {
+        code: "EPERM",
+        syscall: method,
+        path: method === "unlink" ? owner : lock,
+      });
+      if (method === "unlink") {
+        const unlink = fs.unlink.bind(fs);
+        vi.spyOn(fs, "unlink").mockImplementation(async (...args) => {
+          if (String(args[0]) === owner) throw failure;
+          return unlink(...args);
+        });
+      } else {
+        const rmdir = fs.rmdir.bind(fs);
+        vi.spyOn(fs, "rmdir").mockImplementation(async (...args) => {
+          if (String(args[0]) === lock) throw failure;
+          return rmdir(...args);
+        });
+      }
+      await expect(
+        operate("file", target, async () => {
+          throw new Error("must not enter");
+        }),
+      ).rejects.toBe(failure);
+      vi.restoreAllMocks();
+      expect(await fs.readFile(target, "utf8")).toBe("old");
+      expect((await fs.readdir(root)).sort()).toEqual(
+        [path.basename(lock), "manifest.json"].sort(),
+      );
+      if (method === "unlink") expect(await fs.readFile(owner, "utf8")).toBe('{"pid":2147483647}');
+      else expect(await fs.readdir(lock)).toEqual([]);
     },
   );
 

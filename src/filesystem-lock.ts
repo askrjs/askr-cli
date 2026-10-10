@@ -7,6 +7,7 @@ const LOCK_TIMEOUT_MS = 10_000;
 const ORPHANED_LOCK_AGE_MS = 30_000;
 const OWNER_FILE = /^owner-[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}\.json$/i;
 const RENAME_CONTENTION_CODES = new Set(["EEXIST", "ENOTEMPTY", "EPERM", "EBUSY", "EACCES"]);
+const LOCK_READ_SYSCALLS = new Set(["lstat", "scandir", "open", "read"]);
 
 function isNodeError(error: unknown, code: string): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error && error.code === code;
@@ -112,11 +113,11 @@ export async function acquireFilesystemLock(
           { cause: lastError },
         );
       }
-      const lockStat = await statIfPresent(lock);
-      if (lockStat && (!lockStat.isDirectory() || lockStat.isSymbolicLink())) {
-        throw ambiguousLock(lock);
-      }
       try {
+        const lockStat = await statIfPresent(lock);
+        if (lockStat && (!lockStat.isDirectory() || lockStat.isSymbolicLink())) {
+          throw ambiguousLock(lock);
+        }
         await fs.rename(stage, lock);
         return async () => {
           await fs.unlink(path.join(lock, ownerName));
@@ -131,9 +132,12 @@ export async function acquireFilesystemLock(
         try {
           if (await removeOrphanedLock(lock)) continue;
         } catch (inspectionError) {
-          // Windows can reject a scan while another owner removes this lock.
+          // Windows can deny reads while another owner removes its lock record.
           // Retry within the same deadline; a permanent denial retains its cause.
-          if (!isNodeError(inspectionError, "EPERM") || inspectionError.syscall !== "scandir") {
+          if (
+            !isNodeError(inspectionError, "EPERM") ||
+            !LOCK_READ_SYSCALLS.has(inspectionError.syscall ?? "")
+          ) {
             throw inspectionError;
           }
           lastError = inspectionError;

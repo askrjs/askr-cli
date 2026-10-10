@@ -17,8 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Retry a denied lock-directory scan during Windows publication handoff within
-  the existing wait bound. Retain the native error when a denial persists and
-  preserve the owner. Avoid rejecting contenders during normal lock handoff.
+  the existing wait bound. Also retry denied owner-record reads and lock
+  observations while a prior owner removes them. Retain the native error when
+  denial persists and preserve the owner. Avoid rejecting contenders during
+  normal lock handoff.
 
 - Prepare file and directory locks with unique owner records before publishing
   them. Recover only the observed dead owner so delayed stale-lock recovery
