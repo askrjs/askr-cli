@@ -55,6 +55,41 @@ afterEach(async () => {
 });
 
 describe("analyzer rules", () => {
+  it("preserves nested reads and setter calls and refreshes facts after a source rewrite", async () => {
+    const root = await fixture({
+      "src/page.tsx": [
+        'import { state as cell } from "@askrjs/askr";',
+        "export function Page() {",
+        "  const [count, setCount] = cell(0);",
+        "  function nested() { return count; }",
+        "  return <button onClick={() => setCount()}>{count}</button>;",
+        "}",
+      ].join("\n"),
+    });
+    const first = (await diagnostics(root)).filter((entry) => entry.ruleId === "askr/state-access");
+    expect(first.map(({ line, message }) => ({ line, message }))).toEqual([
+      { line: 4, message: "State getter 'count' is used as a value instead of being called." },
+      { line: 5, message: "State setter 'setCount' is called without a value or updater." },
+      { line: 5, message: "State getter 'count' is used as a value instead of being called." },
+    ]);
+
+    await fs.writeFile(
+      path.join(root, "src/page.tsx"),
+      [
+        'import * as Askr from "@askrjs/askr";',
+        "export function Page() {",
+        "  const [value, update] = Askr.state(0);",
+        "  return <button onClick={() => update(1)}>{value()}</button>;",
+        "}",
+      ].join("\n"),
+    );
+    const second = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/state-access",
+    );
+    expect(second).toEqual([]);
+    expect(first).toHaveLength(3);
+  });
+
   it("preserves unused exclusion patterns behind a prior match", async () => {
     const root = await fixture(
       { "src/page.ts": `export const token = "--ak-color-text";` },

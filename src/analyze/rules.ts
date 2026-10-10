@@ -36,6 +36,7 @@ interface SourceJsxFact {
 
 interface SourceFacts {
   readonly bindings: SourceBindings;
+  readonly nodes: readonly ts.Node[];
   readonly calls: readonly SourceCallFact[];
   readonly allCalls: readonly ts.CallExpression[];
   readonly jsx: readonly SourceJsxFact[];
@@ -107,11 +108,13 @@ function sourceFacts(sourceFile: ts.SourceFile): SourceFacts {
   const cached = SOURCE_FACT_CACHE.get(sourceFile);
   if (cached) return cached;
   const bindings = sourceBindings(sourceFile);
+  const nodes: ts.Node[] = [];
   const calls: SourceCallFact[] = [];
   const allCalls: ts.CallExpression[] = [];
   const jsx: SourceJsxFact[] = [];
   const constructions: ts.NewExpression[] = [];
   const walk = (node: ts.Node): void => {
+    nodes.push(node);
     if (ts.isCallExpression(node)) {
       allCalls.push(node);
       const name = canonicalCallName(node.expression, bindings);
@@ -125,7 +128,7 @@ function sourceFacts(sourceFile: ts.SourceFile): SourceFacts {
     ts.forEachChild(node, walk);
   };
   walk(sourceFile);
-  const facts = { bindings, calls, allCalls, jsx, constructions };
+  const facts = { bindings, nodes, calls, allCalls, jsx, constructions };
   SOURCE_FACT_CACHE.set(sourceFile, facts);
   return facts;
 }
@@ -164,11 +167,9 @@ function diagnostic(
 }
 
 function visit(sourceFile: ts.SourceFile, callback: (node: ts.Node) => void): void {
-  const walk = (node: ts.Node): void => {
+  for (const node of sourceFacts(sourceFile).nodes) {
     callback(node);
-    ts.forEachChild(node, walk);
-  };
-  walk(sourceFile);
+  }
 }
 
 function runtimeLiteralText(node: ts.Node): string | null {
