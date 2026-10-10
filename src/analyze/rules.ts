@@ -1748,12 +1748,395 @@ function propertyInitializer(
   return ts.isPropertyAssignment(property) ? property.initializer : property.name;
 }
 
-function loaderForDataCall(name: string, call: ts.CallExpression): ts.Expression | undefined {
+// Cancellation provenance is deliberately local. Import symbols establish the
+// owner; bounded const aliases preserve it without guessing at service calls.
+function cancellationConstInitializer(
+  expression: ts.Expression,
+  checker: ts.TypeChecker,
+): ts.Expression | undefined {
+  if (!ts.isIdentifier(expression)) return undefined;
+  const symbol = ts.isShorthandPropertyAssignment(expression.parent)
+    ? checker.getShorthandAssignmentValueSymbol(expression.parent)
+    : checker.getSymbolAtLocation(expression);
+  const declaration = symbol?.valueDeclaration;
+  return declaration &&
+    ts.isVariableDeclaration(declaration) &&
+    ts.isVariableDeclarationList(declaration.parent) &&
+    (declaration.parent.flags & ts.NodeFlags.Const) !== 0
+    ? declaration.initializer
+    : undefined;
+}
+
+function cancellationLoader(
+  name: string,
+  call: ts.CallExpression,
+  checker: ts.TypeChecker,
+): ts.ArrowFunction | ts.FunctionExpression | ts.FunctionDeclaration | undefined {
   const options = call.arguments[0];
   if (!options || !ts.isObjectLiteralExpression(options)) return undefined;
-  const property =
-    name === "createQuery" ? objectProperty(options, "fetch") : objectProperty(options, "action");
-  return propertyInitializer(property);
+  const key = name === "createQuery" ? "fetch" : "action";
+  let expression: ts.Expression | undefined;
+  for (const property of options.properties) {
+    if (ts.isSpreadAssignment(property)) {
+      expression = undefined;
+      continue;
+    }
+    const propertyName = property.name;
+    const text =
+      propertyName &&
+      (ts.isComputedPropertyName(propertyName)
+        ? literalString(propertyName.expression)
+        : ts.isIdentifier(propertyName) || ts.isStringLiteralLike(propertyName)
+          ? propertyName.text
+          : null);
+    if (text == null) expression = undefined;
+    else if (text === key)
+      expression =
+        ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)
+          ? propertyInitializer(property)
+          : undefined;
+  }
+  const seen = new Set<ts.Node>();
+  for (let depth = 0; expression; depth++) {
+    const candidate = unwrapStaticExpression(expression);
+    if (seen.has(candidate)) return undefined;
+    seen.add(candidate);
+    if (ts.isArrowFunction(candidate) || ts.isFunctionExpression(candidate)) return candidate;
+    if (ts.isIdentifier(candidate)) {
+      const symbol = ts.isShorthandPropertyAssignment(candidate.parent)
+        ? checker.getShorthandAssignmentValueSymbol(candidate.parent)
+        : checker.getSymbolAtLocation(candidate);
+      const declaration = symbol?.valueDeclaration;
+      if (declaration && ts.isFunctionDeclaration(declaration)) return declaration;
+    }
+    if (depth >= 8) return undefined;
+    expression = cancellationConstInitializer(candidate, checker);
+  }
+  return undefined;
+}
+
+function cancellationImportName(
+  expression: ts.Expression,
+  checker: ts.TypeChecker,
+  module: RegExp,
+  seen = new Set<ts.Node>(),
+  depth = 0,
+): string | null {
+  const candidate = unwrapStaticExpression(expression);
+  if (seen.has(candidate)) return null;
+  seen.add(candidate);
+  const binding = ts.isIdentifier(candidate)
+    ? candidate
+    : ts.isPropertyAccessExpression(candidate) && ts.isIdentifier(candidate.expression)
+      ? candidate.expression
+      : null;
+  if (!binding) return null;
+  const declaration = checker
+    .getSymbolAtLocation(binding)
+    ?.declarations?.find((node) => ts.isImportSpecifier(node) || ts.isNamespaceImport(node));
+  if (declaration) {
+    let owner: ts.Node = declaration;
+    while (owner.parent && !ts.isImportDeclaration(owner)) owner = owner.parent;
+    if (
+      ts.isImportDeclaration(owner) &&
+      ts.isStringLiteral(owner.moduleSpecifier) &&
+      module.test(owner.moduleSpecifier.text)
+    ) {
+      if (ts.isImportSpecifier(declaration) && ts.isIdentifier(candidate)) {
+        return declaration.propertyName?.text ?? declaration.name.text;
+      }
+      if (ts.isNamespaceImport(declaration) && ts.isPropertyAccessExpression(candidate)) {
+        return candidate.name.text;
+      }
+    }
+    return null;
+  }
+  const initializer = cancellationConstInitializer(candidate, checker);
+  return initializer && depth < 8
+    ? cancellationImportName(initializer, checker, module, seen, depth + 1)
+    : null;
+}
+
+function cancellationClientKind(
+  expression: ts.Expression,
+  checker: ts.TypeChecker,
+  seen = new Set<ts.Node>(),
+  depth = 0,
+): "client" | "fetch" | null {
+  const candidate = unwrapStaticExpression(expression);
+  if (seen.has(candidate)) return null;
+  seen.add(candidate);
+  if (ts.isCallExpression(candidate)) {
+    const name = cancellationImportName(candidate.expression, checker, /^@askrjs\/fetch$/);
+    return name === "createClient" ? "client" : name === "createFetch" ? "fetch" : null;
+  }
+  const initializer = cancellationConstInitializer(candidate, checker);
+  if (!initializer) return null;
+  const ownsFactory = ts.isCallExpression(unwrapStaticExpression(initializer));
+  return ownsFactory || depth < 8
+    ? cancellationClientKind(initializer, checker, seen, depth + (ownsFactory ? 0 : 1))
+    : null;
+}
+
+function cancellationRequestInput(
+  call: ts.CallExpression,
+  checker: ts.TypeChecker,
+): { readonly name: string; readonly input: ts.Expression | undefined } | null {
+  const target = unwrapStaticExpression(call.expression);
+  if (cancellationClientKind(target, checker) === "fetch") {
+    return { name: `${target.getText()}()`, input: call.arguments[0] };
+  }
+  if (
+    ts.isPropertyAccessExpression(target) &&
+    cancellationClientKind(target.expression, checker) === "client"
+  ) {
+    return { name: `${target.getText()}()`, input: call.arguments[0] };
+  }
+  if (ts.isIdentifier(target) && target.text === "fetch") {
+    const symbol = checker.getSymbolAtLocation(target);
+    const declarations = symbol?.declarations ?? [];
+    // Analysis intentionally omits ambient libraries. An unbound global fetch
+    // retains that contract; any lexical binding must prove the DOM owner.
+    if (
+      !symbol ||
+      declarations.some((declaration) =>
+        /(?:^|[/\\])lib\.dom\.d\.ts$/.test(declaration.getSourceFile().fileName),
+      )
+    ) {
+      return { name: "fetch()", input: call.arguments[1] };
+    }
+  }
+  return null;
+}
+
+type CancellationForwarding = "forwarded" | "missing" | "unknown";
+
+function cancellationSignalProperty(name: ts.PropertyName | ts.BindingName): boolean {
+  return (
+    (ts.isComputedPropertyName(name)
+      ? literalString(name.expression)
+      : ts.isIdentifier(name) || ts.isStringLiteralLike(name)
+        ? name.text
+        : null) === "signal"
+  );
+}
+
+// A const binding does not freeze its object. Only follow an input initializer
+// while all observed uses are canonical request inputs or bounded const aliases.
+function cancellationInputMayChange(
+  identifier: ts.Identifier,
+  checker: ts.TypeChecker,
+  seen = new Set<ts.Symbol>(),
+  depth = 0,
+): boolean {
+  const symbol = checker.getSymbolAtLocation(identifier);
+  const declaration = symbol?.valueDeclaration;
+  if (!symbol || !declaration || !ts.isVariableDeclaration(declaration) || seen.has(symbol))
+    return true;
+  if ((ts.getCombinedModifierFlags(declaration) & ts.ModifierFlags.Export) !== 0) return true;
+  seen.add(symbol);
+  for (const node of sourceFacts(identifier.getSourceFile()).nodes) {
+    if (!ts.isIdentifier(node) || node === declaration.name) continue;
+    if (
+      ts.isExportSpecifier(node.parent) &&
+      checker.getExportSpecifierLocalTargetSymbol(node.parent) === symbol
+    )
+      return true;
+    const owner = ts.isShorthandPropertyAssignment(node.parent)
+      ? checker.getShorthandAssignmentValueSymbol(node.parent)
+      : checker.getSymbolAtLocation(node);
+    if (owner !== symbol) continue;
+    const parent = node.parent;
+    if (ts.isCallExpression(parent) && cancellationRequestInput(parent, checker)?.input === node)
+      continue;
+    if (
+      ts.isVariableDeclaration(parent) &&
+      parent.initializer === node &&
+      ts.isIdentifier(parent.name) &&
+      ts.isVariableDeclarationList(parent.parent) &&
+      (parent.parent.flags & ts.NodeFlags.Const) !== 0 &&
+      depth < 8 &&
+      !cancellationInputMayChange(parent.name, checker, new Set(seen), depth + 1)
+    )
+      continue;
+    return true;
+  }
+  return false;
+}
+
+function isOperationContext(
+  expression: ts.Expression,
+  parameter: ts.ParameterDeclaration,
+  checker: ts.TypeChecker,
+  seen = new Set<ts.Node>(),
+  depth = 0,
+): CancellationForwarding {
+  const candidate = unwrapStaticExpression(expression);
+  if (!ts.isIdentifier(candidate) || seen.has(candidate)) return "unknown";
+  seen.add(candidate);
+  if (
+    ts.isIdentifier(parameter.name) &&
+    checker.getSymbolAtLocation(candidate) === checker.getSymbolAtLocation(parameter.name)
+  )
+    return "forwarded";
+  const initializer = cancellationConstInitializer(candidate, checker);
+  if (!initializer) {
+    const declaration = checker.getSymbolAtLocation(candidate)?.valueDeclaration;
+    if (declaration && ts.isBindingElement(declaration) && declaration.dotDotDotToken)
+      return "unknown";
+    return declaration &&
+      ts.isVariableDeclaration(declaration) &&
+      ts.isVariableDeclarationList(declaration.parent) &&
+      (declaration.parent.flags & ts.NodeFlags.Const) === 0
+      ? "unknown"
+      : "missing";
+  }
+  return depth < 8
+    ? isOperationContext(initializer, parameter, checker, seen, depth + 1)
+    : "unknown";
+}
+
+function isOperationSignal(
+  expression: ts.Expression,
+  parameter: ts.ParameterDeclaration | undefined,
+  checker: ts.TypeChecker,
+  seen = new Set<ts.Node>(),
+  depth = 0,
+): CancellationForwarding {
+  if (!parameter) return "missing";
+  const candidate = unwrapStaticExpression(expression);
+  if (
+    candidate.kind === ts.SyntaxKind.NullKeyword ||
+    (ts.isIdentifier(candidate) &&
+      candidate.text === "undefined" &&
+      !checker.getSymbolAtLocation(candidate)?.declarations?.length)
+  )
+    return "missing";
+  if (seen.has(candidate)) return "unknown";
+  seen.add(candidate);
+  if (ts.isPropertyAccessExpression(candidate) && candidate.name.text === "signal") {
+    return isOperationContext(candidate.expression, parameter, checker, seen, depth);
+  }
+  if (
+    ts.isElementAccessExpression(candidate) &&
+    candidate.argumentExpression &&
+    literalString(candidate.argumentExpression) === "signal"
+  ) {
+    return isOperationContext(candidate.expression, parameter, checker, seen, depth);
+  }
+  if (!ts.isIdentifier(candidate))
+    return isNullishLiteral(candidate) ||
+      ts.isStringLiteralLike(candidate) ||
+      ts.isNumericLiteral(candidate) ||
+      candidate.kind === ts.SyntaxKind.TrueKeyword ||
+      candidate.kind === ts.SyntaxKind.FalseKeyword
+      ? "missing"
+      : "unknown";
+  const symbol = ts.isShorthandPropertyAssignment(candidate.parent)
+    ? checker.getShorthandAssignmentValueSymbol(candidate.parent)
+    : checker.getSymbolAtLocation(candidate);
+  if (!symbol) return "unknown";
+  const declaration = symbol.valueDeclaration;
+  if (
+    declaration &&
+    ts.isBindingElement(declaration) &&
+    !declaration.dotDotDotToken &&
+    ts.isObjectBindingPattern(declaration.parent)
+  ) {
+    const owner = declaration.parent.parent;
+    const signalProperty = cancellationSignalProperty(declaration.propertyName ?? declaration.name);
+    if (
+      signalProperty &&
+      ts.isVariableDeclaration(owner) &&
+      owner.initializer &&
+      ts.isVariableDeclarationList(owner.parent) &&
+      (owner.parent.flags & ts.NodeFlags.Const) !== 0
+    ) {
+      return depth < 8
+        ? isOperationContext(owner.initializer, parameter, checker, seen, depth + 1)
+        : "unknown";
+    }
+  }
+  if (ts.isObjectBindingPattern(parameter.name)) {
+    for (const element of parameter.name.elements) {
+      if (
+        !element.dotDotDotToken &&
+        ts.isIdentifier(element.name) &&
+        cancellationSignalProperty(element.propertyName ?? element.name) &&
+        checker.getSymbolAtLocation(element.name) === symbol
+      )
+        return "forwarded";
+    }
+  }
+  const initializer = cancellationConstInitializer(candidate, checker);
+  if (!initializer)
+    return declaration &&
+      ts.isBindingElement(declaration) &&
+      ts.isObjectBindingPattern(declaration.parent) &&
+      ts.isParameter(declaration.parent.parent)
+      ? "missing"
+      : "unknown";
+  return depth < 8
+    ? isOperationSignal(initializer, parameter, checker, seen, depth + 1)
+    : "unknown";
+}
+
+function cancellationForwarding(
+  input: ts.Expression | undefined,
+  parameter: ts.ParameterDeclaration | undefined,
+  checker: ts.TypeChecker,
+  seen = new Set<ts.Node>(),
+  depth = 0,
+): CancellationForwarding {
+  if (!input) return "missing";
+  const candidate = unwrapStaticExpression(input);
+  if (seen.has(candidate)) return "unknown";
+  seen.add(candidate);
+  const initializer = cancellationConstInitializer(candidate, checker);
+  if (initializer)
+    if (ts.isIdentifier(candidate) && cancellationInputMayChange(candidate, checker))
+      return "unknown";
+  if (initializer)
+    return depth < 8
+      ? cancellationForwarding(initializer, parameter, checker, seen, depth + 1)
+      : "unknown";
+  if (
+    candidate.kind === ts.SyntaxKind.NullKeyword ||
+    (ts.isIdentifier(candidate) &&
+      candidate.text === "undefined" &&
+      !checker.getSymbolAtLocation(candidate)?.declarations?.length)
+  )
+    return "missing";
+  if (!ts.isObjectLiteralExpression(candidate)) return "unknown";
+  let result: CancellationForwarding = "missing";
+  for (const property of candidate.properties) {
+    if (ts.isSpreadAssignment(property)) {
+      result = "unknown";
+      continue;
+    }
+    const name = property.name;
+    if (!name) continue;
+    const text = ts.isComputedPropertyName(name)
+      ? literalString(name.expression)
+      : ts.isIdentifier(name) || ts.isStringLiteralLike(name)
+        ? name.text
+        : null;
+    if (text === null) {
+      result = "unknown";
+      continue;
+    }
+    if (text !== "signal") continue;
+    if (ts.isGetAccessorDeclaration(property) || ts.isSetAccessorDeclaration(property)) {
+      result = "unknown";
+      continue;
+    }
+    const value =
+      ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)
+        ? propertyInitializer(property)
+        : undefined;
+    result = value ? isOperationSignal(value, parameter, checker) : "missing";
+  }
+  return result;
 }
 
 const dataCancellationRule: AnalyzeRule = {
@@ -1764,25 +2147,51 @@ const dataCancellationRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
-      visit(sourceFile, (node) => {
-        if (!ts.isCallExpression(node)) return;
-        const name = canonicalCallName(node.expression, bindings);
-        if (name !== "createQuery" && name !== "createMutation") return;
-        const loader = loaderForDataCall(name, node);
-        if (!loader || (!ts.isArrowFunction(loader) && !ts.isFunctionExpression(loader))) return;
-        const body = functionBodyText(loader);
-        if (!/\bfetch\s*\(/.test(body) || /\bsignal\b/.test(body)) return;
+      for (const { node, name: importedName } of sourceFacts(sourceFile).calls) {
+        if (importedName !== "createQuery" && importedName !== "createMutation") continue;
+        const name = cancellationImportName(
+          node.expression,
+          context.checker,
+          /^@askrjs\/askr(?:\/data)?$/,
+        );
+        if (name !== "createQuery" && name !== "createMutation") continue;
+        const loader = cancellationLoader(name, node, context.checker);
+        if (
+          !loader ||
+          (!ts.isArrowFunction(loader) &&
+            !ts.isFunctionExpression(loader) &&
+            !ts.isFunctionDeclaration(loader)) ||
+          !loader.body
+        )
+          continue;
+        const parameter = loader.parameters[name === "createMutation" ? 1 : 0];
+        let missing: { readonly call: ts.CallExpression; readonly name: string } | undefined;
+        const inspect = (child: ts.Node): void => {
+          if (missing || ts.isFunctionLike(child)) return;
+          if (ts.isCallExpression(child)) {
+            const request = cancellationRequestInput(child, context.checker);
+            if (
+              request &&
+              cancellationForwarding(request.input, parameter, context.checker) === "missing"
+            ) {
+              missing = { call: child, name: request.name };
+              return;
+            }
+          }
+          ts.forEachChild(child, inspect);
+        };
+        inspect(loader.body);
+        if (!missing) continue;
         diagnostics.push(
           diagnostic(
             context,
-            loader,
+            missing.call.expression,
             this,
-            `${name}() performs fetch() without forwarding its cancellation signal.`,
-            "Accept the operation context signal and include it in the fetch options.",
+            `${name}() performs ${missing.name} without forwarding its own cancellation signal.`,
+            "Pass the operation context's signal in this request input or fetch options.",
           ),
         );
-      });
+      }
     }
     return diagnostics;
   },

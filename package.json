@@ -56,6 +56,7 @@
     "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run test:changelog && npm run build && npm run docs:check && npm run test:publint && npm run pack:check && npm run test:types",
     "prepack": "npm run build",
     "test:peer-floor": "vp test run -c vitest.integration.config.ts tests/integration/peer-floor.test.ts",
+    "test:analyze-cancellation": "vp test run -c vitest.integration.config.ts tests/integration/analyze-cancellation.test.ts",
     "prepublishOnly": "npm run check && npm run test:templates && npm run test:peer-floor",
     "test:types": "npm run build && node tests/package-consumers.js"
   },

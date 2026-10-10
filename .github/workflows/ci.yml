@@ -79,6 +79,9 @@ jobs:
           npm run test:publint
           npm run pack:check
 
+      - name: Installed typed-client cancellation contract
+        run: npm run test:analyze-cancellation
+
   packed-templates:
     name: Packed template integration (Node LTS)
     runs-on: ubuntu-latest

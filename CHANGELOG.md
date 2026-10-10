@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Extend `askr/data-cancellation` to canonical typed Fetch clients and ad hoc request functions, checking each request against its own operation signal while preserving unknown/spread inputs and warning severity.
+
 ### Breaking
 
 - Retain only `SitemapConfig` and `SsgOutputReportConfig` from the SSG type

@@ -66,6 +66,38 @@ module is not treated as an Askr API.
 - `askr/resource-cancellation` and `askr/data-cancellation` report fetch-based
   resource, query, and mutation loaders that do not forward their cancellation
   signal.
+
+  `askr/data-cancellation` also recognizes direct, statically named calls on a
+  canonical `createClient()` result and calls to a `createFetch()` result from
+  `@askrjs/fetch`. Pass the query context's signal, or the mutation's second
+  context parameter signal, in each request input:
+
+  ```ts
+  const records = createQuery({
+    key: "records",
+    fetch: ({ signal }) => client.records({ signal }),
+  });
+  ```
+
+  Import aliases, namespace imports, function declarations and const local
+  loaders retain their ownership. Const aliases of Fetch factories, clients,
+  operation contexts, signals and request inputs are followed for up to eight
+  links; cycles and longer chains remain unknown. Mutable loader variables are
+  skipped. An unrelated variable named `signal` does not satisfy the rule, and
+  forwarding to one request does not cover another request. Literal operation
+  options and request inputs are evaluated in overwrite order. A later unknown
+  options spread invalidates an earlier loader; a later explicit loader restores
+  it. For request inputs:
+  `{ ...input, signal: wrong }` reports, while `{ signal: wrong, ...input }`
+  remains unknown and is accepted. Computed literal `context["signal"]` and
+  signal destructuring are supported. Observed writes or escapes invalidate a
+  const request object's initializer; mutable and opaque signal expressions
+  (including composed signals) remain unknown. Unknown inputs, dynamic endpoints,
+  unresolved clients/service calls and uninvoked nested callbacks are skipped.
+  The rule does not follow a request into a service function or prove runtime
+  cancellation. It reports one concrete offending request per loader and
+  retains warning severity; `--check` exits unsuccessfully for warnings.
+
 - `askr/for-contract` requires `each`, an item renderer, and exactly one of
   `by` or `byIndex`.
 - `askr/control-contract` validates required `Show` and `Match` conditions and
