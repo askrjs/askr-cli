@@ -190,7 +190,7 @@ describe("askr generate", () => {
     );
     expect(await readFile(output, "utf8")).toBe("keep");
   });
-  it("should preserve generated output when its backup rename fails", async () => {
+  it("should preserve an unrelated stale backup while replacing owned generated output", async () => {
     const root = await mkdtemp(join(tmpdir(), "askr-stale-backup-"));
     const output = join(root, "generated");
     const backup = `${output}.backup-${process.pid}`;
@@ -200,12 +200,13 @@ describe("askr generate", () => {
     await mkdir(backup);
     await writeFile(join(backup, "stale.txt"), "stale backup\n");
 
-    await expect(writeGenerated(output, generateFiles(document), false)).rejects.toThrow();
+    const files = generateFiles(document);
+    await expect(writeGenerated(output, files, false)).resolves.toBeUndefined();
 
     expect(await readFile(join(output, ".askr-generated.json"), "utf8")).toBe(
-      "original manifest\n",
+      files[".askr-generated.json"],
     );
-    expect(await readFile(join(output, "schemas.ts"), "utf8")).toBe("original schema\n");
+    expect(await readFile(join(output, "schemas.ts"), "utf8")).toBe(files["schemas.ts"]);
     expect(await readFile(join(backup, "stale.txt"), "utf8")).toBe("stale backup\n");
   });
   it("should leave one complete result under concurrent generation", async () => {

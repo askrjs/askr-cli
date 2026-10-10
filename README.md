@@ -162,6 +162,9 @@ If a process exits between publication renames, the next build restores the old
 output or finishes cleanup of the completed output before copying it. A recovery
 conflict stops the build and names the record and original backup for inspection.
 See the [SSG recovery boundary](docs/ssg.md) for details.
+OpenAPI client generation uses the same publication recovery. Project creation
+checks that its destination is still missing or empty under the publication lock,
+so a concurrent create cannot replace an already published project.
 
 ## OpenAPI artifacts
 

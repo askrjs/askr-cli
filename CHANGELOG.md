@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Publish generated OpenAPI clients through the same recoverable directory
+  swap as other commands. Keep complete published output when backup cleanup
+  fails, clean partial stages, and report retained stages after cleanup failure.
+  Recheck project destination ownership under the publication lock so concurrent
+  creates cannot replace each other's projects or unrelated files. Print project
+  creation success only after publication completes.
+
 - Record directory publication before moving the original tree. Recover an
   interrupted create, skills or SSG swap before the next locked operation;
   finish failed backup cleanup on retry. Reject file and symbolic-link targets,

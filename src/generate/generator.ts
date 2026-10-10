@@ -1,19 +1,13 @@
-import {
-  mkdir,
-  mkdtemp,
-  readFile,
-  readdir,
-  realpath,
-  rename,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, lstat, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { lookup } from "node:dns/promises";
 import { request as httpsRequest } from "node:https";
 import type { IncomingHttpHeaders, IncomingMessage } from "node:http";
 import { BlockList, isIP } from "node:net";
-import { withDirectoryTargetLock } from "../directory-swap";
+import {
+  createSiblingStage,
+  swapStagedDirectoryLocked,
+  withDirectoryTargetLock,
+} from "../directory-swap";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { load } from "js-yaml";
@@ -824,8 +818,9 @@ export function generateFiles(document: Json): Record<(typeof OWNED)[number], st
 async function existingFiles(directory: string) {
   try {
     return (await readdir(directory)).sort();
-  } catch {
-    return [];
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return [];
+    throw error;
   }
 }
 export async function writeGenerated(
@@ -844,9 +839,14 @@ async function writeGeneratedUnlocked(
   check: boolean,
 ): Promise<void> {
   const output = resolve(directory);
-  const outputStat = await stat(output).catch(() => null);
-  if (outputStat && !outputStat.isDirectory()) {
-    throw new GenerationError(`Generated output must be a directory: ${output}`);
+  const outputStat = await lstat(output).catch((error: unknown) => {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return null;
+    throw error;
+  });
+  if (outputStat && (!outputStat.isDirectory() || outputStat.isSymbolicLink())) {
+    throw new GenerationError(
+      `Generated output must be a directory without a symbolic link: ${JSON.stringify(output)}`,
+    );
   }
   const entries = await existingFiles(output);
   if (check) {
@@ -861,25 +861,22 @@ async function writeGeneratedUnlocked(
   }
   if (entries.length && !entries.includes(".askr-generated.json"))
     throw new GenerationError(`Refusing to overwrite non-generated directory: ${output}`);
-  const stage = await mkdtemp(join(dirname(output), `.${basename(output)}-stage-`));
-  for (const [name, content] of Object.entries(files)) await writeFile(join(stage, name), content);
-  const backup = `${output}.backup-${process.pid}`;
-  let moved = false;
+  const stage = await createSiblingStage(output, "askr-generated");
   try {
-    if (entries.length) {
-      await rename(output, backup);
-      moved = true;
-    }
-    await rename(stage, output);
-    if (moved) await rm(backup, { recursive: true, force: true });
+    for (const [name, content] of Object.entries(files))
+      await writeFile(join(stage, name), content);
+    await swapStagedDirectoryLocked(stage, output);
   } catch (error) {
-    if (moved) {
-      await rm(output, { recursive: true, force: true });
-      await rename(backup, output);
+    try {
+      await rm(stage, { recursive: true, force: true });
+    } catch (cleanupFailure) {
+      throw new AggregateError(
+        [error, cleanupFailure],
+        `Generation failed and its stage could not be removed: ${JSON.stringify(stage)}. Remove this retained stage after resolving the filesystem error, then retry.`,
+        { cause: error },
+      );
     }
     throw error;
-  } finally {
-    await rm(stage, { recursive: true, force: true });
   }
 }
 export async function generate(
