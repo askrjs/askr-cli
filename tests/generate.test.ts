@@ -226,7 +226,7 @@ describe("askr generate", () => {
     expect([first["schemas.ts"], second["schemas.ts"]]).toContain(schema);
     expect((await readdir(output)).sort()).toEqual(Object.keys(first).sort());
   });
-  it("should serialize repeated contended publication without rejecting a completed writer", async () => {
+  it("should serialize repeated publication without rejecting contenders during handoff", async () => {
     const root = await mkdtemp(join(tmpdir(), "askr-repeated-concurrent-generate-"));
     const output = join(root, "generated");
     const files = generateFiles(document);
