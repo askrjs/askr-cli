@@ -212,6 +212,11 @@ lockfile, installs packages, runs lifecycle scripts, or edits overrides,
 resolutions, catalogs, or `packageManager` metadata. See the
 [update command reference](./docs/update.md) for policy and output details.
 
+Writes save original copies before replacement and reject manifests changed
+since planning. If restoring a failed replacement also fails, the error names
+the preserved recovery copy and target to restore before retrying. See the
+reference for recovery after process termination.
+
 ## Agent skills
 
 Install the bundled Askr skills into a project:

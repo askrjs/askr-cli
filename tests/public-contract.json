@@ -25,9 +25,11 @@
     "bin/cli",
     "create",
     "generate",
+    "file-changes",
     "ssg/sitemap",
     "ssg/output-report",
     "update",
+    "update/writer",
     "dist/cli.js",
     "dist/ssg-config.js"
   ]

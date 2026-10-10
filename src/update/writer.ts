@@ -1,15 +1,6 @@
 import fs from "node:fs/promises";
-import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { writeFileChanges, type FileChange } from "../file-changes";
 import type { ManifestValueEdit } from "./types";
-
-interface StagedManifest {
-  manifestPath: string;
-  original: Buffer;
-  replacement: string;
-  temporaryPath: string;
-  mode: number;
-}
 
 interface WriterOptions {
   replace?: (temporaryPath: string, manifestPath: string) => Promise<void>;
@@ -184,72 +175,20 @@ function renderReplacement(source: string, edits: ManifestValueEdit[]): string {
   return result;
 }
 
-async function cleanup(paths: string[]): Promise<void> {
-  await Promise.all(
-    paths.map((filePath) => fs.rm(filePath, { force: true }).catch(() => undefined)),
-  );
-}
-
-async function rollback(replaced: StagedManifest[]): Promise<boolean> {
-  let complete = true;
-  for (const staged of [...replaced].reverse()) {
-    const rollbackPath = path.join(
-      path.dirname(staged.manifestPath),
-      `.${path.basename(staged.manifestPath)}.askr-rollback-${randomUUID()}`,
-    );
-    try {
-      await fs.writeFile(rollbackPath, staged.original, { flag: "wx", mode: staged.mode });
-      await fs.rename(rollbackPath, staged.manifestPath);
-    } catch {
-      complete = false;
-      await fs.rm(rollbackPath, { force: true }).catch(() => undefined);
-    }
-  }
-  return complete;
-}
-
 export async function writeManifestEdits(
   edits: ManifestValueEdit[],
   options: WriterOptions = {},
 ): Promise<number> {
   if (edits.length === 0) return 0;
-  const staged: StagedManifest[] = [];
-  const replace = options.replace ?? fs.rename;
-
-  try {
-    for (const [manifestPath, manifestEdits] of groupEdits(edits)) {
-      const [original, stat] = await Promise.all([
-        fs.readFile(manifestPath),
-        fs.stat(manifestPath),
-      ]);
-      const replacement = renderReplacement(original.toString("utf8"), manifestEdits);
-      const temporaryPath = path.join(
-        path.dirname(manifestPath),
-        `.${path.basename(manifestPath)}.askr-update-${randomUUID()}`,
-      );
-      await fs.writeFile(temporaryPath, replacement, { flag: "wx", mode: stat.mode });
-      staged.push({ manifestPath, original, replacement, temporaryPath, mode: stat.mode });
-    }
-  } catch (error) {
-    await cleanup(staged.map((entry) => entry.temporaryPath));
-    throw error;
+  const changes: FileChange[] = [];
+  for (const [manifestPath, manifestEdits] of groupEdits(edits)) {
+    const original = await fs.readFile(manifestPath, "utf8");
+    changes.push({
+      filePath: manifestPath,
+      content: renderReplacement(original, manifestEdits),
+      expectedContent: original,
+    });
   }
-
-  const replaced: StagedManifest[] = [];
-  try {
-    for (const manifest of staged) {
-      await replace(manifest.temporaryPath, manifest.manifestPath);
-      replaced.push(manifest);
-    }
-  } catch {
-    const rollbackComplete = await rollback(replaced);
-    await cleanup(staged.map((entry) => entry.temporaryPath));
-    throw new Error(
-      rollbackComplete
-        ? "Manifest replacement failed; completed replacements were rolled back."
-        : "Manifest replacement failed and rollback was incomplete.",
-    );
-  }
-
+  await writeFileChanges(changes, options);
   return edits.length;
 }

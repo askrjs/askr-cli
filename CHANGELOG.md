@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Save original file copies before replacing any files, retain copies that cannot
+  be restored, and report recovery paths. Manifest edits use the shared guarded
+  writer so unrelated edits made after planning are preserved. Clean partial
+  staging writes, reject filesystem permission errors, and preserve existing
+  POSIX permission bits while respecting the umask for new files.
+
 - Reuse the syntax-fact index's node order across analyzer rules instead of
   repeatedly walking each syntax tree. Preserve diagnostics, source fixes and
   fresh bindings when a file changes, with the existing benchmark budgets.

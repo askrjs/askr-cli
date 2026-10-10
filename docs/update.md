@@ -106,8 +106,11 @@ an `npm_execpath` supplied by pnpm or Yarn is not reused. Registry metadata is
 revalidated online, fetched at most once per package, and limited to eight
 concurrent requests.
 
-Any required registry, tag, configuration, or write failure makes the complete
-plan fail with exit code `1`; no manifest edits are retained. Diagnostics never
+Any required registry, tag, configuration, or write failure exits `1`. Registry,
+configuration and staging failures leave manifests unchanged. If replacement
+fails, completed replacements are restored from original copies. If restoration
+also fails, the error names each target and its preserved recovery copy; restore
+those files before retrying. Diagnostics never
 include npm configuration, headers, tokens, or credential-bearing registry
 URLs. A successful scan or write exits `0`, even when safe or breaking updates
 remain.
@@ -123,8 +126,19 @@ fallback. Diagnostics go to stderr.
 Writes are value-only JSON edits that preserve unrelated formatting, key order,
 line endings, indentation, and trailing-newline state. All registry resolution
 and planning finishes before temporary files are staged. Multi-manifest writes
-replace files deterministically and roll back completed replacements if a later
-replacement fails.
+save original copies before replacing files deterministically and roll back
+completed replacements if a later replacement fails. A manifest changed since
+the planning read is rejected before replacements begin. Existing POSIX permission bits
+are preserved, and newly created files respect the current umask.
+
+Abrupt process termination after replacement begins can leave some replacements
+applied. Complete original copies
+remain beside the targets as `.<filename>.askr-rollback-<id>` files. After verifying
+their contents, restore the affected targets and remove the abandoned
+`.<filename>.askr-change-<id>` replacement files from that interrupted operation
+before retrying. Recovery after termination is manual; the next writer can
+recover the dead process's locks. These file-update guarantees do not qualify
+directory publication or filesystem power-loss durability.
 
 Neither mutation command writes lockfiles, installs dependencies, runs lifecycle
 scripts, or manages overrides, resolutions, catalogs, `packageManager`, or
