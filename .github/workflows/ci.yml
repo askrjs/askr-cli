@@ -82,6 +82,9 @@ jobs:
       - name: Installed typed-client cancellation contract
         run: npm run test:analyze-cancellation
 
+      - name: Installed protected-registry access contract
+        run: npm run test:analyze-access
+
   packed-templates:
     name: Packed template integration (Node LTS)
     runs-on: ubuntu-latest

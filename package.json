@@ -57,6 +57,7 @@
     "prepack": "npm run build",
     "test:peer-floor": "vp test run -c vitest.integration.config.ts tests/integration/peer-floor.test.ts",
     "test:analyze-cancellation": "vp test run -c vitest.integration.config.ts tests/integration/analyze-cancellation.test.ts",
+    "test:analyze-access": "vp test run -c vitest.integration.config.ts tests/integration/analyze-route-access.test.ts",
     "prepublishOnly": "npm run check && npm run test:templates && npm run test:peer-floor",
     "test:types": "npm run build && node tests/package-consumers.js"
   },

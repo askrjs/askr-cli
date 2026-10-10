@@ -1118,6 +1118,7 @@ type RoutePageAnalysisScope = {
 
 type RouteDefinitionAnalysisScope = {
   readonly page: RoutePageAnalysisScope | null;
+  readonly protectedAccess?: "present" | "absent" | "unknown";
 };
 
 type RouteDefinitionCallVisitor = (
@@ -1187,9 +1188,39 @@ function walkRouteDefinition(
     const walkNode = (node: ts.Node): void => {
       if (node !== body && ts.isFunctionLike(node)) return;
       if (ts.isCallExpression(node)) {
-        const name = canonicalCallName(node.expression, bindings);
+        if (scope.protectedAccess !== undefined) {
+          // These expressions execute in the caller's access scope before a
+          // helper or DSL callback runs. Function bodies remain uninvoked here.
+          walkNode(node.expression);
+          for (const argument of node.arguments) walkNode(argument);
+        }
+        const name =
+          scope.protectedAccess === undefined
+            ? canonicalCallName(node.expression, bindings)
+            : cancellationImportName(node.expression, context.checker, /^@askrjs\/askr\/router$/);
         if (name && ROUTE_DEFINITION_CALLS.has(name)) {
           visitor(node, name, scope);
+          if (scope.protectedAccess !== undefined && (name === "group" || name === "page")) {
+            const callback = protectedDefinition(
+              name === "group" ? node.arguments[1] : node.arguments.at(-1),
+              context,
+            );
+            if (callback)
+              walkRouteDefinition(
+                context,
+                callback,
+                {
+                  ...scope,
+                  protectedAccess: inheritedProtectedAccess(
+                    scope.protectedAccess,
+                    protectedCallAccess(node, name, context),
+                  ),
+                },
+                visitor,
+                active,
+              );
+            return;
+          }
           if (name === "group") {
             const callback = routeDefinitionCallback(node, "group", context);
             if (callback) walkRouteDefinition(context, callback, scope, visitor, active);
@@ -1211,11 +1242,19 @@ function walkRouteDefinition(
           return;
         }
 
-        const called = resolvedFunction(node.expression, context);
-        if (called) {
+        const called =
+          scope.protectedAccess === undefined
+            ? resolvedFunction(node.expression, context)
+            : protectedDefinition(node.expression, context);
+        if (
+          called &&
+          (scope.protectedAccess === undefined ||
+            context.sourceFiles.includes(called.getSourceFile()))
+        ) {
           walkRouteDefinition(context, called, scope, visitor, active);
           return;
         }
+        if (scope.protectedAccess !== undefined) return;
       }
       ts.forEachChild(node, walkNode);
     };
@@ -1246,6 +1285,283 @@ function walkRouteDefinitions(
     walkRouteDefinition(context, definition, { page: null }, visitor);
   }
 }
+
+type ProtectedAccess = "present" | "absent" | "unknown";
+type ProtectedProperty = ProtectedAccess | "unset";
+
+function inheritedProtectedAccess(left: ProtectedAccess, right: ProtectedAccess): ProtectedAccess {
+  return left === "present" || right === "present"
+    ? "present"
+    : left === "unknown" || right === "unknown"
+      ? "unknown"
+      : "absent";
+}
+
+function protectedAccessValue(
+  expression: ts.Expression,
+  kind: "auth" | "policies",
+  context: WorkspaceAnalysisContext,
+  depth = 0,
+): ProtectedAccess {
+  const value = unwrapStaticExpression(expression);
+  if (
+    value.kind === ts.SyntaxKind.NullKeyword ||
+    (ts.isIdentifier(value) &&
+      value.text === "undefined" &&
+      !context.checker.getSymbolAtLocation(value)?.declarations?.length) ||
+    ts.isVoidExpression(value)
+  )
+    return "absent";
+  if (kind === "policies") {
+    if (!ts.isArrayLiteralExpression(value)) return "unknown";
+    return value.elements.some((entry) => !ts.isSpreadElement(entry))
+      ? "present"
+      : value.elements.length
+        ? "unknown"
+        : "absent";
+  }
+  if (ts.isArrowFunction(value) || ts.isFunctionExpression(value)) return "present";
+  if (ts.isIdentifier(value)) {
+    let symbol = context.checker.getSymbolAtLocation(value);
+    if (symbol && (symbol.flags & ts.SymbolFlags.Alias) !== 0)
+      symbol = context.checker.getAliasedSymbol(symbol);
+    if (symbol?.valueDeclaration && ts.isFunctionDeclaration(symbol.valueDeclaration))
+      return "present";
+    const initializer = cancellationConstInitializer(value, context.checker);
+    return initializer && depth < 8
+      ? protectedAccessValue(initializer, kind, context, depth + 1)
+      : "unknown";
+  }
+  return ts.isLiteralExpression(value) ||
+    value.kind === ts.SyntaxKind.TrueKeyword ||
+    value.kind === ts.SyntaxKind.FalseKeyword
+    ? "absent"
+    : "unknown";
+}
+
+// Last-write classification is local to literal options. Opaque objects,
+// getters and unknown spreads cannot establish either presence or absence.
+function protectedOptionProperties(
+  expression: ts.Expression | undefined,
+  context: WorkspaceAnalysisContext,
+): Record<"auth" | "policies", ProtectedProperty> {
+  const result: Record<"auth" | "policies", ProtectedProperty> = {
+    auth: "unset",
+    policies: "unset",
+  };
+  if (!expression) return result;
+  const options = unwrapStaticExpression(expression);
+  if (!ts.isObjectLiteralExpression(options)) return { auth: "unknown", policies: "unknown" };
+  for (const property of options.properties) {
+    if (ts.isSpreadAssignment(property)) {
+      const spread = protectedOptionProperties(property.expression, context);
+      for (const key of ["auth", "policies"] as const)
+        if (spread[key] !== "unset") result[key] = spread[key];
+      continue;
+    }
+    const key =
+      property.name &&
+      (ts.isComputedPropertyName(property.name)
+        ? literalString(property.name.expression)
+        : ts.isIdentifier(property.name) || ts.isStringLiteralLike(property.name)
+          ? property.name.text
+          : null);
+    if (key === null) {
+      result.auth = "unknown";
+      result.policies = "unknown";
+      continue;
+    }
+    if (key !== "auth" && key !== "policies") continue;
+    if (ts.isMethodDeclaration(property)) {
+      result[key] = key === "auth" ? "present" : "unknown";
+      continue;
+    }
+    const value =
+      ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)
+        ? propertyInitializer(property)
+        : undefined;
+    result[key] = value ? protectedAccessValue(value, key, context) : "unknown";
+  }
+  return result;
+}
+
+function protectedCallAccess(
+  call: ts.CallExpression,
+  name: string,
+  context: WorkspaceAnalysisContext,
+): ProtectedAccess {
+  const options =
+    name === "group"
+      ? call.arguments[0]
+      : name === "page"
+        ? call.arguments.length >= 4
+          ? call.arguments[2]
+          : undefined
+        : name === "route"
+          ? call.arguments[2]
+          : name === "index"
+            ? call.arguments[1]
+            : undefined;
+  const properties = protectedOptionProperties(options, context);
+  return inheritedProtectedAccess(
+    properties.auth === "unset" ? "absent" : properties.auth,
+    properties.policies === "unset" ? "absent" : properties.policies,
+  );
+}
+
+function protectedRegistryCall(
+  symbol: ts.Symbol | undefined,
+  context: WorkspaceAnalysisContext,
+): ts.CallExpression | undefined {
+  if (symbol && (symbol.flags & ts.SymbolFlags.Alias) !== 0)
+    symbol = context.checker.getAliasedSymbol(symbol);
+  const declaration = symbol?.valueDeclaration;
+  if (
+    declaration &&
+    ts.isVariableDeclaration(declaration) &&
+    (!ts.isVariableDeclarationList(declaration.parent) ||
+      (declaration.parent.flags & ts.NodeFlags.Const) === 0)
+  )
+    return undefined;
+  let expression =
+    declaration && (ts.isVariableDeclaration(declaration) || ts.isExportAssignment(declaration))
+      ? ts.isExportAssignment(declaration)
+        ? declaration.expression
+        : declaration.initializer
+      : undefined;
+  const seen = new Set<ts.Node>();
+  for (let depth = 0; expression && depth < 8; depth++) {
+    const value = unwrapStaticExpression(expression);
+    if (seen.has(value)) return undefined;
+    seen.add(value);
+    if (ts.isCallExpression(value))
+      return cancellationImportName(
+        value.expression,
+        context.checker,
+        /^@askrjs\/askr\/router$/,
+      ) === "createRouteRegistry"
+        ? value
+        : undefined;
+    expression = cancellationConstInitializer(value, context.checker);
+  }
+  return undefined;
+}
+
+function protectedDefinition(
+  expression: ts.Expression | undefined,
+  context: WorkspaceAnalysisContext,
+): ts.SignatureDeclaration | undefined {
+  const seen = new Set<ts.Node>();
+  for (let depth = 0; expression && depth < 8; depth++) {
+    const value = unwrapStaticExpression(expression);
+    if (seen.has(value)) return undefined;
+    seen.add(value);
+    if (ts.isArrowFunction(value) || ts.isFunctionExpression(value)) {
+      return (ts.isFunctionExpression(value) && value.asteriskToken) ||
+        value.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword)
+        ? undefined
+        : value;
+    }
+    if (!ts.isIdentifier(value)) return undefined;
+    let symbol = context.checker.getSymbolAtLocation(value);
+    if (symbol && (symbol.flags & ts.SymbolFlags.Alias) !== 0)
+      symbol = context.checker.getAliasedSymbol(symbol);
+    const declaration = symbol?.valueDeclaration;
+    if (declaration && ts.isFunctionDeclaration(declaration)) {
+      return declaration.asteriskToken ||
+        declaration.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword)
+        ? undefined
+        : declaration;
+    }
+    expression =
+      declaration &&
+      ts.isVariableDeclaration(declaration) &&
+      ts.isVariableDeclarationList(declaration.parent) &&
+      (declaration.parent.flags & ts.NodeFlags.Const) !== 0
+        ? declaration.initializer
+        : undefined;
+  }
+  return undefined;
+}
+
+type ProtectedRegistryDefinition = {
+  readonly identity: { readonly file: string; readonly export: string };
+  readonly definition: ts.SignatureDeclaration;
+};
+const PROTECTED_REGISTRY_DEFINITIONS = new WeakMap<
+  WorkspaceAnalysisContext,
+  readonly ProtectedRegistryDefinition[]
+>();
+
+function protectedRegistryDefinitions(
+  context: WorkspaceAnalysisContext,
+): readonly ProtectedRegistryDefinition[] {
+  const cached = PROTECTED_REGISTRY_DEFINITIONS.get(context);
+  if (cached) return cached;
+  const definitions: ProtectedRegistryDefinition[] = [];
+  for (const identity of context.configuration.protectedRegistries) {
+    const invalid = () =>
+      new Error(
+        `Invalid askr.analyze.protectedRegistries: ${identity.file}#${identity.export} must resolve to an analyzed canonical createRouteRegistry() with a synchronous local definition.`,
+      );
+    const file = context.sourceFiles.find(
+      (source) => path.resolve(source.fileName) === path.resolve(context.root, identity.file),
+    );
+    if (!file) throw invalid();
+    const module = context.checker.getSymbolAtLocation(file);
+    const exported =
+      module &&
+      context.checker.getExportsOfModule(module).find((symbol) => symbol.name === identity.export);
+    const call = protectedRegistryCall(exported, context);
+    if (!call || !context.sourceFiles.includes(call.getSourceFile())) throw invalid();
+    const definition = protectedDefinition(call.arguments[0], context);
+    if (!definition || !context.sourceFiles.includes(definition.getSourceFile())) throw invalid();
+    definitions.push({ identity, definition });
+  }
+  PROTECTED_REGISTRY_DEFINITIONS.set(context, definitions);
+  return definitions;
+}
+
+export function validateProtectedRegistries(context: WorkspaceAnalysisContext): void {
+  protectedRegistryDefinitions(context);
+}
+
+const routeAccessPolicyRule: AnalyzeRule = {
+  id: "askr/route-access-policy",
+  category: "correctness",
+  severity: "warning",
+  description: "Explicit protected registries require a native access policy on each leaf.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const { identity, definition } of protectedRegistryDefinitions(context)) {
+      const reported = new Set<ts.CallExpression>();
+      walkRouteDefinition(
+        context,
+        definition,
+        { page: null, protectedAccess: "absent" },
+        (leaf, name, scope) => {
+          if (name !== "route" && name !== "index" && name !== "fallback") return;
+          const access = inheritedProtectedAccess(
+            scope.protectedAccess ?? "absent",
+            protectedCallAccess(leaf, name, context),
+          );
+          if (access !== "absent" || reported.has(leaf)) return;
+          reported.add(leaf);
+          diagnostics.push(
+            diagnostic(
+              context,
+              leaf,
+              this,
+              `Protected registry ${identity.file}#${identity.export} has a ${name}() leaf without an explicit native access policy.`,
+              "Add auth or a non-empty policies array on this leaf or an enclosing group/page, or remove this registry from protectedRegistries if it is public.",
+            ),
+          );
+        },
+      );
+    }
+    return diagnostics;
+  },
+};
 
 const asyncComponentRule: AnalyzeRule = {
   id: "askr/no-async-component",
@@ -4475,6 +4791,7 @@ export const ANALYZE_RULES: readonly AnalyzeRule[] = [
   routeRegistryRule,
   routePathRule,
   routeScopeStructureRule,
+  routeAccessPolicyRule,
   dataCancellationRule,
   bootRegistryRule,
   islandContractRule,

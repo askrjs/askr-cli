@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add opt-in `askr/route-access-policy` analysis for exact protected registry
+  file/export identities. Warn when a statically known leaf has no native
+  `auth` requirement or non-empty `policies`, including inherited access.
+
 - Extend `askr/data-cancellation` to canonical typed Fetch clients and ad hoc request functions, checking each request against its own operation signal while preserving unknown/spread inputs and warning severity.
 
 ### Breaking
