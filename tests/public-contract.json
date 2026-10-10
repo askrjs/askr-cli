@@ -28,6 +28,7 @@
     "generate/generator",
     "directory-swap",
     "file-changes",
+    "filesystem-lock",
     "ssg/sitemap",
     "ssg/output-report",
     "update",

@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { acquireFilesystemLock } from "./filesystem-lock";
 
 export interface FileChange {
   readonly filePath: string;
@@ -19,80 +20,25 @@ export interface FileChangeWriterOptions {
 }
 
 interface FileLock {
-  readonly lockPath: string;
+  readonly release: () => Promise<void>;
 }
-
-const LOCK_RETRY_MS = 10;
-const LOCK_TIMEOUT_MS = 10_000;
-const ORPHANED_LOCK_AGE_MS = 30_000;
 
 function isNodeError(error: unknown, code: string): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error && error.code === code;
 }
 
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
-
-async function ownerIsAlive(lockPath: string): Promise<boolean | undefined> {
-  try {
-    const owner = JSON.parse(await fs.readFile(path.join(lockPath, "owner.json"), "utf8")) as {
-      pid?: unknown;
-    };
-    if (!Number.isInteger(owner.pid) || (owner.pid as number) <= 0) return undefined;
-    try {
-      process.kill(owner.pid as number, 0);
-      return true;
-    } catch (error) {
-      if (isNodeError(error, "ESRCH")) return false;
-      return true;
-    }
-  } catch {
-    return undefined;
-  }
-}
-
-async function removeOrphanedLock(lockPath: string): Promise<boolean> {
-  const ownerAlive = await ownerIsAlive(lockPath);
-  if (ownerAlive === true) return false;
-  if (ownerAlive === undefined) {
-    const stat = await fs.stat(lockPath).catch(() => null);
-    if (!stat || Date.now() - stat.mtimeMs < ORPHANED_LOCK_AGE_MS) return false;
-  }
-  await fs.rm(lockPath, { recursive: true, force: true });
-  return true;
-}
-
 async function acquireFileLock(filePath: string): Promise<FileLock> {
   const lockPath = path.join(path.dirname(filePath), `.${path.basename(filePath)}.askr-lock`);
-  const deadline = Date.now() + LOCK_TIMEOUT_MS;
-  while (true) {
-    try {
-      await fs.mkdir(lockPath);
-      await fs.writeFile(
-        path.join(lockPath, "owner.json"),
-        `${JSON.stringify({ pid: process.pid })}\n`,
-        { flag: "wx" },
-      );
-      return { lockPath };
-    } catch (error) {
-      if (!isNodeError(error, "EEXIST")) {
-        await fs.rm(lockPath, { recursive: true, force: true }).catch(() => undefined);
-        throw error;
-      }
-      if (await removeOrphanedLock(lockPath)) continue;
-      if (Date.now() >= deadline) {
-        throw new Error(`Timed out waiting for file transaction lock: ${filePath}`);
-      }
-      await delay(LOCK_RETRY_MS);
-    }
-  }
+  return {
+    release: await acquireFilesystemLock(
+      lockPath,
+      `file transaction lock for ${JSON.stringify(filePath)}`,
+    ),
+  };
 }
 
 async function releaseFileLocks(locks: readonly FileLock[]): Promise<void> {
-  await Promise.all(
-    [...locks].reverse().map((lock) => fs.rm(lock.lockPath, { recursive: true, force: true })),
-  );
+  await Promise.all([...locks].reverse().map((lock) => lock.release()));
 }
 
 async function readCurrentContent(filePath: string): Promise<string | null> {
