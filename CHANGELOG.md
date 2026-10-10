@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reuse the syntax-fact index's node order across analyzer rules instead of
+  repeatedly walking each syntax tree. Preserve diagnostics, source fixes and
+  fresh bindings when a file changes, with the existing benchmark budgets.
+
 - Compile analyzer exclusions once per workspace and reuse the existing syntax
   call index when collecting state declarations, preserving the matcher and
   diagnostic contracts without increasing benchmark budgets.
