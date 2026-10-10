@@ -105,8 +105,8 @@ describe.each(writers)("$name filesystem failure recovery", ({ write }) => {
     const recovery = (await fs.readdir(root)).filter((name) => name.includes(".askr-rollback-"));
     expect(recovery).toHaveLength(1);
     expect(await fs.readFile(path.join(root, recovery[0]), "utf8")).toBe(original);
-    expect((failure as Error).message).toContain(path.join(root, recovery[0]));
-    expect((failure as Error).message).toContain(files[0]);
+    expect((failure as Error).message).toContain(JSON.stringify(path.join(root, recovery[0])));
+    expect((failure as Error).message).toContain(JSON.stringify(files[0]));
     expect(await fs.readFile(files[0], "utf8")).toBe(replacement);
     expect(await fs.readFile(files[1], "utf8")).toBe(original);
     expect(
