@@ -125,6 +125,7 @@ ${behavior === "success" ? "process.exit(0);" : behavior === "failure" ? "proces
         },
       );
       const exited = once(child, "exit");
+      const closed = once(child, "close");
       let stdout = "",
         stderr = "";
       child.stdout?.on("data", (chunk: Buffer) => {
@@ -214,6 +215,9 @@ ${behavior === "success" ? "process.exit(0);" : behavior === "failure" ? "proces
             if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
           }
         }
+        // The installer (and Windows command shell) inherit these pipes. Wait
+        // for their handles to close before removing the retained fixture cwd.
+        await closed;
       }
     },
     20_000,
