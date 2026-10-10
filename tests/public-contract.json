@@ -25,6 +25,7 @@
     "bin/cli",
     "create",
     "generate",
+    "directory-swap",
     "file-changes",
     "ssg/sitemap",
     "ssg/output-report",
