@@ -8,10 +8,40 @@ import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import { isDirectExecution } from "./is-direct-execution";
 import { installBundledSkills } from "./skills";
-import { createSiblingStage, publishStagedDirectory } from "../directory-swap";
+import {
+  createSiblingStage,
+  swapStagedDirectoryLocked,
+  withDirectoryTargetLock,
+} from "../directory-swap";
 
 type CliIo = Pick<Console, "error" | "log">;
 type PackageManager = "bun" | "npm" | "pnpm" | "yarn";
+
+async function assertCreateTarget(target: string): Promise<void> {
+  const stat = await fs.lstat(target).catch((error: unknown) => {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return null;
+    throw error;
+  });
+  if (!stat) return;
+  if (!stat.isDirectory() || stat.isSymbolicLink()) {
+    throw new Error(
+      `Target ${JSON.stringify(target)} must be a directory without a symbolic link; choose a missing or empty directory.`,
+    );
+  }
+  if ((await fs.readdir(target)).length > 0) {
+    throw new Error(
+      `Directory ${JSON.stringify(target)} already exists and is not empty; choose a missing or empty directory.`,
+    );
+  }
+}
+
+async function publishProject(stage: string, target: string): Promise<void> {
+  await withDirectoryTargetLock(target, async () => {
+    // Recovery and this ownership check must precede publication under one lock.
+    await assertCreateTarget(target);
+    await swapStagedDirectoryLocked(stage, target);
+  });
+}
 
 const TEMPLATE_LABELS = {
   "full-stack": "Full-stack",
@@ -991,18 +1021,7 @@ export async function runCreateCli(
   }
 
   try {
-    const stat = await fs.stat(target).catch(() => null);
-    if (stat) {
-      if (!stat.isDirectory()) {
-        io.error(`Target exists and is not a directory: ${target}`);
-        return 1;
-      }
-      const files = await fs.readdir(target).catch(() => [] as string[]);
-      if (files.length > 0) {
-        io.error(`Directory ${target} already exists and is not empty.`);
-        return 1;
-      }
-    }
+    await assertCreateTarget(target);
   } catch (error) {
     io.error("Failed to access target directory");
     io.error(error instanceof Error ? error.message : String(error));
@@ -1082,7 +1101,7 @@ export async function runCreateCli(
   const pm = detectPm();
   if (!parsed.install) {
     try {
-      await publishStagedDirectory(stagingTarget, target);
+      await publishProject(stagingTarget, target);
     } catch (error) {
       await fs.rm(stagingTarget, { recursive: true, force: true });
       io.error("Failed to publish generated project");
@@ -1118,12 +1137,8 @@ export async function runCreateCli(
     return 1;
   }
 
-  io.log("");
-  io.log(`Success! Created ${name}`);
-  io.log("");
-
   try {
-    await publishStagedDirectory(stagingTarget, target);
+    await publishProject(stagingTarget, target);
   } catch (error) {
     await fs.rm(stagingTarget, { recursive: true, force: true });
     io.error("Failed to publish generated project");
@@ -1131,6 +1146,9 @@ export async function runCreateCli(
     return 1;
   }
 
+  io.log("");
+  io.log(`Success! Created ${name}`);
+  io.log("");
   io.log("Next steps:");
   io.log(`  cd ${name}`);
   io.log("  review .askr/builder-brief.md");

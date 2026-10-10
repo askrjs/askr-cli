@@ -25,6 +25,7 @@
     "bin/cli",
     "create",
     "generate",
+    "generate/generator",
     "directory-swap",
     "file-changes",
     "ssg/sitemap",
