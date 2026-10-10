@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Record directory publication before moving the original tree. Recover an
+  interrupted create, skills or SSG swap before the next locked operation;
+  finish failed backup cleanup on retry. Reject file and symbolic-link targets,
+  preserve permission errors, and retain ambiguous recovery trees for inspection.
+
 - Save original file copies before replacing any files, retain copies that cannot
   be restored, and report recovery paths. Manifest edits use the shared guarded
   writer so unrelated edits made after planning are preserved. Clean partial

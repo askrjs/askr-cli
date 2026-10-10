@@ -156,8 +156,12 @@ and enforces the sitemap protocol limits of 50,000 URLs and 50 MB per file.
 Larger sites receive deterministic sitemap chunks plus a sitemap index. It also
 creates or updates `robots.txt` while preserving unrelated directives and tracks
 owned files so stale chunks and previous output paths are removed. Full and
-incremental builds publish through a sibling staging directory, so route output,
-metadata, assets, and sitemap artifacts change together or not at all.
+incremental builds publish route output, metadata, assets and sitemap artifacts
+as one complete tree through a sibling staging directory.
+If a process exits between publication renames, the next build restores the old
+output or finishes cleanup of the completed output before copying it. A recovery
+conflict stops the build and names the record and original backup for inspection.
+See the [SSG recovery boundary](docs/ssg.md) for details.
 
 ## OpenAPI artifacts
 
