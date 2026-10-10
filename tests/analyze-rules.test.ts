@@ -55,6 +55,68 @@ afterEach(async () => {
 });
 
 describe("analyzer rules", () => {
+  it("preserves unused exclusion patterns behind a prior match", async () => {
+    const root = await fixture(
+      { "src/page.ts": `export const token = "--ak-color-text";` },
+      {
+        manifest: { name: "fixture", askr: { analyze: { exclude: ["**", "x".repeat(65537)] } } },
+      },
+    );
+    expect(await diagnostics(root)).toEqual([]);
+  });
+
+  it("preserves direct state declarations while excluding calls nested in other initializers", async () => {
+    const root = await fixture({
+      "src/page.ts": `
+        import { state as cell } from "@askrjs/askr";
+        import * as Askr from "@askrjs/askr";
+        function wrap<T>(value: T): T { return value; }
+        export function Page() {
+          const [count] = cell(0);
+          const value = Askr.state(1);
+          const [wrapped] = wrap(cell(2));
+          return [count, value, wrapped];
+        }
+      `,
+    });
+    const found = (await diagnostics(root)).filter((entry) => entry.ruleId === "askr/state-access");
+    expect(found).toHaveLength(2);
+    expect(found.every((entry) => entry.file === "src/page.ts")).toBe(true);
+  });
+
+  it("applies brace dot and single-character exclusions to configured and discovered sources", async () => {
+    const source = `export const token = "--ak-color-text";`;
+    const root = await fixture(
+      {
+        "src/visible.ts": source,
+        "src/vendor/dropped.ts": source,
+        "src/.cache/dropped.ts": source,
+        "extra/visible.ts": source,
+        "extra/skip-a.ts": source,
+        "extra/skip-long.ts": source,
+      },
+      {
+        manifest: {
+          name: "fixture",
+          askr: { analyze: { exclude: ["**/{vendor,.cache}/**", "**/skip-?.[tj]s", "# comment"] } },
+        },
+        tsconfig: {
+          compilerOptions: { module: "ESNext", moduleResolution: "Bundler", target: "ES2022" },
+          include: ["src"],
+          files: ["extra/skip-a.ts", "extra/skip-long.ts"],
+        },
+      },
+    );
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/no-hardcoded-theme-token",
+    );
+    expect(found.map((entry) => entry.file).sort()).toEqual([
+      "extra/skip-long.ts",
+      "extra/visible.ts",
+      "src/visible.ts",
+    ]);
+  });
+
   it("should recognize canonical aliased and namespace imports without matching unrelated functions", async () => {
     const root = await fixture({
       "src/page.tsx": `

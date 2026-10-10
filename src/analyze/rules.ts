@@ -286,25 +286,21 @@ interface StateBindings {
   readonly owners: Map<ts.Symbol, ts.SignatureDeclaration | null>;
 }
 
-function collectStateBindings(
-  sourceFile: ts.SourceFile,
-  bindings: SourceBindings,
-  checker: ts.TypeChecker,
-): StateBindings {
+function collectStateBindings(sourceFile: ts.SourceFile, checker: ts.TypeChecker): StateBindings {
   const getters = new Set<string>();
   const setters = new Set<string>();
   const getterSymbols = new Set<ts.Symbol>();
   const setterSymbols = new Set<ts.Symbol>();
   const owners = new Map<ts.Symbol, ts.SignatureDeclaration | null>();
-  visit(sourceFile, (node) => {
+  for (const { node: call, name } of sourceFacts(sourceFile).calls) {
     if (
-      !ts.isVariableDeclaration(node) ||
-      !node.initializer ||
-      !ts.isCallExpression(node.initializer) ||
-      canonicalCallName(node.initializer.expression, bindings) !== "state"
+      name !== "state" ||
+      !ts.isVariableDeclaration(call.parent) ||
+      call.parent.initializer !== call
     ) {
-      return;
+      continue;
     }
+    const node = call.parent;
     const owner = containingFunction(node);
     if (ts.isIdentifier(node.name)) {
       getters.add(node.name.text);
@@ -333,7 +329,7 @@ function collectStateBindings(
         }
       }
     }
-  });
+  }
   return { getters, setters, getterSymbols, setterSymbols, owners };
 }
 
@@ -491,8 +487,7 @@ const stateAccessRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
-      const state = collectStateBindings(sourceFile, bindings, context.checker);
+      const state = collectStateBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (
           ts.isCallExpression(node) &&
@@ -538,8 +533,7 @@ const stateRenderWriteRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
-      const state = collectStateBindings(sourceFile, bindings, context.checker);
+      const state = collectStateBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (!ts.isCallExpression(node)) return;
         let cell: { name: string; symbol: ts.Symbol } | null = null;
@@ -1036,8 +1030,7 @@ const preferForRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
-      const state = collectStateBindings(sourceFile, bindings, context.checker);
+      const state = collectStateBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (
           !ts.isCallExpression(node) ||
@@ -3009,7 +3002,7 @@ const exhaustiveDependenciesRule: AnalyzeRule = {
       ) {
         continue;
       }
-      const state = collectStateBindings(sourceFile, bindings, context.checker);
+      const state = collectStateBindings(sourceFile, context.checker);
       for (const { node, name } of sourceFacts(sourceFile).calls) {
         if (name !== "resource" && name !== "stream") continue;
         const loader = node.arguments[0];
@@ -3070,7 +3063,7 @@ const forRowClosureCaptureRule: AnalyzeRule = {
     for (const sourceFile of context.sourceFiles) {
       const bindings = sourceBindings(sourceFile);
       if (!sourceFacts(sourceFile).jsx.some((fact) => fact.name === "For")) continue;
-      const state = collectStateBindings(sourceFile, bindings, context.checker);
+      const state = collectStateBindings(sourceFile, context.checker);
       const snapshots = new Set<ts.Symbol>();
       visit(sourceFile, (candidate) => {
         if (
@@ -3943,9 +3936,8 @@ const noEffectDataLoadingRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
       if (!sourceFacts(sourceFile).calls.some((fact) => fact.name === "task")) continue;
-      const state = collectStateBindings(sourceFile, bindings, context.checker);
+      const state = collectStateBindings(sourceFile, context.checker);
       for (const { node, name } of sourceFacts(sourceFile).calls) {
         if (name !== "task") continue;
         const callback = node.arguments[0];
