@@ -298,7 +298,7 @@ describe("directory publication", () => {
     await fs.writeFile(target, "unrelated");
     const stage = await createSiblingStage(target, "test");
     await fs.writeFile(path.join(stage, "new.txt"), "new");
-    await expect(publishStagedDirectory(stage, target)).rejects.toThrow(target);
+    await expect(publishStagedDirectory(stage, target)).rejects.toThrow(JSON.stringify(target));
     expect(await fs.readFile(target, "utf8")).toBe("unrelated");
     expect(await fs.readFile(path.join(stage, "new.txt"), "utf8")).toBe("new");
   });
@@ -318,7 +318,7 @@ describe("directory publication", () => {
         operation === "copy"
           ? copyTargetIntoStage(target, stage)
           : publishStagedDirectory(stage, target),
-      ).rejects.toThrow(target);
+      ).rejects.toThrow(JSON.stringify(target));
       expect((await fs.lstat(target)).isSymbolicLink()).toBe(true);
       expect(await fs.readFile(path.join(outside, "untouched.txt"), "utf8")).toBe("unrelated");
     },
