@@ -128,7 +128,16 @@ export async function acquireFilesystemLock(
         const code = error instanceof Error && "code" in error ? String(error.code) : "";
         if (!RENAME_CONTENTION_CODES.has(code)) throw error;
         lastError = error;
-        if (await removeOrphanedLock(lock)) continue;
+        try {
+          if (await removeOrphanedLock(lock)) continue;
+        } catch (inspectionError) {
+          // Windows can reject a scan while another owner removes this lock.
+          // Retry within the same deadline; a permanent denial retains its cause.
+          if (!isNodeError(inspectionError, "EPERM") || inspectionError.syscall !== "scandir") {
+            throw inspectionError;
+          }
+          lastError = inspectionError;
+        }
         await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_MS));
       }
     }

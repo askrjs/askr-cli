@@ -46,6 +46,83 @@ afterEach(async () => {
 
 describe("filesystem lock ownership", () => {
   it.each(["directory", "file"])(
+    "retries a transient Windows-style scandir denial while the %s lock is handed off",
+    async (kind) => {
+      const { root, target, lock } = await fixture(kind);
+      await fs.mkdir(lock);
+      await fs.writeFile(path.join(lock, "owner.json"), '{"pid":2147483647}');
+      const readdir = fs.readdir.bind(fs);
+      const denied = Object.assign(new Error("injected pending-deletion directory scan"), {
+        code: "EPERM",
+        syscall: "scandir",
+        path: lock,
+      });
+      let failed = false;
+      vi.spyOn(fs, "readdir").mockImplementation((async (
+        ...args: Parameters<typeof fs.readdir>
+      ) => {
+        if (String(args[0]) === lock && !failed) {
+          failed = true;
+          throw denied;
+        }
+        return readdir(...args);
+      }) as typeof fs.readdir);
+      let entered = 0;
+      await expect(
+        operate(kind, target, async () => {
+          entered += 1;
+        }),
+      ).resolves.toBeUndefined();
+      expect(failed).toBe(true);
+      expect(entered).toBe(1);
+      if (kind === "file") expect(await fs.readFile(target, "utf8")).toBe("new");
+      expect(await fs.readdir(root)).toEqual(kind === "directory" ? [] : ["manifest.json"]);
+    },
+  );
+
+  it.each(["directory", "file"])(
+    "bounds a permanent %s lock scan denial and retains the native cause without deleting its owner",
+    async (kind) => {
+      const { root, target, lock } = await fixture(kind);
+      await fs.mkdir(lock);
+      const owner = path.join(lock, "owner.json");
+      await fs.writeFile(owner, '{"pid":2147483647}');
+      const denied = Object.assign(new Error("injected permanent directory scan denial"), {
+        code: "EPERM",
+        syscall: "scandir",
+        path: lock,
+      });
+      let now = Date.now();
+      vi.spyOn(Date, "now").mockImplementation(() => now);
+      const readdir = fs.readdir.bind(fs);
+      vi.spyOn(fs, "readdir").mockImplementation((async (
+        ...args: Parameters<typeof fs.readdir>
+      ) => {
+        if (String(args[0]) === lock) {
+          now += 10_001;
+          throw denied;
+        }
+        return readdir(...args);
+      }) as typeof fs.readdir);
+      await expect(
+        operate(kind, target, async () => {
+          throw new Error("must not enter");
+        }),
+      ).rejects.toMatchObject({
+        message: expect.stringContaining("Timed out waiting"),
+        cause: denied,
+      });
+      expect(await fs.readFile(owner, "utf8")).toBe('{"pid":2147483647}');
+      if (kind === "file") expect(await fs.readFile(target, "utf8")).toBe("old");
+      expect((await fs.readdir(root)).sort()).toEqual(
+        kind === "directory"
+          ? [path.basename(lock)]
+          : [path.basename(lock), "manifest.json"].sort(),
+      );
+    },
+  );
+
+  it.each(["directory", "file"])(
     "does not remove a successor's %s owner during release",
     async (kind) => {
       const { target, lock } = await fixture(kind);
