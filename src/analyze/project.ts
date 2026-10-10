@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import createIgnore from "ignore";
-import { minimatch } from "minimatch";
+import { Minimatch } from "minimatch";
 import ts from "typescript";
 import type { AnalyzeConfiguration, WorkspaceAnalysisContext } from "./types";
 import type { WorkspaceManifest } from "../update/types";
@@ -75,15 +75,23 @@ function normalizeRelative(root: string, filePath: string): string {
   return path.relative(root, filePath).split(path.sep).join("/");
 }
 
-function isExcluded(root: string, filePath: string, patterns: readonly string[]): boolean {
-  const relative = normalizeRelative(root, filePath);
-  return patterns.some((pattern) =>
-    minimatch(relative, pattern, {
-      dot: true,
-      nocase: process.platform === "win32",
-      windowsPathsNoEscape: true,
-    }),
-  );
+function sourceExclusions(
+  root: string,
+  patterns: readonly string[],
+): (filePath: string) => boolean {
+  const matchers: Array<Minimatch | undefined> = [];
+  return (filePath) => {
+    const relative = normalizeRelative(root, filePath);
+    return patterns.some((pattern, index) => {
+      // Preserve short-circuiting: an unreached pattern must not be compiled.
+      const matcher = (matchers[index] ??= new Minimatch(pattern, {
+        dot: true,
+        nocase: process.platform === "win32",
+        windowsPathsNoEscape: true,
+      }));
+      return matcher.match(relative);
+    });
+  };
 }
 
 function isWithin(root: string, target: string): boolean {
@@ -165,7 +173,7 @@ class GitIgnoreHierarchy {
 async function discoverSourceFiles(
   directory: string,
   projectRoot: string,
-  exclusions: readonly string[],
+  isExcluded: (filePath: string) => boolean,
 ): Promise<{ files: string[]; ignores: (filePath: string) => Promise<boolean> }> {
   const ignoreRoot = isWithin(projectRoot, directory) ? projectRoot : directory;
   const hierarchy = new GitIgnoreHierarchy(ignoreRoot);
@@ -175,10 +183,7 @@ async function discoverSourceFiles(
     entries.sort((left, right) => left.name.localeCompare(right.name));
     for (const entry of entries) {
       const child = path.join(current, entry.name);
-      if (
-        isExcluded(directory, child, exclusions) ||
-        isIgnoredByScopes(child, entry.isDirectory(), scopes)
-      ) {
+      if (isExcluded(child) || isIgnoredByScopes(child, entry.isDirectory(), scopes)) {
         continue;
       }
       if (entry.isDirectory()) {
@@ -248,18 +253,12 @@ async function compilerInputs(
     configuredFiles = parsed.fileNames;
   }
 
-  const discovered = await discoverSourceFiles(
-    workspace.directory,
-    projectRoot,
-    configuration.exclude,
-  );
+  const isExcluded = sourceExclusions(workspace.directory, configuration.exclude);
+  const discovered = await discoverSourceFiles(workspace.directory, projectRoot, isExcluded);
   const configuredIncluded = (
     await Promise.all(
       configuredFiles.map(async (filePath) =>
-        !isExcluded(workspace.directory, filePath, configuration.exclude) &&
-        !(await discovered.ignores(filePath))
-          ? filePath
-          : null,
+        !isExcluded(filePath) && !(await discovered.ignores(filePath)) ? filePath : null,
       ),
     )
   ).filter((filePath): filePath is string => filePath !== null);

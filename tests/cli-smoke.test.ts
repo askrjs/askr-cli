@@ -147,7 +147,7 @@ test("should ensure package surface ships project templates for installed create
     await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),
   ) as { files: string[] };
 
-  expect(manifest.files).toEqual(["dist"]);
+  expect(manifest.files).toEqual(["dist", "CHANGELOG.md", "docs/0.5.0-api.md"]);
 
   for (const template of ["full-stack", "spa", "ssr", "ssg", "startkit"]) {
     const templateRoot = new URL(`../templates/${template}/`, import.meta.url);

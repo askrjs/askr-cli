@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+
+- Retain only `SitemapConfig` and `SsgOutputReportConfig` from the SSG type
+  entrypoint. Derive supporting configuration shapes from those owners. Generated
+  report implementation types are private; the documented JSON artifact remains.
+  See [all eleven export decisions and migration notes](docs/0.5.0-api.md).
+
 ### Fixed
+
+- Compile analyzer exclusions once per workspace and reuse the existing syntax
+  call index when collecting state declarations, preserving the matcher and
+  diagnostic contracts without increasing benchmark budgets.
 
 - Generate starter-kit icon prop types from the owning core icon entrypoint,
   preparing templates for the Lucide 0.5 public helper/type contraction.

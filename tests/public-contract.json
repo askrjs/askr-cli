@@ -1,0 +1,34 @@
+{
+  "baselineNames": 11,
+  "candidateNames": 2,
+  "exportKeys": ["./package.json", "./ssg"],
+  "entrypoints": {
+    "@askrjs/cli/ssg": {
+      "values": [],
+      "types": ["SitemapConfig", "SsgOutputReportConfig"]
+    }
+  },
+  "removed": [
+    "SitemapChangeFrequency",
+    "SitemapRouteConfig",
+    "SitemapRouteContext",
+    "SsgByteBudget",
+    "SsgOutputAsset",
+    "SsgOutputBudgets",
+    "SsgOutputReport",
+    "SsgOutputRoute",
+    "SsgOutputSize"
+  ],
+  "privateSubpaths": [
+    "analyze",
+    "analyze/project",
+    "bin/cli",
+    "create",
+    "generate",
+    "ssg/sitemap",
+    "ssg/output-report",
+    "update",
+    "dist/cli.js",
+    "dist/ssg-config.js"
+  ]
+}

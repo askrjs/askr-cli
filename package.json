@@ -19,7 +19,9 @@
     "askr": "./dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "CHANGELOG.md",
+    "docs/0.5.0-api.md"
   ],
   "type": "module",
   "exports": {
@@ -51,10 +53,11 @@
     "bench:json": "npm run build --silent && node --import tsx benchmarks/cli.mjs --gate --json",
     "docs:check": "npm run build && node ./dist/cli.js docs check",
     "docs:snapshot": "npm run build && node ./dist/cli.js docs snapshot",
-    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run test:changelog && npm run build && npm run docs:check && npm run test:publint && npm run pack:check",
+    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run test:changelog && npm run build && npm run docs:check && npm run test:publint && npm run pack:check && npm run test:types",
     "prepack": "npm run build",
     "test:peer-floor": "vp test run -c vitest.integration.config.ts tests/integration/peer-floor.test.ts",
-    "prepublishOnly": "npm run check && npm run test:templates && npm run test:peer-floor"
+    "prepublishOnly": "npm run check && npm run test:templates && npm run test:peer-floor",
+    "test:types": "npm run build && node tests/package-consumers.js"
   },
   "dependencies": {
     "@npmcli/config": "^11.0.1",

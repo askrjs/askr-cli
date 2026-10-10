@@ -142,7 +142,7 @@ export const staticConfig = {
 };
 ```
 
-The sitemap config types are available from `@askrjs/cli/ssg` for projects that
+`SitemapConfig` and `SsgOutputReportConfig` are available from `@askrjs/cli/ssg` for projects that
 want an explicit annotation.
 
 Successful and incrementally skipped concrete routes are included by default.
@@ -251,3 +251,6 @@ Templates are stored in `templates/`.
 ## Docs
 
 - [CLI docs](./docs/README.md)
+
+The 0.5 SSG surface keeps those two configuration types. See the
+[complete export decisions and migration guide](docs/0.5.0-api.md) for supporting-type replacements.
