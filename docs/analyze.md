@@ -238,6 +238,46 @@ including nested rules and negation. `askr.analyze.exclude` adds analyzer-only
 patterns relative to each workspace. The analyzer also always ignores dependency,
 VCS, coverage, generated, and common build-output directories by default.
 
+### Protected registries
+
+Opt in to `askr/route-access-policy` for an exact exported route registry:
+
+```json
+{
+  "askr": {
+    "analyze": {
+      "protectedRegistries": [{ "file": "src/pages/reports/_routes.ts", "export": "reportRoutes" }]
+    }
+  }
+}
+```
+
+Paths name source files relative to the workspace root, without globs. Use a
+named export or `"default"` for a canonical `createRouteRegistry()` call held by
+a const binding or exported directly. Aliased exports and canonical import
+aliases work. The definition must be a synchronous function authored in the
+selected workspace; directly called same-workspace helpers are followed.
+Generator and async definitions are unsupported. Call arguments are evaluated
+in the caller's access scope; passing a function does not invoke its body.
+Malformed, duplicate, missing or unsupported selected identities produce a
+configuration error, including when diagnostics are off. Identities belonging
+to unselected workspaces are left for their owning workspace's analysis.
+
+The rule warns for each statically known `route()`, `index()` or `fallback()`
+leaf without a callable `auth` requirement or non-empty `policies` array, either
+on the leaf or inherited from a `group()` or `page()`. Equal paths in other
+registries keep their own access scope. Public registries produce no findings
+unless explicitly listed. Empty or absent configuration keeps this check off.
+
+This is a check for authored policy presence. It does not assess policy strength,
+evaluate grants or prove backend authorization. An allow-all policy still meets
+this structural check. `appMeta.requiredGrants` is presentation metadata and
+does not count as an access policy. Literal options respect overwrite order;
+opaque options, unknown spreads, getters and dynamic callbacks are skipped
+conservatively. Uninvoked callbacks are not route definitions. No automatic
+policy or source fix is generated. Use the existing `rules` setting to select
+`warning`, `error`, `info` or `off`; `--check` fails for warnings and errors.
+
 ## CI
 
 Use check mode so CI cannot change the checkout:

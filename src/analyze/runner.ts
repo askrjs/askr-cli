@@ -4,7 +4,7 @@ import { writeFileChanges, type FileChange } from "../file-changes";
 import { discoverWorkspaceProject } from "../update/discovery";
 import type { WorkspaceManifest } from "../update/types";
 import { createWorkspaceAnalysisContext, readAnalyzeConfiguration } from "./project";
-import { ANALYZE_RULES, configuredSeverity } from "./rules";
+import { ANALYZE_RULES, configuredSeverity, validateProtectedRegistries } from "./rules";
 import {
   ANALYZE_SCHEMA_VERSION,
   type AnalyzeDiagnostic,
@@ -53,6 +53,18 @@ async function analyzePass(
   const baseConfiguration = readAnalyzeConfiguration(manifest);
   const diagnostics: AnalyzeDiagnostic[] = [];
   const workspaces: AnalyzeWorkspaceResult[] = [];
+  const protectedOwners = baseConfiguration.protectedRegistries.map((identity) => {
+    const file = path.resolve(root, identity.file);
+    const owner = [...allWorkspaces]
+      .sort((left, right) => right.directory.length - left.directory.length)
+      .find((candidate) => {
+        const relative = path.relative(candidate.directory, file);
+        return (
+          relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative)
+        );
+      });
+    return { identity, owner };
+  });
   for (const workspace of selectedWorkspaces) {
     const nestedWorkspaceExclusions = allWorkspaces.flatMap((candidate) => {
       if (candidate.directory === workspace.directory) return [];
@@ -65,8 +77,27 @@ async function analyzePass(
     const configuration = {
       ...baseConfiguration,
       exclude: [...baseConfiguration.exclude, ...nestedWorkspaceExclusions],
+      protectedRegistries: protectedOwners
+        .filter((entry) => entry.owner?.directory === workspace.directory)
+        .map((entry) => entry.identity),
     };
+    for (const identity of configuration.protectedRegistries) {
+      const file = path.resolve(root, identity.file);
+      const real = await fs.realpath(file).catch(() => null);
+      const relative = real ? path.relative(await fs.realpath(root), real) : null;
+      if (
+        relative === null ||
+        relative === ".." ||
+        relative.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(relative)
+      ) {
+        throw new Error(
+          `Invalid askr.analyze.protectedRegistries: ${identity.file}#${identity.export} must name an existing source file inside the project.`,
+        );
+      }
+    }
     const created = await createWorkspaceAnalysisContext(root, workspace, configuration);
+    if (configuration.protectedRegistries.length) validateProtectedRegistries(created.context);
     workspaces.push({
       name: workspace.name,
       path: path.relative(root, workspace.directory).split(path.sep).join("/") || ".",

@@ -40,12 +40,12 @@ export function readAnalyzeConfiguration(
 ): AnalyzeConfiguration {
   const askr = rootManifest.askr;
   if (askr === undefined) {
-    return { exclude: [...DEFAULT_ANALYZE_EXCLUDES], rules: {} };
+    return { exclude: [...DEFAULT_ANALYZE_EXCLUDES], rules: {}, protectedRegistries: [] };
   }
   const askrConfig = asObject(askr, "Invalid askr configuration in the workspace root.");
   const raw = askrConfig.analyze;
   if (raw === undefined) {
-    return { exclude: [...DEFAULT_ANALYZE_EXCLUDES], rules: {} };
+    return { exclude: [...DEFAULT_ANALYZE_EXCLUDES], rules: {}, protectedRegistries: [] };
   }
   const analyze = asObject(raw, "Invalid askr.analyze configuration; expected an object.");
   const exclude = analyze.exclude ?? [];
@@ -65,9 +65,43 @@ export function readAnalyzeConfiguration(
   ) {
     throw new Error("Invalid askr.analyze.rules; severities must be off, info, warning, or error.");
   }
+  const protectedEntries =
+    analyze.protectedRegistries === undefined ? [] : analyze.protectedRegistries;
+  if (!Array.isArray(protectedEntries)) {
+    throw new Error(
+      "Invalid askr.analyze.protectedRegistries; expected an array of {file, export} identities.",
+    );
+  }
+  const identities = new Set<string>();
+  const protectedRegistries = protectedEntries.map((entry: unknown) => {
+    const invalid = () =>
+      new Error(
+        "Invalid askr.analyze.protectedRegistries; use unique root-relative source files and named/default exports, without globs or paths outside the project.",
+      );
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw invalid();
+    const record = entry as Record<string, unknown>;
+    if (
+      Object.keys(record).some((key) => key !== "file" && key !== "export") ||
+      typeof record.file !== "string" ||
+      !record.file ||
+      typeof record.export !== "string" ||
+      !/^[A-Za-z_$][\w$]*$/.test(record.export) ||
+      path.posix.isAbsolute(record.file) ||
+      path.win32.isAbsolute(record.file) ||
+      /[*?\[\]{}]/.test(record.file)
+    )
+      throw invalid();
+    const file = path.posix.normalize(record.file.replace(/\\/g, "/"));
+    if (file === ".." || file.startsWith("../") || !SOURCE_EXTENSION.test(file)) throw invalid();
+    const identity = `${file}\0${record.export}`;
+    if (identities.has(identity)) throw invalid();
+    identities.add(identity);
+    return { file, export: record.export };
+  });
   return {
     exclude: [...DEFAULT_ANALYZE_EXCLUDES, ...(exclude as string[])],
     rules: ruleObject as AnalyzeConfiguration["rules"],
+    protectedRegistries,
   };
 }
 
