@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { watch } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { fork } from "node:child_process";
@@ -62,6 +63,161 @@ async function worker(
 afterEach(async () => {
   vi.restoreAllMocks();
   await Promise.all(roots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })));
+});
+
+describe("actual installer process outcomes", () => {
+  it.each(["failure", "missing", "terminated-installer", "terminated-cli", "success"])(
+    "preserves project ownership after %s with a real local installer process",
+    async (behavior) => {
+      const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-real-installer-"));
+      roots.push(root);
+      const target = path.join(root, "project");
+      const bin = path.join(root, "bin");
+      await fs.mkdir(bin);
+      await fs.writeFile(path.join(root, "unrelated.txt"), "unrelated\r\n");
+      const markerPath = path.join(root, "started.json");
+      const shim = path.join(bin, "installer.cjs");
+      const source = `const fs = require("node:fs");
+fs.writeFileSync("package-lock.json", "partial owned install");
+fs.writeFileSync(${JSON.stringify(`${markerPath}.tmp`)}, JSON.stringify({ pid: process.pid, cwd: process.cwd() }));
+fs.renameSync(${JSON.stringify(`${markerPath}.tmp`)}, ${JSON.stringify(markerPath)});
+${behavior === "success" ? "process.exit(0);" : behavior === "failure" ? "process.exit(23);" : "Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);"}
+`;
+      if (behavior !== "missing") {
+        await fs.writeFile(shim, source);
+        if (process.platform === "win32") {
+          await fs.writeFile(
+            path.join(bin, "npm.cmd"),
+            `@echo off\r\n"${process.execPath}" "${shim}"\r\n`,
+          );
+        } else {
+          const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+          await fs.writeFile(
+            path.join(bin, "npm"),
+            `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(shim)}\n`,
+          );
+          await fs.chmod(path.join(bin, "npm"), 0o755);
+        }
+      }
+      type Installer = { pid: number; cwd: string };
+      let ready!: (installer: Installer) => void;
+      const started = new Promise<Installer>((resolve) => {
+        ready = resolve;
+      });
+      const watcher = watch(root, async (_event, filename) => {
+        if (filename === null || String(filename) === "started.json") {
+          try {
+            ready(JSON.parse(await fs.readFile(markerPath, "utf8")) as Installer);
+          } catch {}
+        }
+      });
+      const child = fork(
+        fileURLToPath(new URL("./fixtures/create-process-worker.ts", import.meta.url)),
+        [target],
+        {
+          silent: true,
+          execArgv: ["--import", "tsx"],
+          env: {
+            ...process.env,
+            PATH: behavior === "missing" ? bin : `${bin}${path.delimiter}${process.env.PATH}`,
+            npm_config_user_agent: "npm/12.0.2",
+          },
+        },
+      );
+      const exited = once(child, "exit");
+      let stdout = "",
+        stderr = "";
+      child.stdout?.on("data", (chunk: Buffer) => {
+        stdout += chunk.toString();
+      });
+      child.stderr?.on("data", (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
+      let installer: Installer | undefined;
+      let installerWasTerminated = false;
+      let startTimer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        if (behavior !== "missing") {
+          installer = await Promise.race([
+            started,
+            exited.then(async () => {
+              try {
+                return JSON.parse(await fs.readFile(markerPath, "utf8")) as Installer;
+              } catch {
+                throw new Error(`CLI exited before the installer marker: ${stdout}\n${stderr}`);
+              }
+            }),
+            new Promise<never>((_resolve, reject) => {
+              startTimer = setTimeout(
+                () => reject(new Error(`Installer did not start: ${stderr}`)),
+                10_000,
+              );
+              startTimer.unref();
+            }),
+          ]);
+          expect(await fs.realpath(path.dirname(installer.cwd))).toBe(await fs.realpath(root));
+          if (behavior === "terminated-installer") {
+            process.kill(installer.pid, "SIGKILL");
+            installerWasTerminated = true;
+          }
+          if (behavior === "terminated-cli") expect(child.kill("SIGKILL")).toBe(true);
+        }
+        const [code, signal] = await exited;
+        expect(await fs.readFile(path.join(root, "unrelated.txt"), "utf8")).toBe("unrelated\r\n");
+        if (behavior === "success") {
+          expect(code).toBe(0);
+          expect(signal).toBeNull();
+          expect(stdout).toContain("Success! Created test-app");
+          expect(
+            JSON.parse(await fs.readFile(path.join(target, "package.json"), "utf8")).name,
+          ).toBe("test-app");
+          expect(await fs.readFile(path.join(target, "package-lock.json"), "utf8")).toBe(
+            "partial owned install",
+          );
+          await expect(fs.access(installer!.cwd)).rejects.toMatchObject({ code: "ENOENT" });
+        } else {
+          expect(stdout).not.toContain("Success! Created");
+          await expect(fs.access(target)).rejects.toMatchObject({ code: "ENOENT" });
+          if (behavior === "terminated-cli") {
+            expect([code, signal]).not.toEqual([0, null]);
+            expect(await fs.readFile(path.join(installer!.cwd, "package-lock.json"), "utf8")).toBe(
+              "partial owned install",
+            );
+          } else {
+            expect(code).toBe(1);
+            expect(stderr).toContain("no project files were published");
+          }
+        }
+        if (behavior !== "terminated-cli") {
+          expect(
+            (await fs.readdir(root)).some((entry) => entry.startsWith(".project.askr-create-")),
+          ).toBe(false);
+        }
+      } finally {
+        watcher.close();
+        if (startTimer) clearTimeout(startTimer);
+        if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+        await exited;
+        if (!installer && (behavior === "terminated-cli" || behavior === "terminated-installer")) {
+          try {
+            installer = JSON.parse(await fs.readFile(markerPath, "utf8")) as Installer;
+          } catch {}
+        }
+        if (
+          installer &&
+          !installerWasTerminated &&
+          (behavior === "terminated-cli" || behavior === "terminated-installer")
+        ) {
+          try {
+            process.kill(installer.pid, "SIGKILL");
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+          }
+        }
+      }
+    },
+    20_000,
+  );
 });
 
 describe("generated directory ownership and recovery", () => {

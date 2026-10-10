@@ -76,6 +76,45 @@ function denyLockObservation(
 }
 
 describe("filesystem lock ownership", () => {
+  it.each(["directory", "file"])(
+    "propagates a one-shot %s lock preflight EACCES without misclassifying it as a rename collision",
+    async (kind) => {
+      const { root, target, lock } = await fixture(kind);
+      await fs.mkdir(lock);
+      const owner = path.join(lock, "owner.json");
+      await fs.writeFile(owner, '{"pid":2147483647}');
+      const lstat = fs.lstat.bind(fs);
+      const denied = Object.assign(new Error("injected preflight read denial"), {
+        code: "EACCES",
+        syscall: "lstat",
+        path: lock,
+      });
+      let injected = false;
+      vi.spyOn(fs, "lstat").mockImplementation((async (...args: Parameters<typeof fs.lstat>) => {
+        if (String(args[0]) === lock && !injected) {
+          injected = true;
+          throw denied;
+        }
+        return lstat(...args);
+      }) as typeof fs.lstat);
+      let entered = false;
+      await expect(
+        operate(kind, target, async () => {
+          entered = true;
+        }),
+      ).rejects.toBe(denied);
+      expect(injected).toBe(true);
+      expect(entered).toBe(false);
+      expect(await fs.readFile(owner, "utf8")).toBe('{"pid":2147483647}');
+      if (kind === "file") expect(await fs.readFile(target, "utf8")).toBe("old");
+      expect((await fs.readdir(root)).sort()).toEqual(
+        kind === "directory"
+          ? [path.basename(lock)]
+          : [path.basename(lock), "manifest.json"].sort(),
+      );
+    },
+  );
+
   it.each(observationCases)(
     "retries a transient Windows-style $syscall denial while the $kind lock is handed off",
     async ({ kind, syscall }) => {
