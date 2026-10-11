@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { isTestSourcePath } from "../src/analyze/source-paths";
 
 describe("color fixture path classification", () => {

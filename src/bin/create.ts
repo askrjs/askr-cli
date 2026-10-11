@@ -5,7 +5,9 @@ import { isUtf8 } from "node:buffer";
 import fs from "node:fs/promises";
 import path from "node:path";
 import readline from "node:readline";
-import { fileURLToPath } from "node:url";
+import { findTemplateDir } from "../template-path";
+import { planProviderAuth, providerAuthSelection } from "../generate/auth";
+import { writeFileChanges } from "../file-changes";
 import { isDirectExecution } from "./is-direct-execution";
 import { installBundledSkills } from "./skills";
 import {
@@ -76,6 +78,8 @@ interface ParsedArgs {
   skills: boolean;
   errors: string[];
   targetDir: string;
+  auth: string;
+  origins: string[];
 }
 
 interface TemplateSelection {
@@ -444,6 +448,8 @@ function helpText(): string {
     "  --dir <path>     Explicit output directory (defaults to ./<name>)",
     "  --no-install     Skip dependency installation",
     "  --no-skills      Skip bundled Askr skill installation into skills/",
+    "  --auth <name>    Configure auth0, microsoft, google, or apple using the same planner as add auth",
+    "  --origin <url>   Exact HTTPS application origin; required with --auth, repeat for environments",
     "  --help, -h       Show help",
     "",
     "Examples:",
@@ -527,31 +533,6 @@ async function copyDir(
   }
 }
 
-async function pathExists(filePath: string): Promise<boolean> {
-  return Boolean(await fs.stat(filePath).catch(() => null));
-}
-
-function cliDir(): string {
-  return path.dirname(fileURLToPath(import.meta.url));
-}
-
-async function findTemplateDir(templateType: TemplateType): Promise<string> {
-  const base = cliDir();
-  const candidates = [
-    path.resolve(base, "..", "..", "templates", templateType),
-    path.resolve(base, "..", "templates", templateType),
-    path.resolve(base, "templates", templateType),
-  ];
-
-  for (const candidate of candidates) {
-    if (await pathExists(candidate)) {
-      return candidate;
-    }
-  }
-
-  return candidates[0];
-}
-
 function parseArgs(args: string[]): ParsedArgs {
   const positional: string[] = [];
   let install = true;
@@ -559,6 +540,8 @@ function parseArgs(args: string[]): ParsedArgs {
   let promptText = "";
   let skills = true;
   let targetDir = "";
+  let auth = "";
+  const origins: string[] = [];
   const errors: string[] = [];
 
   for (let i = 0; i < args.length; i += 1) {
@@ -567,6 +550,19 @@ function parseArgs(args: string[]): ParsedArgs {
       install = false;
     } else if (arg === "--no-skills") {
       skills = false;
+    } else if (arg === "--auth" || arg === "--origin") {
+      if (i + 1 >= args.length || args[i + 1].startsWith("-")) {
+        errors.push(`Missing value for ${arg}`);
+      } else {
+        if (arg === "--auth") {
+          if (auth)
+            errors.push(
+              "Only one --auth provider can be selected when creating a project; use add auth for another provider.",
+            );
+          auth = args[i + 1];
+        } else origins.push(args[i + 1]);
+        i += 1;
+      }
     } else if (arg === "--prompt") {
       if (i + 1 >= args.length || args[i + 1].startsWith("-")) {
         errors.push("Missing value for --prompt");
@@ -590,7 +586,7 @@ function parseArgs(args: string[]): ParsedArgs {
     }
   }
 
-  return { positional, install, help, promptText, skills, errors, targetDir };
+  return { positional, install, help, promptText, skills, errors, targetDir, auth, origins };
 }
 
 function validateAppName(name: string): string | undefined {
@@ -1010,6 +1006,18 @@ export async function runCreateCli(
     return 1;
   }
 
+  try {
+    if (parsed.auth) {
+      providerAuthSelection(parsed.auth, parsed.origins);
+      if (templateType === "ssg")
+        throw new Error("Provider auth requires an SSR session server; SSG is unsupported.");
+    } else if (parsed.origins.length > 0)
+      throw new Error("--origin requires an explicit --auth provider.");
+  } catch (error) {
+    io.error(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
+
   const target = path.resolve(process.cwd(), parsed.targetDir || name);
   const templateDir = await findTemplateDir(templateType);
 
@@ -1070,6 +1078,11 @@ export async function runCreateCli(
 
   try {
     await writeBlueprintFiles(stagingTarget, blueprint);
+    if (parsed.auth) {
+      const plan = await planProviderAuth(stagingTarget, parsed.auth, parsed.origins);
+      await writeFileChanges(plan.changes);
+      for (const message of plan.messages) io.log(message);
+    }
   } catch (error) {
     await fs.rm(stagingTarget, { recursive: true, force: true });
     io.error("Failed to write project blueprint");

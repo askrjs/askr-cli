@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import type { TestModule } from "vitest/node";
+import { describe, expect, it } from "vite-plus/test";
+import type { TestModule } from "vite-plus/test/node";
 import { AnalyzeBudgetReporter } from "../benchmarks/analyze-budget-reporter";
 
 function modules(mean = 10, samples = 8): TestModule[] {

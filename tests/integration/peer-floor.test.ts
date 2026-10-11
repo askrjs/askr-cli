@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { expect, test } from "vitest";
+import { expect, test } from "vite-plus/test";
 
 const execFileAsync = promisify(execFile);
 const repository = fileURLToPath(new URL("../../", import.meta.url));
@@ -78,7 +78,7 @@ export const staticConfig = {
 `,
     );
 
-    await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund"], root);
+    await run("npm", ["install", "--no-audit", "--no-fund"], root);
     await fs.mkdir(path.join(root, "src"));
     await fs.writeFile(
       path.join(root, "src", "page.ts"),
