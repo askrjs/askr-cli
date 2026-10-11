@@ -403,7 +403,12 @@ function validateKnownViteDiagnostic(
     assert(++count <= 10000 && depth <= 64, "Bounded complete npm dependency tree required");
     assert(!node.extraneous && !node.missing, owner);
     if (owner !== "root") {
-      assert.deepEqual(node.problems ?? [], [], owner);
+      const problems = node.problems ?? [];
+      assert.deepEqual(
+        problems,
+        owner === "root/vite-plus/@vitest/mocker/vite" && problems.length > 0 ? [problem] : [],
+        owner,
+      );
       assert.equal(node.error, undefined, owner);
     }
     assert(
