@@ -457,16 +457,26 @@ function validateKnownViteDiagnostic(
 }
 // Admission-independent observation of Vite66's exact primary optional-peer limitation.
 // No dependency/request mutation, peer bypass, or general ELSPROBLEMS acceptance.
-export async function inspectKnownViteDiagnostic(
+async function inspectKnownViteObservation(
   project: string,
   evidence: string,
   original: unknown,
   run: (command: string, args: string[], cwd: string) => Promise<string>,
+  observe: (
+    error: unknown,
+    project: string,
+    structured: boolean,
+  ) => {
+    code: number;
+    signal: NodeJS.Signals | null;
+    stdout: string;
+    stderr: string;
+  },
 ) {
-  const text = listedExit(original, project);
+  const text = observe(original, project, false);
   // The inherited runner decodes child text; preserve that transcript in the parent's raw log too.
   process.stderr.write(`${(original as Error).message}\n`);
-  let structured: ReturnType<typeof listedExit> | undefined;
+  let structured: ReturnType<typeof observe> | undefined;
   let physical: Record<string, ToolMetadata> | undefined;
   let lock: Parameters<typeof validateKnownViteDiagnostic>[3] | undefined;
   const files: { path: string; sha256: string; size: number }[] = [];
@@ -494,7 +504,7 @@ export async function inspectKnownViteDiagnostic(
     try {
       await run("npm", ["ls", "--all", "--json"], project);
     } catch (error) {
-      structured = listedExit(error, project);
+      structured = observe(error, project, true);
     }
     assert(
       structured,
@@ -538,4 +548,88 @@ export async function inspectKnownViteDiagnostic(
       { flag: "wx" },
     );
   }
+}
+
+// Preserve the inherited execFile observation contract for ordinary/preliminary checks.
+export async function inspectKnownViteDiagnostic(
+  project: string,
+  evidence: string,
+  original: unknown,
+  run: (command: string, args: string[], cwd: string) => Promise<string>,
+) {
+  return inspectKnownViteObservation(project, evidence, original, run, listedExit);
+}
+
+// Origin's expected npm diagnostic is an owned receipt, never an execFile result.
+// The existing collector must have persisted and proved its normal exit/reap.
+export async function inspectKnownViteOriginDiagnostic(
+  project: string,
+  evidence: string,
+  original: unknown,
+  run: (command: string, args: string[], cwd: string) => Promise<string>,
+) {
+  function ownedExit(error: unknown, cwd: string, structured: boolean) {
+    assert(error instanceof Error && error.cause && typeof error.cause === "object");
+    const receipt = error.cause as import("./owned-command").OwnedReceipt;
+    const args = structured ? ["ls", "--all", "--json"] : ["ls", "--all"];
+    // Windows' exited-wrapper uncertainty remains a failure; this adapter
+    // supplies no substitute for an observed Windows descendant-tree reap.
+    assert.notEqual(process.platform, "win32");
+    assert.equal(receipt.command, "npm");
+    assert.deepEqual(receipt.args, args);
+    assert.deepEqual(receipt.requested, { command: "npm", args });
+    assert.equal(receipt.cwd, cwd);
+    assert.equal(receipt.code, 1);
+    assert.equal(receipt.signal, null);
+    assert.equal(receipt.failure, "Owned command exited 1");
+    assert.equal(receipt.childClosed, true);
+    assert.deepEqual(receipt.cleanup, {
+      required: true,
+      treeReaped: true,
+      method: "SIGKILL owned detached process group",
+    });
+    assert(Number.isSafeInteger(receipt.pid) && receipt.pid! > 0);
+    assert.equal(typeof receipt.startedAt, "string");
+    assert(Number.isFinite(Date.parse(receipt.startedAt)));
+    // The original 120s spawn deadline plus its existing common 5s reap bound.
+    assert(
+      Number.isFinite(receipt.elapsedMs) && receipt.elapsedMs >= 0 && receipt.elapsedMs <= 125000,
+    );
+    assert.equal(typeof receipt.stdout, "string");
+    assert.equal(typeof receipt.stderr, "string");
+    for (const stream of ["stdout", "stderr"] as const)
+      assert(
+        Number.isSafeInteger(receipt.observedBytes[stream]) &&
+          receipt.observedBytes[stream] >= 0 &&
+          receipt.observedBytes[stream] <= 20 * 1024 * 1024,
+      );
+    const errors = receipt.stderr.split(/\r?\n/u).filter((line) => line.startsWith("npm error"));
+    assert.equal(errors.length, 3);
+    assert.equal(errors[0], "npm error code ELSPROBLEMS");
+    assert.equal(
+      errors[1],
+      `npm error invalid: vite@npm:@voidzero-dev/vite-plus-core@0.3.3 ${path.join(cwd, "node_modules", "vite")}`,
+    );
+    assert.ok(errors[2]!.startsWith("npm error A complete log of this run can be found in: "));
+    return {
+      code: receipt.code,
+      signal: receipt.signal,
+      stdout: receipt.stdout,
+      stderr: receipt.stderr,
+      ownedReceipt: {
+        command: receipt.command,
+        args: receipt.args,
+        requested: receipt.requested,
+        cwd: receipt.cwd,
+        pid: receipt.pid,
+        startedAt: receipt.startedAt,
+        elapsedMs: receipt.elapsedMs,
+        failure: receipt.failure,
+        childClosed: receipt.childClosed,
+        cleanup: receipt.cleanup,
+        observedBytes: receipt.observedBytes,
+      },
+    };
+  }
+  return inspectKnownViteObservation(project, evidence, original, run, ownedExit);
 }
