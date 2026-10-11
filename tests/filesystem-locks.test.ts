@@ -5,7 +5,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { fork } from "node:child_process";
 import { once } from "node:events";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { withDirectoryTargetLock } from "../src/directory-swap";
 import { writeFileChanges } from "../src/file-changes";
 

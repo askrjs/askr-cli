@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { expect, test, vi } from "vitest";
+import { expect, test, vi } from "vite-plus/test";
 import { runAddCli } from "../src/bin/add";
 import { runCli } from "../src/bin/cli";
 import { runCreateCli } from "../src/bin/create";

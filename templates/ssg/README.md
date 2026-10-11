@@ -37,3 +37,11 @@ npm run typecheck  # Type check
 Run `npm run build` to compile browser assets and pre-render every route into `dist/`. The `askr ssg` command owns both full and incremental generation, and publishes routes, metadata, the incremental manifest, browser assets, `sitemap.xml`, and the managed `robots.txt` sitemap directive together.
 
 `ssg.config.ts` passes the same immutable route registry used in dev mode, so the shell and leaf pages stay in sync.
+
+## JSX types
+
+The TypeScript configuration uses `jsxImportSource: "@askrjs/askr"`, so JSX
+elements and native props come from Askr's scoped runtime declarations. No global
+`JSX` namespace or permissive intrinsic-element shim is needed. For an explicit
+annotation, use `import type { JSX } from "@askrjs/askr/jsx-runtime"` and
+`JSX.Element` or `JSX.IntrinsicElements["input"]`.
