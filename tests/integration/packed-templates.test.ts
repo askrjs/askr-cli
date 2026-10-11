@@ -71,9 +71,15 @@ async function checkBuiltHosting(project: string, launchDirectory: string): Prom
     await fs.writeFile(path.join(project, "public", relative), bytes, { flag: "wx" });
   }
   await run("npm", ["run", "build"], project);
-  const projectManifest = JSON.parse(await fs.readFile(path.join(project, "package.json"), "utf8"));
+  const hostingDirectory = path.join(launchDirectory, "hosting path #100% ü");
+  await fs.mkdir(hostingDirectory);
+  const previewProject = path.join(hostingDirectory, path.basename(project));
+  await fs.rename(project, previewProject);
+  const projectManifest = JSON.parse(
+    await fs.readFile(path.join(previewProject, "package.json"), "utf8"),
+  );
   expect(projectManifest.scripts.preview).toBe("node dist/server/server.js");
-  const dist = path.join(project, "dist");
+  const dist = path.join(previewProject, "dist");
   const entry = path.join(dist, "server", "server.js");
   await fs.access(entry);
   const manifest = JSON.parse(
@@ -348,10 +354,7 @@ test("should ensure packed CLI passes checks for every shipped template", async 
     const archive = path.join(root, packed.trim().split(/\r?\n/).at(-1)!);
 
     for (const template of selected) {
-      const fixtureRoot = path.join(
-        root,
-        template === "ssr" || template === "full-stack" ? `${template} path #100% ü` : template,
-      );
+      const fixtureRoot = path.join(root, template);
       const project = path.join(fixtureRoot, `fixture-${template}`);
       await fs.mkdir(fixtureRoot, { recursive: true });
       await run(
