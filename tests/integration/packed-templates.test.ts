@@ -581,7 +581,7 @@ async function checkProviderOrigin(
       "-subj",
       "/CN=Askr owned origin fixture",
       "-addext",
-      "subjectAltName=DNS:app.example.test,DNS:oauth2.googleapis.com",
+      "subjectAltName=DNS:app.example.test,DNS:accounts.google.com,DNS:oauth2.googleapis.com",
       "-keyout",
       keyPath,
       "-out",
@@ -594,6 +594,7 @@ async function checkProviderOrigin(
   const ca = await fs.readFile(certPath);
   const exchanges: URLSearchParams[] = [];
   const failures: string[] = [];
+  const providerRequests: { method: string; host: string; path: string }[] = [];
   const tokenServer = createHttpsServer({ key, cert: ca }, (request, response) => {
     const chunks: Buffer[] = [];
     let size = 0;
@@ -604,6 +605,32 @@ async function checkProviderOrigin(
     });
     request.on("error", (error) => failures.push(error.message));
     request.on("end", () => {
+      if (providerRequests.length >= 16) {
+        failures.push("Owned provider request count exceeded");
+        response.writeHead(400).end();
+        return;
+      }
+      providerRequests.push({
+        method: request.method ?? "",
+        host: request.headers.host ?? "",
+        path: request.url ?? "",
+      });
+      if (
+        request.method === "GET" &&
+        request.url === "/.well-known/openid-configuration" &&
+        request.headers.host === "accounts.google.com" &&
+        size === 0
+      ) {
+        response.writeHead(200, { "content-type": "application/json" }).end(
+          JSON.stringify({
+            issuer: "https://accounts.google.com",
+            authorization_endpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+            token_endpoint: "https://oauth2.googleapis.com/token",
+            jwks_uri: "https://www.googleapis.com/oauth2/v3/certs",
+          }),
+        );
+        return;
+      }
       if (
         request.method !== "POST" ||
         request.url !== "/token" ||
@@ -677,13 +704,17 @@ async function checkProviderOrigin(
       const ca = readFileSync(${JSON.stringify(certPath)});
       globalThis.fetch = async (input, init) => {
         const source = new Request(input, init);
-        if (source.url !== 'https://oauth2.googleapis.com/token') throw new Error('Unallowlisted fixture transport');
+        const discovery = source.url === 'https://accounts.google.com/.well-known/openid-configuration' && source.method === 'GET';
+        const token = source.url === 'https://oauth2.googleapis.com/token' && source.method === 'POST';
+        if (!discovery && !token) throw new Error('Unallowlisted fixture transport');
+        const host = discovery ? 'accounts.google.com' : 'oauth2.googleapis.com';
+        const target = discovery ? '/.well-known/openid-configuration' : '/token';
         const body = source.body ? Buffer.from(await source.arrayBuffer()) : undefined;
         if (body && body.length > 32768) throw new Error('Owned transport body cap');
         return new Promise((resolve, reject) => {
-          const req = request({ hostname:'127.0.0.1', port:${tokenPort}, servername:'oauth2.googleapis.com', ca,
-            method:source.method, path:'/token', agent:false, signal:source.signal,
-            headers:{...Object.fromEntries(source.headers),host:'oauth2.googleapis.com',connection:'close'} }, res => {
+          const req = request({ hostname:'127.0.0.1', port:${tokenPort}, servername:host, ca,
+            method:source.method, path:target, agent:false, signal:source.signal,
+            headers:{...Object.fromEntries(source.headers),host,connection:'close'} }, res => {
             let size=0; const chunks=[];
             res.on('data', chunk => { size+=chunk.length; if(size>32768)req.destroy(new Error('Owned transport response cap'));else chunks.push(chunk); });
             res.once('error',reject);
@@ -813,6 +844,21 @@ async function checkProviderOrigin(
     expect(new URL(recovery.headers.location!).searchParams.get("redirect_uri")).toBe(
       `${origin}/auth/callback/google`,
     );
+    const discoveryRequests = providerRequests.filter(
+      (request) =>
+        request.method === "GET" &&
+        request.host === "accounts.google.com" &&
+        request.path === "/.well-known/openid-configuration",
+    );
+    const tokenRequests = providerRequests.filter(
+      (request) =>
+        request.method === "POST" &&
+        request.host === "oauth2.googleapis.com" &&
+        request.path === "/token",
+    );
+    expect(discoveryRequests.length).toBeGreaterThanOrEqual(1);
+    expect(tokenRequests).toHaveLength(1);
+    expect(discoveryRequests.length + tokenRequests.length).toBe(providerRequests.length);
     expect(failures).toEqual([]);
   } finally {
     const cleanup: Promise<unknown>[] = [];
@@ -852,7 +898,7 @@ async function checkProviderOrigin(
     await fs.writeFile(path.join(evidence, "preview.log"), transcript);
     await fs.writeFile(
       path.join(evidence, "origin-http.json"),
-      `${JSON.stringify({ ...observed, childPid: child?.pid, backendPort, fixtureErrors: failures, cleanup: results.map((result) => (result.status === "fulfilled" ? { status: result.status } : { status: result.status, reason: String(result.reason) })) }, null, 2)}\n`,
+      `${JSON.stringify({ ...observed, childPid: child?.pid, backendPort, providerRequests, fixtureErrors: failures, cleanup: results.map((result) => (result.status === "fulfilled" ? { status: result.status } : { status: result.status, reason: String(result.reason) })) }, null, 2)}\n`,
     );
     const errors = results
       .filter((result): result is PromiseRejectedResult => result.status === "rejected")
