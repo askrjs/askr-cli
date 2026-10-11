@@ -15,3 +15,19 @@ The relay forwards the browser's actual complete headers, including Cookie and O
 The preliminary 13-archive Google origin reproduction is a different fixture projection. It cannot supply final18 admission, original range/dependency acceptance or completion of this matrix. Signed simulation proves the covered protocol/application behavior; live provider compatibility remains a separate boundary.
 
 Raw command logs and failure receipts are retained. Test-owned commands and the compiled server use the shared bounded process owner. Linux browsers have separate BrowserServer PID/start/executable ancestry and shared five-second drain evidence, including explicit inactive zombies and PID reuse. Normal Windows command closure is reported with its existing scope; no Windows browser-tree proof is claimed.
+
+## Default starter modes
+
+`npm run test:templates` retains the ordinary normal-registry checks for the five default starters. It is independent of a preliminary archive request and final18 admission. Its existing optional `ASKR_TEMPLATE` selector remains available for focused development checks.
+
+`npm run test:templates:preliminary` explicitly selects the local preliminary13 hosting fixture. This mode requires its reviewed request and projects a distinctly retained working manifest onto the admitted normal 0.4 archives. Missing preliminary input fails; there is no ordinary or final fallback. This projection does not qualify emitted ranges or a final release graph.
+
+`npm run test:templates:final` runs all five defaults from the physically installed final18 CLI and owned registry. It requires the same independently admitted graph and finite parent witness as the provider matrix, with `ASKR_PROVIDER_PHASE=native` and a fresh `ASKR_PROVIDER_EVIDENCE` directory. `ASKR_TEMPLATE` is rejected. Each original emitted source and package is retained unchanged; normal install and fresh `npm ci` must preserve the manifest and lock and match all installed Askr bytes/SRI at every depth. Generated checks, both actual TypeScript compilers with both automatic JSX modes, builds, SSR/full-stack HTTP assets/private-output denial/external working directory, and SSG scoped JSX/outputs are required. The five existing default hosting checks use their original bodies and budgets through a shared test utility.
+
+The final default command and provider matrix run only downstream of the independently admitted final graph. They are not producer `check` or `prepublishOnly` prerequisites that would require their own future manifest. The 16 provider cells and 48 Linux browser cells remain separate required gates. No preliminary projection or absent admission can substitute for either final owner.
+
+## Exact optional Vite peer observation
+
+The ordinary defaults add an explicit `npm ls --all` observation. The preliminary defaults retain that original command, and the final default/provider owners retain their original `npm ls --all --json` commands. A nonzero result is accepted only as the closed Vite+0.3.3 / mocker4.1.11 optional plain-Vite alias limitation after a second complete structured listing and exact physical package, lock, range and SRI checks. The recorded result remains `peerClean:false` with `expectedOptionalAliasPeerOnly:true`; unrelated problems, exit codes, signals and cleanup uncertainty fail. No dependency, override, peer bypass or preliminary request is introduced into ordinary/final modes.
+
+The ordinary runner's child output is decoded text, with diagnostic evidence retained outside its deleted fixture and its location printed. The final adapter retains the genuine owned-command receipt and its separately persisted raw streams; it does not invent execFile fields. Final nonzero classification additionally requires observed child close and proven tree cleanup. Source controls establish neither native structured-listing behavior nor Windows descendant cleanup.

@@ -560,6 +560,56 @@ export async function inspectKnownViteDiagnostic(
   return inspectKnownViteObservation(project, evidence, original, run, listedExit);
 }
 
+// Final checks use the existing owned collector. Its receipt is retained as-is;
+// it has no execFile `killed` field and is never relabelled as that observation.
+export async function inspectKnownViteOwnedDiagnostic(
+  project: string,
+  evidence: string,
+  original: unknown,
+  run: (command: string, args: string[], cwd: string) => Promise<string>,
+  npmCli: string,
+) {
+  assert(path.isAbsolute(npmCli));
+  function ownedExit(error: unknown, cwd: string) {
+    assert(error instanceof Error && error.cause && typeof error.cause === "object");
+    const receipt = error.cause as import("./owned-command").OwnedReceipt;
+    assert.equal(receipt.command, process.execPath);
+    assert.equal(receipt.cwd, cwd);
+    assert.deepEqual(receipt.args, [npmCli, "ls", "--all", "--json"]);
+    assert.equal(receipt.code, 1);
+    assert.equal(receipt.signal, null);
+    assert.equal(receipt.failure, "Owned command exited 1");
+    assert.equal(receipt.childClosed, true);
+    assert.equal(receipt.cleanup.required, true);
+    assert.equal(receipt.cleanup.treeReaped, true);
+    assert.equal(receipt.cleanup.unprovenReason, undefined);
+    assert(Number.isSafeInteger(receipt.pid) && receipt.pid! > 0);
+    assert(
+      Number.isFinite(receipt.elapsedMs) && receipt.elapsedMs >= 0 && receipt.elapsedMs <= 120000,
+    );
+    assert.equal(typeof receipt.stdout, "string");
+    assert.equal(typeof receipt.stderr, "string");
+    for (const stream of ["stdout", "stderr"] as const)
+      assert(
+        Number.isSafeInteger(receipt.observedBytes[stream]) &&
+          receipt.observedBytes[stream] >= 0 &&
+          receipt.observedBytes[stream] <= 20 * 1024 * 1024,
+      );
+    const errors = receipt.stderr.split(/\r?\n/u).filter((line) => line.startsWith("npm error"));
+    assert.equal(errors.length, 3);
+    assert.equal(errors[0], "npm error code ELSPROBLEMS");
+    assert.equal(
+      errors[1],
+      `npm error invalid: vite@npm:@voidzero-dev/vite-plus-core@0.3.3 ${path.join(cwd, "node_modules", "vite")}`,
+    );
+    assert.ok(errors[2]!.startsWith("npm error A complete log of this run can be found in: "));
+    // Both retained final commands are JSON listings. Their complete raw receipts
+    // are independently persisted by the owned collector before this classifier.
+    return receipt;
+  }
+  return inspectKnownViteObservation(project, evidence, original, run, ownedExit);
+}
+
 // Origin's expected npm diagnostic is an owned receipt, never an execFile result.
 // The existing collector must have persisted and proved its normal exit/reap.
 export async function inspectKnownViteOriginDiagnostic(

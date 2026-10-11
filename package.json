@@ -61,7 +61,9 @@
     "prepublishOnly": "npm run check && npm run test:templates && npm run test:peer-floor",
     "test:types": "npm run build && node tests/package-consumers.js",
     "test:provider-origin": "vp test run -c vitest.integration.config.ts tests/integration/packed-templates.test.ts --testNamePattern \"^packed provider (ssr|spa|startkit|full-stack) preserves the configured HTTPS origin through forwarding$\"",
-    "test:provider-starters": "vp test run -c vitest.integration.config.ts tests/integration/provider-starters.test.ts"
+    "test:provider-starters": "vp test run -c vitest.integration.config.ts tests/integration/provider-starters.test.ts",
+    "test:templates:preliminary": "vp test run -c vitest.integration.config.ts tests/integration/packed-templates.test.ts --testNamePattern \"^preliminary13 packed CLI passes checks for every shipped template$\"",
+    "test:templates:final": "vp test run -c vitest.integration.config.ts tests/integration/final-packed-templates.test.ts"
   },
   "dependencies": {
     "@npmcli/config": "^11.0.1",

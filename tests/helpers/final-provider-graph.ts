@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { request } from "node:http";
 import semver from "semver";
+import { inspectKnownViteOwnedDiagnostic } from "./preliminary-archives";
 
 export const finalNames = [
   "askr",
@@ -549,4 +550,69 @@ export async function verifyInstalled(
   );
   assert(found.size > 0);
   return { lockRaw, installed: [...found].sort() };
+}
+
+export async function inventoryGeneratedSource(directory: string) {
+  const rows: { path: string; sha256: string; mode: number }[] = [];
+  async function walk(relative = "") {
+    for (const entry of await fs.readdir(path.join(directory, relative), { withFileTypes: true })) {
+      if (
+        ["node_modules", "dist", "package-lock.json", ".provider-types.json"].includes(entry.name)
+      )
+        continue;
+      assert(!entry.isSymbolicLink());
+      const name = path.posix.join(relative, entry.name);
+      if (entry.isDirectory()) await walk(name);
+      else {
+        const full = path.join(directory, name);
+        rows.push({
+          path: name,
+          sha256: digest(await fs.readFile(full)),
+          mode: (await fs.stat(full)).mode & 0o777,
+        });
+      }
+    }
+  }
+  await walk();
+  return rows.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+export async function installFreshFinal(
+  project: string,
+  graph: Awaited<ReturnType<typeof loadFinalAdmission>>,
+  npm: (args: string[], cwd: string) => Promise<string>,
+) {
+  const manifestRaw = await fs.readFile(path.join(project, "package.json"));
+  await npm(["install"], project);
+  const initial = await verifyInstalled(project, graph);
+  await npm(["ci"], project);
+  const fresh = await verifyInstalled(project, graph);
+  assert(fresh.lockRaw.equals(initial.lockRaw), "Fresh ci must preserve the exact generated lock");
+  assert((await fs.readFile(path.join(project, "package.json"))).equals(manifestRaw));
+  return { initial, fresh };
+}
+
+// An exact known peer limitation is characterized, never relabelled as peer-clean.
+// No preliminary request/projection is read; final graph admission stays at callers.
+export async function finalNpmListing(
+  project: string,
+  evidence: string,
+  graph: Awaited<ReturnType<typeof loadFinalAdmission>>,
+  npm: (args: string[], cwd: string) => Promise<string>,
+) {
+  try {
+    await npm(["ls", "--all", "--json"], project);
+  } catch (error) {
+    await inspectKnownViteOwnedDiagnostic(
+      project,
+      evidence,
+      error,
+      async (command, args, cwd) => {
+        assert.equal(command, "npm");
+        assert.deepEqual(args, ["ls", "--all", "--json"]);
+        return npm(args, cwd);
+      },
+      graph.input.tools.npmCli.file,
+    );
+  }
 }

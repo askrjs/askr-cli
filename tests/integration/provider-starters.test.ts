@@ -11,6 +11,9 @@ import {
   verifyInstalled,
   digest,
   ownedEnvironment,
+  inventoryGeneratedSource as inventory,
+  installFreshFinal,
+  finalNpmListing,
 } from "../helpers/final-provider-graph";
 import { runOwnedCommand, startOwnedCommand } from "../helpers/owned-command";
 import {
@@ -78,30 +81,7 @@ const npm = (
   env?: NodeJS.ProcessEnv,
 ) =>
   command(process.execPath, [graph.input.tools.npmCli.file, ...args], cwd, directory, signal, env);
-async function inventory(directory: string) {
-  const rows: { path: string; sha256: string; mode: number }[] = [];
-  async function walk(relative = "") {
-    for (const entry of await fs.readdir(path.join(directory, relative), { withFileTypes: true })) {
-      if (
-        ["node_modules", "dist", "package-lock.json", ".provider-types.json"].includes(entry.name)
-      )
-        continue;
-      assert(!entry.isSymbolicLink());
-      const name = path.posix.join(relative, entry.name);
-      if (entry.isDirectory()) await walk(name);
-      else {
-        const full = path.join(directory, name);
-        rows.push({
-          path: name,
-          sha256: digest(await fs.readFile(full)),
-          mode: (await fs.stat(full)).mode & 0o777,
-        });
-      }
-    }
-  }
-  await walk();
-  return rows.sort((a, b) => a.path.localeCompare(b.path));
-}
+
 beforeAll(async () => {
   assert.equal(process.version, "v24.21.0");
   assert(
@@ -188,14 +168,10 @@ beforeAll(async () => {
     ).trim(),
     graph.input.tools.openssl.version,
   );
-  await npm(["install"], launcher, evidence);
-  const initial = await verifyInstalled(launcher, graph);
-  await npm(["ci"], launcher, evidence);
-  assert.equal(
-    (await verifyInstalled(launcher, graph)).lockRaw.toString(),
-    initial.lockRaw.toString(),
+  const { initial } = await installFreshFinal(launcher, graph, (args, project) =>
+    npm(args, project, evidence),
   );
-  await npm(["ls", "--all", "--json"], launcher, evidence);
+  await finalNpmListing(launcher, evidence, graph, (args, cwd) => npm(args, cwd, evidence));
   cli = path.join(launcher, "node_modules", "@askrjs", "cli", "dist", "cli.js");
   await save("authority.json", {
     phase,
@@ -389,13 +365,13 @@ test.each(cells)(
         { manifestSha256: digest(manifestRaw), files: emitted, resolutionProjection: false },
         out,
       );
-      await npm(["install"], project, out, controller.signal);
-      const installed = await verifyInstalled(project, graph);
-      await npm(["ci"], project, out, controller.signal);
-      const fresh = await verifyInstalled(project, graph);
-      assert(fresh.lockRaw.equals(installed.lockRaw));
+      const { initial: installed, fresh } = await installFreshFinal(project, graph, (args, cwd) =>
+        npm(args, cwd, out, controller.signal),
+      );
       await fs.writeFile(path.join(out, "package-lock.json"), fresh.lockRaw, { flag: "wx" });
-      await npm(["ls", "--all", "--json"], project, out, controller.signal);
+      await finalNpmListing(project, out, graph, (args, cwd) =>
+        npm(args, cwd, out, controller.signal),
+      );
       await npm(["audit", "--json"], project, out, controller.signal);
       await npm(["audit", "--omit=dev", "--json"], project, out, controller.signal);
       await npm(["run", "check"], project, out, controller.signal, fixture.env);
