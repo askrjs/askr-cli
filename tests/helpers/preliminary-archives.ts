@@ -304,3 +304,233 @@ export async function verifyEmittedSource(working: string, emitted: string) {
   }
   await visit(emitted);
 }
+
+type ListedTree = {
+  error?: { code?: string; summary?: string; detail?: string };
+  invalid?: string;
+  extraneous?: boolean;
+  missing?: boolean;
+  problems?: string[];
+  dependencies?: Record<string, ListedTree>;
+};
+type ToolMetadata = {
+  name: string;
+  version: string;
+  dependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  peerDependenciesMeta?: Record<string, { optional?: boolean }>;
+};
+const knownViteTools = {
+  "vite-plus": {
+    version: "0.3.3",
+    integrity:
+      "sha512-gr3t8ZIsytJnpPE0YPxtkouf+asMsc+TWlKXYzEdY6rRXUdCGYxgaPmzRePx1Gyip2gmARRLogAwoMMW9BvSUA==",
+  },
+  "@vitest/mocker": {
+    version: "4.1.11",
+    integrity:
+      "sha512-2XJVD55d1o5AZous5CCGKS74g/riOj9odEt2bQpCVZeblHyHdnMeFl4jl0XjU21stf4mbjUkew2eXQZt65g5CQ==",
+  },
+  vite: {
+    name: "@voidzero-dev/vite-plus-core",
+    version: "0.3.3",
+    integrity:
+      "sha512-Ui92VENIZG+p0nMJuVGMsHBHrQqgUNxXObdo5PlSDEBOdRmD8AHKr8tOClZTVU1U5blLQKtHKplxtTun0yZEmw==",
+  },
+};
+function listedExit(error: unknown, project: string) {
+  assert(error instanceof Error && error.cause && typeof error.cause === "object");
+  const cause = error.cause as {
+    code?: unknown;
+    signal?: unknown;
+    killed?: unknown;
+    stdout?: unknown;
+    stderr?: unknown;
+  };
+  assert.equal(cause.code, 1);
+  assert.equal(cause.signal, null);
+  assert.equal(cause.killed, false);
+  assert.equal(typeof cause.stdout, "string");
+  assert.equal(typeof cause.stderr, "string");
+  const errors = (cause.stderr as string)
+    .split(/\r?\n/u)
+    .filter((line) => line.startsWith("npm error"));
+  assert.equal(errors.length, 3);
+  assert.equal(errors[0], "npm error code ELSPROBLEMS");
+  assert.equal(
+    errors[1],
+    `npm error invalid: vite@npm:@voidzero-dev/vite-plus-core@0.3.3 ${path.join(project, "node_modules", "vite")}`,
+  );
+  assert.ok(errors[2]!.startsWith("npm error A complete log of this run can be found in: "));
+  return {
+    code: 1,
+    signal: null,
+    killed: false,
+    stdout: cause.stdout as string,
+    stderr: cause.stderr as string,
+  };
+}
+function validateKnownViteDiagnostic(
+  project: string,
+  tree: ListedTree,
+  physical: Record<string, ToolMetadata>,
+  lock: {
+    lockfileVersion: number;
+    packages: Record<
+      string,
+      {
+        name?: string;
+        version?: string;
+        integrity?: string;
+        dependencies?: Record<string, string>;
+        peerDependencies?: Record<string, string>;
+        peerDependenciesMeta?: Record<string, { optional?: boolean }>;
+      }
+    >;
+  },
+) {
+  const range = "^6.0.0 || ^7.0.0 || ^8.0.0";
+  const alias = "npm:@voidzero-dev/vite-plus-core@0.3.3";
+  const problem = `invalid: vite@${alias} ${path.join(project, "node_modules", "vite")}`;
+  assert.deepEqual(tree.problems, [problem]);
+  if (tree.error !== undefined)
+    assert.deepEqual(tree.error, { code: "ELSPROBLEMS", summary: problem, detail: "" });
+  assert.equal(lock.lockfileVersion, 3);
+  const invalid: { path: string; reason: string }[] = [];
+  let count = 0;
+  function visit(node: ListedTree, owner = "root", depth = 0) {
+    assert(node && typeof node === "object" && !Array.isArray(node));
+    assert(++count <= 10000 && depth <= 64, "Bounded complete npm dependency tree required");
+    assert(!node.extraneous && !node.missing, owner);
+    if (owner !== "root") {
+      assert.deepEqual(node.problems ?? [], [], owner);
+      assert.equal(node.error, undefined, owner);
+    }
+    assert(
+      node.dependencies === undefined ||
+        (node.dependencies &&
+          typeof node.dependencies === "object" &&
+          !Array.isArray(node.dependencies)),
+      owner,
+    );
+    assert(
+      node.invalid === undefined || (typeof node.invalid === "string" && node.invalid.length > 0),
+      owner,
+    );
+    if (node.invalid) invalid.push({ path: owner, reason: node.invalid });
+    for (const [name, child] of Object.entries(node.dependencies ?? {}))
+      visit(child, `${owner}/${name}`, depth + 1);
+  }
+  visit(tree);
+  assert.deepEqual(invalid, [
+    {
+      path: "root/vite-plus/@vitest/mocker/vite",
+      reason: `"${range}" from node_modules/@vitest/mocker`,
+    },
+  ]);
+  for (const [name, expected] of Object.entries(knownViteTools)) {
+    const actual = physical[name]!;
+    const record = lock.packages[`node_modules/${name}`]!;
+    assert(actual && record);
+    assert.equal(actual.name, "name" in expected ? expected.name : name);
+    assert.equal(actual.version, expected.version);
+    assert.equal(record.version, expected.version);
+    assert.equal(record.integrity, expected.integrity);
+    if (name === "vite") assert.equal(record.name, "@voidzero-dev/vite-plus-core");
+  }
+  assert.equal(physical["vite-plus"]!.dependencies?.vite, alias);
+  assert.equal(physical["vite-plus"]!.dependencies?.["@vitest/mocker"], "4.1.11");
+  assert.equal(lock.packages["node_modules/vite-plus"]!.dependencies?.vite, alias);
+  assert.equal(lock.packages["node_modules/vite-plus"]!.dependencies?.["@vitest/mocker"], "4.1.11");
+  assert.equal(physical["@vitest/mocker"]!.peerDependencies?.vite, range);
+  assert.equal(physical["@vitest/mocker"]!.peerDependenciesMeta?.vite?.optional, true);
+  assert.equal(lock.packages["node_modules/@vitest/mocker"]!.peerDependencies?.vite, range);
+  assert.equal(
+    lock.packages["node_modules/@vitest/mocker"]!.peerDependenciesMeta?.vite?.optional,
+    true,
+  );
+}
+// Admission-independent observation of Vite66's exact primary optional-peer limitation.
+// No dependency/request mutation, peer bypass, or general ELSPROBLEMS acceptance.
+export async function inspectKnownViteDiagnostic(
+  project: string,
+  evidence: string,
+  original: unknown,
+  run: (command: string, args: string[], cwd: string) => Promise<string>,
+) {
+  const text = listedExit(original, project);
+  // The inherited runner decodes child text; preserve that transcript in the parent's raw log too.
+  process.stderr.write(`${(original as Error).message}\n`);
+  let structured: ReturnType<typeof listedExit> | undefined;
+  let physical: Record<string, ToolMetadata> | undefined;
+  let lock: Parameters<typeof validateKnownViteDiagnostic>[3] | undefined;
+  const files: { path: string; sha256: string; size: number }[] = [];
+  let expectedOptionalAliasPeerOnly = false;
+  let rejected: string | null = null;
+  async function read(relative: string, limit: number) {
+    const parts = relative.split("/");
+    for (let index = 1; index < parts.length; index++) {
+      const info = await fs.lstat(path.join(project, ...parts.slice(0, index)));
+      assert(info.isDirectory() && !info.isSymbolicLink());
+    }
+    const name = path.join(project, ...parts);
+    const info = await fs.lstat(name);
+    assert(info.isFile() && !info.isSymbolicLink() && info.size <= limit);
+    const raw = await fs.readFile(name);
+    assert.equal(raw.length, info.size);
+    files.push({
+      path: relative,
+      sha256: createHash("sha256").update(raw).digest("hex"),
+      size: raw.length,
+    });
+    return JSON.parse(raw.toString());
+  }
+  try {
+    try {
+      await run("npm", ["ls", "--all", "--json"], project);
+    } catch (error) {
+      structured = listedExit(error, project);
+    }
+    assert(
+      structured,
+      "Original nonzero listing requires a matching complete nonzero structured observation",
+    );
+    const tree = JSON.parse(structured.stdout) as ListedTree;
+    physical = {};
+    for (const name of Object.keys(knownViteTools))
+      physical[name] = await read(`node_modules/${name}/package.json`, 1024 * 1024);
+    lock = await read("package-lock.json", 32 * 1024 * 1024);
+    validateKnownViteDiagnostic(project, tree, physical, lock!);
+    expectedOptionalAliasPeerOnly = true;
+  } catch (error) {
+    rejected = error instanceof Error ? error.message : String(error);
+    throw error;
+  } finally {
+    await fs.writeFile(
+      path.join(evidence, "npm-ls-optional-alias-peer.json"),
+      JSON.stringify(
+        {
+          originalTextObservation: text,
+          structuredObservation: structured ?? null,
+          decodedStringsNotRawLogs: true,
+          physical: physical ?? null,
+          lockRecords: lock
+            ? Object.fromEntries(
+                Object.keys(knownViteTools).map((name) => [
+                  name,
+                  lock!.packages?.[`node_modules/${name}`],
+                ]),
+              )
+            : null,
+          files,
+          rejected,
+          peerClean: false,
+          expectedOptionalAliasPeerOnly,
+        },
+        null,
+        2,
+      ) + "\n",
+      { flag: "wx" },
+    );
+  }
+}

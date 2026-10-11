@@ -11,6 +11,7 @@ import { expect, test } from "vite-plus/test";
 
 import {
   bindPreliminaryManifest,
+  inspectKnownViteDiagnostic,
   readHostingRequest,
   verifyEmittedSource,
   verifyPreliminaryGraph,
@@ -401,7 +402,13 @@ test("should ensure packed CLI passes checks for every shipped template", async 
       expect(await fs.readFile(manifestPath)).toEqual(workingManifest);
       expect(await fs.readFile(path.join(project, "package-lock.json"))).toEqual(lock);
       await verifyPreliminaryGraph(project, input.closure.packages);
-      await run("npm", ["ls", "--all"], project);
+      try {
+        await run("npm", ["ls", "--all"], project);
+      } catch (error) {
+        // Vite66's primary recipe has this one upstream optional alias peer.
+        // Preserve both listings and admit only its exact lock/physical owner.
+        await inspectKnownViteDiagnostic(project, evidence, error, run);
+      }
       await run("npm", ["run", "check"], project);
       await verifyEmittedSource(project, emitted);
       await fs.writeFile(
