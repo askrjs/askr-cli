@@ -200,24 +200,24 @@ async function checkBuiltHosting(project: string, launchDirectory: string): Prom
     expect(ended, transcript).toBe(false);
     for (const value of entries) expect(html).toContain(`/${value.file}`);
     const privatePaths = [
-      "/server/server.js",
-      "/SERVER/server.js",
-      "/%73erver/server.js",
-      "//server/server.js",
-      "/assets%5C..%5Cserver%5Cserver.js",
-      "/.vite/manifest.json",
-      "/.VITE/manifest.json",
-      "/%2evite/manifest.json",
-      "//.vite/manifest.json",
-      "/assets%5C..%5C.vite%5Cmanifest.json",
-    ];
-    for (const pathname of privatePaths) {
+      ["/server/server.js", 404],
+      ["/SERVER/server.js", 404],
+      ["/%73erver/server.js", 404],
+      ["//server/server.js", 400],
+      ["/assets%5C..%5Cserver%5Cserver.js", 404],
+      ["/.vite/manifest.json", 404],
+      ["/.VITE/manifest.json", 404],
+      ["/%2evite/manifest.json", 404],
+      ["//.vite/manifest.json", 400],
+      ["/assets%5C..%5C.vite%5Cmanifest.json", 404],
+    ] as const;
+    for (const [pathname, expectedStatus] of privatePaths) {
       for (const method of ["GET", "HEAD"]) {
         const response = await fetch(`${origin}${pathname}`, {
           method,
           signal: AbortSignal.timeout(2000),
         });
-        expect(response.status, `${method} ${pathname}`).toBe(404);
+        expect(response.status, `${method} ${pathname}`).toBe(expectedStatus);
         const body = Buffer.from(await response.arrayBuffer());
         if (method === "HEAD") expect(body.byteLength).toBe(0);
         else
