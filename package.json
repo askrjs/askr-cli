@@ -60,7 +60,8 @@
     "test:analyze-access": "vp test run -c vitest.integration.config.ts tests/integration/analyze-route-access.test.ts",
     "prepublishOnly": "npm run check && npm run test:templates && npm run test:peer-floor",
     "test:types": "npm run build && node tests/package-consumers.js",
-    "test:provider-origin": "vp test run -c vitest.integration.config.ts tests/integration/packed-templates.test.ts --testNamePattern \"^packed provider (ssr|spa|startkit|full-stack) preserves the configured HTTPS origin through forwarding$\""
+    "test:provider-origin": "vp test run -c vitest.integration.config.ts tests/integration/packed-templates.test.ts --testNamePattern \"^packed provider (ssr|spa|startkit|full-stack) preserves the configured HTTPS origin through forwarding$\"",
+    "test:provider-starters": "vp test run -c vitest.integration.config.ts tests/integration/provider-starters.test.ts"
   },
   "dependencies": {
     "@npmcli/config": "^11.0.1",
@@ -86,6 +87,7 @@
     "@types/semver": "^7.8.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "@vitest/coverage-v8": "^4.1.11",
+    "playwright": "1.63.0",
     "publint": "^0.3.24",
     "vite-plus": "^0.3.1",
     "vitest": "^4.1.11"
