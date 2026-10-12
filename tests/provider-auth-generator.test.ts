@@ -50,7 +50,10 @@ async function contents(root: string): Promise<Record<string, string>> {
     for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
       const file = path.join(directory, entry.name);
       if (entry.isDirectory()) await visit(file);
-      else if (entry.isFile()) files[path.relative(root, file)] = await fs.readFile(file, "utf8");
+      else if (entry.isFile()) {
+        const relative = path.relative(root, file).split(path.sep).join("/");
+        files[relative] = await fs.readFile(file, "utf8");
+      }
     }
   }
   await visit(root);
