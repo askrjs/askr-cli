@@ -35,7 +35,7 @@ async function installRegistryArtifacts(root: string, versions: readonly string[
 test("should validate a database using only public registry artifacts", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-registry-database-"));
   const cliVersion = process.env.ASKR_CLI_REGISTRY_VERSION ?? manifest.version;
-  const ormVersion = process.env.ASKR_ORM_REGISTRY_VERSION ?? "0.4.0";
+  const ormVersion = process.env.ASKR_ORM_REGISTRY_VERSION ?? "0.5.0";
   try {
     await fs.writeFile(
       path.join(root, "package.json"),

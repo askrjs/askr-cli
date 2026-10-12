@@ -7,8 +7,8 @@ import { expect } from "vite-plus/test";
 
 export type PackedRun = (command: string, args: string[], cwd: string) => Promise<string>;
 
-// Shared checks retain their original bodies; the caller owns command lifetime.
-export function packedHostingChecks(run: PackedRun, repository: string) {
+// The caller owns commands; an optional signal also cancels its hosting preview.
+export function packedHostingChecks(run: PackedRun, repository: string, signal?: AbortSignal) {
   async function checkBuiltHosting(
     project: string,
     launchDirectory: string,
@@ -82,6 +82,7 @@ export function packedHostingChecks(run: PackedRun, repository: string) {
     if (!address || typeof address === "string") throw new Error("Expected an owned TCP port");
     const port = address.port;
     const origin = `http://127.0.0.1:${port}`;
+    signal?.throwIfAborted();
     const child = spawn(process.execPath, [entry], {
       cwd: launchDirectory,
       env: {
@@ -113,6 +114,15 @@ export function packedHostingChecks(run: PackedRun, repository: string) {
         resolve();
       });
     });
+    const abortPreview = () => {
+      if (!ended) child.kill("SIGTERM");
+    };
+    signal?.addEventListener("abort", abortPreview, { once: true });
+    if (signal?.aborted) abortPreview();
+    const requestSignal = (timeoutMs: number) =>
+      signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
+        : AbortSignal.timeout(timeoutMs);
     const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
     const observeExit = async () => {
       let timer: ReturnType<typeof setTimeout> | undefined;
@@ -131,10 +141,11 @@ export function packedHostingChecks(run: PackedRun, repository: string) {
       const deadline = Date.now() + 20_000;
       let html: string | undefined;
       while (Date.now() < deadline) {
+        signal?.throwIfAborted();
         if (ended) throw new Error(`Built server exited before serving HTML:\n${transcript}`);
         try {
           const response = await fetch(origin, {
-            signal: AbortSignal.timeout(Math.max(1, Math.min(1000, deadline - Date.now()))),
+            signal: requestSignal(Math.max(1, Math.min(1000, deadline - Date.now()))),
           });
           if (
             response.status === 200 &&
@@ -149,6 +160,7 @@ export function packedHostingChecks(run: PackedRun, repository: string) {
         }
         await pause(25);
       }
+      signal?.throwIfAborted();
       expect(html, `Built server did not serve HTML:\n${transcript}`).toBeDefined();
       expect(ended, transcript).toBe(false);
       for (const value of entries) expect(html).toContain(`/${value.file}`);
@@ -165,10 +177,11 @@ export function packedHostingChecks(run: PackedRun, repository: string) {
         ["/assets%5C..%5C.vite%5Cmanifest.json", 404],
       ] as const;
       for (const [pathname, expectedStatus] of privatePaths) {
+        signal?.throwIfAborted();
         for (const method of ["GET", "HEAD"]) {
           const response = await fetch(`${origin}${pathname}`, {
             method,
-            signal: AbortSignal.timeout(2000),
+            signal: requestSignal(2000),
           });
           expect(response.status, `${method} ${pathname}`).toBe(expectedStatus);
           const body = Buffer.from(await response.arrayBuffer());
@@ -187,8 +200,9 @@ export function packedHostingChecks(run: PackedRun, repository: string) {
         }
       }
       for (const [relative, bytes] of expected) {
+        signal?.throwIfAborted();
         const response = await fetch(`${origin}/${relative}`, {
-          signal: AbortSignal.timeout(2000),
+          signal: requestSignal(2000),
         });
         expect(response.status, relative).toBe(200);
         expect(response.headers.get("content-type"), relative).toMatch(
@@ -201,13 +215,14 @@ export function packedHostingChecks(run: PackedRun, repository: string) {
         expect(Buffer.from(await response.arrayBuffer()), relative).toEqual(bytes);
         const head = await fetch(`${origin}/${relative}`, {
           method: "HEAD",
-          signal: AbortSignal.timeout(2000),
+          signal: requestSignal(2000),
         });
         expect(head.status, relative).toBe(200);
         expect(head.headers.get("content-length"), relative).toBe(String(bytes.length));
         expect((await head.arrayBuffer()).byteLength, relative).toBe(0);
       }
     } finally {
+      signal?.removeEventListener("abort", abortPreview);
       if (!ended) child.kill("SIGTERM");
       const stopped = await observeExit();
       if (!stopped) {

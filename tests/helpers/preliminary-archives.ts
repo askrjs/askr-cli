@@ -157,9 +157,10 @@ export async function verifyPreliminaryGraph(project: string, packages: Prelimin
     assert.ok(candidate, `Unregistered Askr lock owner: ${key}`);
     assert.notEqual(entry.link, true);
     assert.equal(entry.version, candidate.version);
-    assert.ok(entry.resolved?.startsWith("file:"));
+    const resolved = entry.resolved;
+    assert.ok(typeof resolved === "string" && resolved.startsWith("file:"));
     assert.equal(
-      await fs.realpath(fileURLToPath(new URL(entry.resolved, pathToFileURL(project + path.sep)))),
+      await fs.realpath(fileURLToPath(new URL(resolved, pathToFileURL(project + path.sep)))),
       await fs.realpath(candidate.archive),
     );
     assert.equal(
@@ -467,7 +468,7 @@ async function inspectKnownViteObservation(
     project: string,
     structured: boolean,
   ) => {
-    code: number;
+    code: number | null;
     signal: NodeJS.Signals | null;
     stdout: string;
     stderr: string;

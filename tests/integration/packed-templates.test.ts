@@ -67,27 +67,147 @@ async function run(command: string, args: string[], cwd: string): Promise<string
 
 const { checkBuiltHosting, checkScopedSsgJsx } = packedHostingChecks(run, repository);
 
-test("should ensure packed CLI passes checks for every shipped template", async () => {
-  const selected = process.env.ASKR_TEMPLATE
-    ? allTemplates.filter((template) => template === process.env.ASKR_TEMPLATE)
-    : allTemplates;
-  expect(selected, `Unknown ASKR_TEMPLATE: ${process.env.ASKR_TEMPLATE}`).not.toHaveLength(0);
+const ordinaryTemplates = process.env.ASKR_TEMPLATE
+  ? allTemplates.filter((template) => template === process.env.ASKR_TEMPLATE)
+  : allTemplates;
 
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-packed-templates-"));
-  try {
-    await run("npm", ["run", "build"], repository);
-    const packed = await run(
-      "npm",
-      ["pack", "--ignore-scripts", "--pack-destination", root],
-      repository,
-    );
-    const archive = path.join(root, packed.trim().split(/\r?\n/).at(-1)!);
-
-    for (const template of selected) {
+// Keep the exact package-script selector while giving each fixture its own deadline.
+// An unknown selector still registers a failing case instead of silently selecting none.
+test.for(ordinaryTemplates.length ? ordinaryTemplates : [process.env.ASKR_TEMPLATE ?? ""])(
+  "should ensure packed CLI passes checks for every shipped template",
+  { timeout: 180_000 },
+  async (template, { signal, onTestFinished }) => {
+    expect(
+      ordinaryTemplates,
+      `Unknown ASKR_TEMPLATE: ${process.env.ASKR_TEMPLATE}`,
+    ).not.toHaveLength(0);
+    const npmCli = process.env.npm_execpath;
+    if (!npmCli || !path.isAbsolute(npmCli)) {
+      throw new Error(
+        "Run the template integration through npm so its absolute npm CLI is available.",
+      );
+    }
+    let root: string | undefined;
+    let operation: Promise<void> | undefined;
+    let cleanup: Promise<void> | undefined;
+    const finish = () => {
+      cleanup ??= (async () => {
+        if (operation) await Promise.allSettled([operation]);
+        if (root) await fs.rm(root, { recursive: true, force: true });
+      })();
+      return cleanup;
+    };
+    // Timeout aborts the owned command/preview first; join it before removing its files.
+    onTestFinished(finish, 20_000);
+    operation = (async () => {
+      signal.throwIfAborted();
+      root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-packed-templates-"));
+      const evidence = await fs.mkdtemp(
+        path.join(os.tmpdir(), `askr-ordinary-${template}-evidence-`),
+      );
+      process.stderr.write(`Ordinary ${template} command evidence: ${evidence}\n`);
+      let commandNumber = 0;
+      const listDependencies = async (args: string[], cwd: string): Promise<string> => {
+        signal.throwIfAborted();
+        const label = `command-${String(++commandNumber).padStart(3, "0")}`;
+        const pending = execFileAsync(process.execPath, [npmCli, ...args], {
+          cwd,
+          env: { ...process.env, NO_COLOR: "1" },
+          timeout: 120_000,
+          killSignal: "SIGKILL",
+          signal,
+          maxBuffer: 20 * 1024 * 1024,
+        });
+        // Abort may reject execFile's promise before the real child closes.
+        const closed = new Promise<void>((resolve) => {
+          pending.child.once("close", () => resolve());
+        });
+        let stdout = "";
+        let stderr = "";
+        let error: unknown;
+        try {
+          const result = await pending;
+          stdout = result.stdout;
+          stderr = result.stderr;
+          return stdout;
+        } catch (cause) {
+          error = cause;
+          const output = cause as { stdout?: string; stderr?: string };
+          stdout = output.stdout ?? "";
+          stderr = output.stderr ?? "";
+          // Preserve the genuine execFile error/killed fields for the strict classifier.
+          throw new Error(`npm ${args.join(" ")} failed in ${cwd}\n${stdout}\n${stderr}`, {
+            cause,
+          });
+        } finally {
+          await closed;
+          const observed = error as
+            | { code?: unknown; signal?: unknown; killed?: unknown }
+            | undefined;
+          await fs.writeFile(path.join(evidence, `${label}.stdout.log`), stdout, { flag: "wx" });
+          await fs.writeFile(path.join(evidence, `${label}.stderr.log`), stderr, { flag: "wx" });
+          await fs.writeFile(
+            path.join(evidence, `${label}.execfile.json`),
+            `${JSON.stringify(
+              {
+                command: process.execPath,
+                args: [npmCli, ...args],
+                cwd,
+                timeoutMs: 120_000,
+                childClosed: true,
+                exitCode: pending.child.exitCode,
+                signalCode: pending.child.signalCode,
+                error: observed
+                  ? {
+                      code: observed.code,
+                      signal: observed.signal,
+                      killed: observed.killed,
+                    }
+                  : null,
+                decodedStringsNotRawLogs: true,
+                stdout,
+                stderr,
+                windowsDescendantTreeTerminationClaimed: false,
+              },
+              null,
+              2,
+            )}\n`,
+            { flag: "wx" },
+          );
+        }
+      };
+      const ownedRun = (command: string, args: string[], cwd: string): Promise<string> => {
+        signal.throwIfAborted();
+        // npm ls is a read-only observation: keep its real expected nonzero exit on Windows.
+        if (command === "npm" && args[0] === "ls") return listDependencies(args, cwd);
+        return runOwnedCommand({
+          command: command === "npm" ? process.execPath : command,
+          args: command === "npm" ? [npmCli, ...args] : args,
+          requested: { command, args },
+          cwd,
+          evidence,
+          label: `command-${String(++commandNumber).padStart(3, "0")}`,
+          timeoutMs: 180_000,
+          signal,
+          env: { ...process.env, NO_COLOR: "1" },
+        });
+      };
+      const { checkBuiltHosting, checkScopedSsgJsx } = packedHostingChecks(
+        ownedRun,
+        repository,
+        signal,
+      );
+      await ownedRun("npm", ["run", "build"], repository);
+      const packed = await ownedRun(
+        "npm",
+        ["pack", "--ignore-scripts", "--pack-destination", root],
+        repository,
+      );
+      const archive = path.join(root, packed.trim().split(/\r?\n/).at(-1)!);
       const fixtureRoot = path.join(root, template);
       const project = path.join(fixtureRoot, `fixture-${template}`);
       await fs.mkdir(fixtureRoot, { recursive: true });
-      await run(
+      await ownedRun(
         process.execPath,
         [
           path.join(repository, "dist", "cli.js"),
@@ -111,16 +231,14 @@ test("should ensure packed CLI passes checks for every shipped template", async 
         "@askrjs/cli": `file:${archive}`,
       };
       await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-      await run("npm", ["install", "--no-audit", "--no-fund"], project);
+      await ownedRun("npm", ["install", "--no-audit", "--no-fund"], project);
       try {
-        await run("npm", ["ls", "--all"], project);
+        await ownedRun("npm", ["ls", "--all"], project);
       } catch (error) {
-        const evidence = await fs.mkdtemp(path.join(os.tmpdir(), "askr-ordinary-peer-evidence-"));
-        // Durable diagnostic evidence is intentionally outside the deleted fixture.
-        process.stderr.write(`Ordinary npm peer evidence: ${evidence}\n`);
-        await inspectKnownViteDiagnostic(project, evidence, error, run);
+        // Both listings retain genuine execFile observations; no owned receipt is relabelled.
+        await inspectKnownViteDiagnostic(project, evidence, error, ownedRun);
       }
-      await run("npm", ["run", "check"], project);
+      await ownedRun("npm", ["run", "check"], project);
 
       if (template === "ssr" || template === "full-stack") {
         await checkBuiltHosting(project, fixtureRoot);
@@ -132,11 +250,15 @@ test("should ensure packed CLI passes checks for every shipped template", async 
           await fs.access(path.join(project, "dist", relative));
         }
       }
+      signal.throwIfAborted();
+    })();
+    try {
+      await operation;
+    } finally {
+      await finish();
     }
-  } finally {
-    await fs.rm(root, { recursive: true, force: true });
-  }
-}, 180_000);
+  },
+);
 
 test("preliminary13 packed CLI passes checks for every shipped template", async () => {
   const selected = process.env.ASKR_TEMPLATE
@@ -684,9 +806,10 @@ async function checkProviderOrigin(
               `Origin preview cleanup was not proven: ${receipt.failure ?? "missing tree reap"}\n${transcript}`,
               { cause: receipt },
             );
-          if (backendPort !== undefined)
+          const stoppedPort = backendPort;
+          if (stoppedPort !== undefined)
             await new Promise<void>((resolve, reject) => {
-              const socket = createConnection({ host: "127.0.0.1", port: backendPort });
+              const socket = createConnection({ host: "127.0.0.1", port: stoppedPort });
               const timer = setTimeout(
                 () => finish(new Error("Origin preview shutdown observation timed out")),
                 1000,

@@ -23,6 +23,7 @@ import {
   signedStarterProvider,
   relayBrowserRequest,
   type Provider,
+  type Reply,
 } from "../helpers/signed-starter-provider";
 import { withOwnedBrowser } from "../helpers/owned-browser";
 
@@ -456,7 +457,7 @@ test.each(cells)(
       for (const asset of assets) {
         assert(/^assets\/[A-Za-z0-9_.\/-]+$/u.test(asset) && !asset.split("/").includes(".."));
         const bytes = await fs.readFile(path.join(project, "dist", asset)),
-          response = await fixture.raw(`${fixture.origin}/${asset}`);
+          response: Reply = await fixture.raw(`${fixture.origin}/${asset}`);
         assert.equal(response.status, 200);
         assert(response.body.equals(bytes));
         assert.equal(
@@ -474,7 +475,7 @@ test.each(cells)(
         "/%2evite/manifest.json",
       ])
         for (const method of ["GET", "HEAD"]) {
-          const response = await fixture.raw(fixture.origin + target, { method });
+          const response: Reply = await fixture.raw(fixture.origin + target, { method });
           assert.equal(response.status, 404);
           assert(!response.body.includes(await fs.readFile(entry)));
         }
@@ -544,7 +545,16 @@ test.each(cells)(
               const snapshot = await page.evaluate(async () =>
                 (await fetch("/auth/session")).json(),
               );
+              assert(
+                snapshot !== null && typeof snapshot === "object" && "authenticated" in snapshot,
+              );
               assert.equal(snapshot.authenticated, true);
+              assert(
+                "principal" in snapshot &&
+                  snapshot.principal !== null &&
+                  typeof snapshot.principal === "object" &&
+                  "subject" in snapshot.principal,
+              );
               assert.equal(snapshot.principal.subject, "fixture-account");
               const content = await page.content();
               for (const secret of [
@@ -577,11 +587,13 @@ test.each(cells)(
                 await page.waitForURL(
                   (url) => url.origin === fixture!.origin && url.pathname === "/login",
                 );
-              assert.equal(
-                (await page.evaluate(async () => (await fetch("/auth/session")).json()))
-                  .authenticated,
-                false,
+              const loggedOut = await page.evaluate(async () =>
+                (await fetch("/auth/session")).json(),
               );
+              assert(
+                loggedOut !== null && typeof loggedOut === "object" && "authenticated" in loggedOut,
+              );
+              assert.equal(loggedOut.authenticated, false);
               assert.deepEqual(unexpected, []);
               assert.deepEqual(pageErrors, []);
               browserCells++;

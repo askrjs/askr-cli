@@ -181,6 +181,7 @@ export function validateParentWitness(
   manifest: FinalManifest,
   ambient: NodeJS.ProcessEnv,
   cwd: string,
+  verifiedAdmission: Ref,
 ) {
   assert.equal(witness.schemaVersion, 1);
   assert.equal(witness.boundary, "REVIEWED_FINAL16_FINITE_PARENT");
@@ -192,23 +193,45 @@ export function validateParentWitness(
   assert.equal(witness.callerCommit, cli.commit);
   assert.equal(witness.callerTree, cli.tree);
   assert.equal(witness.cwd, cwd);
+  assert(path.isAbsolute(verifiedAdmission.file));
+  assert.match(verifiedAdmission.sha256, /^[a-f0-9]{64}$/);
+  assert.equal(ambient.ASKR_FINAL18_ADMISSION, verifiedAdmission.file);
+  assert.equal(ambient.ASKR_FINAL18_ADMISSION_SHA256, verifiedAdmission.sha256);
+  assert.equal(
+    ambient.VP_HOME,
+    path.join(path.dirname(input.caller.file), "home", "data", "vite-plus"),
+  );
   const pairs = Object.entries(ambient)
     .filter((row): row is [string, string] => row[1] !== undefined)
     .sort(([a], [b]) => a.localeCompare(b));
   const allowed =
-    /^(?:HOME|USERPROFILE|USER|LOGNAME|TMPDIR|TMP|TEMP|XDG_CONFIG_HOME|XDG_CACHE_HOME|XDG_DATA_HOME|PATH|SystemRoot|WINDIR|ComSpec|PATHEXT|APPDATA|LOCALAPPDATA|OS|PROCESSOR_ARCHITECTURE|NUMBER_OF_PROCESSORS|LANG|LC_ALL|TZ|CI|NO_COLOR|FORCE_COLOR|NODE|NODE_ENV|OPENSSL_CONF|ASKR_FINAL18_ADMISSION|ASKR_FINAL18_ADMISSION_SHA256|ASKR_PROVIDER_EVIDENCE|ASKR_PROVIDER_PHASE|VITEST|VITEST_MODE|VITEST_POOL_ID|VITEST_WORKER_ID|INIT_CWD|npm_execpath|npm_node_execpath|npm_lifecycle_event|npm_lifecycle_script|npm_command|npm_package_json|npm_package_name|npm_package_version|npm_config_(?:user_agent|local_prefix|prefix|global_prefix|userconfig|globalconfig|cache|ignore_scripts|registry|update_notifier|metrics_registry))$/iu;
-  for (const [name] of pairs)
-    assert(
-      allowed.test(name),
-      `Unexpected parent environment key is not an admitted finite boundary: ${name}`,
-    );
+    /^(?:HOME|USERPROFILE|USER|LOGNAME|TMPDIR|TMP|TEMP|XDG_CONFIG_HOME|XDG_CACHE_HOME|XDG_DATA_HOME|VP_HOME|PATH|PWD|SHLVL|_|SystemRoot|WINDIR|ComSpec|PATHEXT|APPDATA|LOCALAPPDATA|OS|PROCESSOR_ARCHITECTURE|NUMBER_OF_PROCESSORS|LANG|LC_ALL|TZ|CI|NO_COLOR|FORCE_COLOR|NODE|NODE_ENV|OPENSSL_CONF|ASKR_FINAL18_ADMISSION|ASKR_FINAL18_ADMISSION_SHA256|ASKR_PROVIDER_EVIDENCE|ASKR_PROVIDER_PHASE|VITEST|VITEST_MODE|VITEST_POOL_ID|VITEST_WORKER_ID|TEST|FORCE_TTY|JS_RUNTIME_NAME|JS_RUNTIME_VERSION|NODE_PACKAGE_MANAGER|VP_VERSION|BASE_URL|MODE|DEV|PROD|SSR|COLOR|EDITOR|INIT_CWD|npm_execpath|npm_node_execpath|npm_lifecycle_event|npm_lifecycle_script|npm_command|npm_package_json|npm_package_name|npm_package_version|npm_package_bin_askr|npm_package_engines_node|npm_config_(?:user_agent|local_prefix|prefix|global_prefix|userconfig|globalconfig|cache|ignore_scripts|registry|update_notifier|metrics_registry|node_gyp|npm_version|allow_scripts|global_ignore_file|init_module|noproxy))$/iu;
+  for (const [name, value] of pairs) {
+    if (name === "__CF_USER_TEXT_ENCODING") {
+      assert.equal(input.platform, "darwin");
+      assert.equal(process.platform, "darwin");
+      assert.equal(typeof process.getuid, "function");
+      assert.equal(value, `0x${process.getuid!().toString(16).toUpperCase()}:0x0:0x0`);
+    } else {
+      assert(
+        allowed.test(name),
+        `Unexpected parent environment key is not an admitted finite boundary: ${name}`,
+      );
+    }
+  }
   assert.deepEqual(
     witness.environmentKeys,
     pairs.map(([name]) => name),
   );
   assert.equal(
     witness.environmentSha256,
-    digest(Buffer.from(JSON.stringify(pairs))),
+    // The admission pins this witness, so its separately verified digest cannot hash itself.
+    // The digest key remains in environmentKeys and its actual value is checked above.
+    digest(
+      Buffer.from(
+        JSON.stringify(pairs.filter(([name]) => name !== "ASKR_FINAL18_ADMISSION_SHA256")),
+      ),
+    ),
     "Actual parent environment must equal its separately reviewed hash; values are never retained",
   );
   assert(witness.nodeExecutable && witness.nodeExecutable.sha256);
@@ -381,7 +404,10 @@ export async function loadFinalAdmission(file: string | undefined, expected: str
   const manifest = JSON.parse(manifestRaw.toString()) as FinalManifest;
   validateAdmission(input, manifest);
   const parent = JSON.parse((await pinned(input.caller)).toString()) as ParentWitness;
-  validateParentWitness(parent, input, manifest, process.env, process.cwd());
+  validateParentWitness(parent, input, manifest, process.env, process.cwd(), {
+    file,
+    sha256: expected,
+  });
   assert.equal(await fs.realpath(parent.nodeExecutable.file), await fs.realpath(process.execPath));
   await pinned(parent.nodeExecutable);
   if (process.platform === "win32") {

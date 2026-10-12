@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-11
+
+### Changed
+
+- Refresh compatible locked dependencies: `@npmcli/config` 11.2.0, `ignore`
+  7.0.12, `js-yaml` 5.4.3, `@types/node` 26.6.4 and `publint` 0.3.25.
+  Existing manifest ranges and the Vite+/Vitest toolchain remain unchanged.
+
 ### Added
+
+- Generate Auth0, Microsoft, Google and Apple provider sessions with
+  `askr create --auth` and `askr add auth`, keeping explicit HTTPS origins
+  and typed client bindings.
 
 - Add opt-in `askr/route-access-policy` analysis for exact protected registry
   file/export identities. Warn when a statically known leaf has no native
@@ -23,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   See [all eleven export decisions and migration notes](docs/0.5.0-api.md).
 
 ### Fixed
+
+- Preserve the configured HTTPS origin and canonical host in generated
+  provider servers, and include Node types when provider setup adds server code.
 
 - Dispose rejected or redirected OpenAPI response bodies, including header
   validation and redirect-limit failures. Stop streaming unused bodies after
@@ -104,6 +119,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   folder can no longer stage from a half-swapped tree or race the final swap.
   The lock is held only for the copy, not for site generation
   ([#155](https://github.com/askrjs/askr-cli/issues/155)).
+
+### Development
+
+- First-party development workflows use Vite+; specialized compiler, runtime,
+  browser, and package checks remain part of validation.
 
 ## [0.4.0] - 2026-09-28
 
