@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { createMessageAction } from "../../src/actions/create-message";
 
 describe("create message action", () => {

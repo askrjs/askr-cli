@@ -17,8 +17,8 @@ npm run build      # Production build to dist/
 npm run preview    # Serve production build locally
 npm test           # Vitest (jsdom)
 npm run typecheck  # tsc --noEmit
-npm run lint       # ESLint
-npm run fmt        # Prettier
+npm run lint       # Vite+ lint
+npm run fmt        # Vite+ format
 ```
 
 ## Architecture
@@ -67,7 +67,7 @@ tests/               # Vitest tests
 - Keep typography to a small semantic scale (title/section/body/muted)
 - Prefer subtle borders over heavy shadows or decorative effects
 - Ensure consistent hover/focus-visible/disabled/empty/error treatment across components
-- Prettier + ESLint enforced
+- Vite+ format and lint enforced
 
 ## Validation
 

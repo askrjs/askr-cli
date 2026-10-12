@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { expect, test } from "vitest";
+import { expect, test } from "vite-plus/test";
 
 const exec = promisify(execFile);
 const repository = fileURLToPath(new URL("../../", import.meta.url));

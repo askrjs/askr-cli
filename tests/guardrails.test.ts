@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { runAnalysis } from "../src/analyze/runner";
 import { runCli } from "../src/bin/cli";
 import { parseGuardrailArgs, runGuardrailCli } from "../src/bin/guardrails";

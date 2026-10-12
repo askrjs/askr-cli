@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { expect, test } from "vitest";
+import { expect, test } from "vite-plus/test";
 import manifest from "../../package.json" with { type: "json" };
 
 const execFileAsync = promisify(execFile);
@@ -22,11 +22,7 @@ async function installRegistryArtifacts(root: string, versions: readonly string[
   let lastError: unknown;
   for (let attempt = 1; attempt <= 30; attempt += 1) {
     try {
-      await run(
-        "npm",
-        ["install", "--ignore-scripts", "--no-audit", "--no-fund", ...versions],
-        root,
-      );
+      await run("npm", ["install", "--no-audit", "--no-fund", ...versions], root);
       return;
     } catch (error) {
       lastError = error;
@@ -39,7 +35,7 @@ async function installRegistryArtifacts(root: string, versions: readonly string[
 test("should validate a database using only public registry artifacts", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-registry-database-"));
   const cliVersion = process.env.ASKR_CLI_REGISTRY_VERSION ?? manifest.version;
-  const ormVersion = process.env.ASKR_ORM_REGISTRY_VERSION ?? "0.0.1";
+  const ormVersion = process.env.ASKR_ORM_REGISTRY_VERSION ?? "0.4.0";
   try {
     await fs.writeFile(
       path.join(root, "package.json"),

@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { expect, test } from "vitest";
+import { expect, test } from "vite-plus/test";
 
 test("should ensure changelog has unreleased and current-version sections", async () => {
   const [manifestSource, changelog] = await Promise.all([

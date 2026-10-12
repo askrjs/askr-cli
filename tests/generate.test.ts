@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import ts from "typescript";
 import { runGenerateCli } from "../src/bin/generate";
 import { generateFiles, loadOpenApi, writeGenerated } from "../src/generate/generator";

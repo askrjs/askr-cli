@@ -40,7 +40,7 @@ Use this only when the task is scaffold choice, initial project setup, or repair
 ## Copy This Shape
 
 ```ts
-import { defineConfig } from "vite";
+import { defineConfig } from "vite-plus";
 import { askr } from "@askrjs/vite";
 
 export default defineConfig({

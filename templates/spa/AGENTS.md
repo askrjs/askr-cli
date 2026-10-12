@@ -10,8 +10,8 @@ npm run build      # Production build to dist/
 npm run preview    # Serve production build locally
 npm test           # Vitest (jsdom)
 npm run typecheck  # tsc --noEmit
-npm run lint       # ESLint
-npm run fmt        # Prettier
+npm run lint       # Vite+ lint
+npm run fmt        # Vite+ format
 ```
 
 ## Architecture

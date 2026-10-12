@@ -1,4 +1,4 @@
-import type { Reporter, TestModule } from "vitest/node";
+import type { Reporter, TestModule } from "vite-plus/test/node";
 
 const ANALYZE_BUDGETS_MS: Readonly<Record<string, number>> = {
   "50-file workspace": 100,

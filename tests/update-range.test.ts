@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test } from "vite-plus/test";
 import { analyzeRange } from "../src/update/range";
 import { planUpdates } from "../src/update/planner";
 import type { DependencyOccurrence, Packument } from "../src/update/types";
