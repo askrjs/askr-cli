@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-12
+
 ### Added
+
+- Generate Auth0, Microsoft, Google and Apple provider sessions with
+  `askr create --auth` and `askr add auth`, using explicit HTTPS origins
+  and typed client bindings.
 
 - Add opt-in `askr/route-access-policy` analysis for exact protected registry
   file/export identities. Warn when a statically known leaf has no native
@@ -23,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   See [all eleven export decisions and migration notes](docs/0.5.0-api.md).
 
 ### Fixed
+
+- Preserve the configured HTTPS origin and canonical host in generated
+  provider servers, and include Node types when provider setup adds server code.
+- Resolve production assets from the built server location while excluding
+  server bundles and Vite manifests from public asset responses.
 
 - Dispose rejected or redirected OpenAPI response bodies, including header
   validation and redirect-limit failures. Stop streaming unused bodies after

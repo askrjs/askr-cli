@@ -173,6 +173,17 @@ function providerFile(provider: Provider): string {
   ].join("\n");
 }
 
+function withProviderOrigin(content: string): string {
+  if (content.split("const port =").length !== 2 || content.split("  port,").length !== 2)
+    throw new Error("The owned server template requires explicit provider origin wiring.");
+  return (
+    'import { requiredEnv } from "./src/auth/env";\n' +
+    content
+      .replace("const port =", 'const origin = requiredEnv("APP_ORIGIN");\nconst port =')
+      .replace("  port,", "  port,\n  baseUrl: origin,\n  allowedHosts: [new URL(origin).host],")
+  );
+}
+
 function generated(state: AuthState): Record<string, string> {
   return {
     ...Object.fromEntries(
@@ -458,7 +469,9 @@ export async function planProviderAuth(
       );
       await append(
         "server.ts",
-        await fs.readFile(path.join(await findTemplateDir("ssr"), "server.ts"), "utf8"),
+        withProviderOrigin(
+          await fs.readFile(path.join(await findTemplateDir("ssr"), "server.ts"), "utf8"),
+        ),
       );
       await replace("src/main.tsx", (content) =>
         content
@@ -487,6 +500,15 @@ export async function planProviderAuth(
             .replace("build: {", "build: {\n    manifest: true,"),
       );
     }
+    if (template === "ssr" || template === "full-stack") {
+      await replace("server.ts", withProviderOrigin);
+    }
+    await replace("tsconfig.json", (content) => {
+      const config = JSON.parse(content);
+      if (config.compilerOptions.types.includes("node")) return content;
+      config.compilerOptions.types.push("node");
+      return `${JSON.stringify(config, null, 2)}\n`;
+    });
     await replace("package.json", (content) => {
       const manifest = JSON.parse(content);
       const range = manifest.dependencies["@askrjs/askr"];

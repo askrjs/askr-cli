@@ -36,3 +36,7 @@ src/
 ```
 
 The application source does not construct document markup or expose a `render(url)` callback. Document ownership stays in `index.html` and `@askrjs/vite/server`.
+
+The production launcher runs from `dist/server` and serves browser assets from
+`dist`. Server bundles under `dist/server` and Vite manifests under `dist/.vite`
+are excluded from public asset responses.
