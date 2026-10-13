@@ -87,3 +87,8 @@ explicit operations, subject to the provider's capabilities.
 After filling server configuration, run the generated Vite+ type, lint, test,
 and build commands. Release qualification uses simulated signed providers;
 live provider-account compatibility remains a separate check.
+
+The production launcher passes `APP_ORIGIN` to the Node transport as its canonical
+base URL and allowed host, including an explicit port. Set it to the same HTTPS
+origin used by the provider session configuration. Generated provider projects
+include Node types for their server code.
