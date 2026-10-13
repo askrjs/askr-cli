@@ -1,12 +1,15 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import ts from "typescript";
 import { afterEach, describe, expect, test } from "vite-plus/test";
 import { runAddCli } from "../src/bin/add";
 import { runCreateCli } from "../src/bin/create";
 import { writeFileChanges } from "../src/file-changes";
 
+const execFileAsync = promisify(execFile);
 const roots: string[] = [];
 const providers = ["auth0", "microsoft", "google", "apple"] as const;
 const names = {
@@ -330,3 +333,76 @@ test("refuses symlinked output ownership without touching the outside target", a
   expect(await fs.readdir(outside)).toEqual(["sentinel"]);
   expect(await fs.readFile(path.join(outside, "sentinel"), "utf8")).toBe("preserve outside bytes");
 });
+
+test.each(["ssr", "full-stack", "spa", "startkit"])(
+  "generated %s provider launcher preserves the canonical origin and built assets",
+  async (template) => {
+    const root = await scaffold(template);
+    expect(
+      await runAddCli(
+        ["auth", "google", "--cwd", root, "--origin", "https://app.example:8443"],
+        capture().io,
+      ),
+    ).toBe(0);
+    const files = await contents(root);
+    const config = JSON.parse(files["tsconfig.json"]);
+    expect(config.compilerOptions.types).toContain("node");
+    expect(config.compilerOptions.types.filter((name: string) => name === "node")).toHaveLength(1);
+
+    // Execute the generated launcher from its production build location. Only
+    // the external transport and Vite virtual app are replaced by fixture modules.
+    const output = path.join(root, "dist", "server");
+    await fs.mkdir(output, { recursive: true });
+    const privatePaths = [
+      "/server",
+      "/server/server.js",
+      "/.vite/manifest.json",
+      "/SERVER/secret.js",
+      "/assets/../server/secret.js",
+      "\\server\\secret.js",
+    ];
+    const publicPaths = [
+      "/assets/main.js",
+      "/favicon.svg",
+      "/server-status",
+      "/.vite-public/logo.svg",
+    ];
+    await fs.writeFile(
+      path.join(output, "transport.mjs"),
+      `import { writeFile } from "node:fs/promises";
+export async function serve(app, options) {
+  await writeFile(new URL("./result.json", import.meta.url), JSON.stringify({
+    baseUrl: options.baseUrl,
+    allowedHosts: options.allowedHosts,
+    assetsRoot: options.assets.root,
+    exclusions: Object.fromEntries(${JSON.stringify([...privatePaths, ...publicPaths])}.map(pathname => [pathname, options.assets.exclude?.(pathname)])),
+  }));
+  return { url: "http://127.0.0.1" };
+}`,
+    );
+    await fs.writeFile(path.join(output, "app.mjs"), "export default {};\n");
+    const transpile = (source: string) =>
+      ts.transpileModule(source, {
+        compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+      }).outputText;
+    await fs.writeFile(path.join(output, "env.mjs"), transpile(files["src/auth/env.ts"]));
+    const source = files["server.ts"]
+      .replace(/(["'])@askrjs\/node\1/, '"./transport.mjs"')
+      .replace(/(["'])virtual:askr-server\1/, '"./app.mjs"')
+      .replace('"./src/auth/env"', '"./env.mjs"');
+    await fs.writeFile(path.join(output, "server.mjs"), transpile(source));
+    await execFileAsync(process.execPath, [path.join(output, "server.mjs")], {
+      env: { ...process.env, APP_ORIGIN: "https://app.example:8443", PORT: "0" },
+    });
+    const options = JSON.parse(await fs.readFile(path.join(output, "result.json"), "utf8"));
+    expect(options.baseUrl).toBe("https://app.example:8443");
+    expect(options.allowedHosts).toEqual(["app.example:8443"]);
+    expect(await fs.realpath(options.assetsRoot)).toBe(await fs.realpath(path.join(root, "dist")));
+    for (const pathname of privatePaths) {
+      expect(options.exclusions[pathname], pathname).toBe(true);
+    }
+    for (const pathname of publicPaths) {
+      expect(options.exclusions[pathname], pathname).toBe(false);
+    }
+  },
+);
