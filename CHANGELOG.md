@@ -30,10 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Preserve the configured HTTPS origin and canonical host in generated
-  provider servers, and include Node types when provider setup adds server code.
-- Resolve production assets from the built server location while excluding
-  server bundles and Vite manifests from public asset responses.
+- Wire generated provider servers to the configured HTTPS origin and canonical
+  host, include Node types in generated provider projects, and serve built assets
+  from the production directory while excluding server bundles and Vite manifests.
 
 - Dispose rejected or redirected OpenAPI response bodies, including header
   validation and redirect-limit failures. Stop streaming unused bodies after
