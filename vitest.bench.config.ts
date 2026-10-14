@@ -7,8 +7,9 @@ export default defineConfig({
     fileParallelism: false,
     maxWorkers: 1,
     pool: "forks",
-    reporters: ["default", new AnalyzeBudgetReporter()],
+    globalSetup: ["./benchmarks/analyze-global-setup.ts"],
     benchmark: {
+      reporters: ["default", new AnalyzeBudgetReporter()],
       include: ["benchmarks/**/*.bench.ts"],
       includeSamples: false,
     },

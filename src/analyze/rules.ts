@@ -7,6 +7,7 @@ import {
   type ImportedAskrBinding,
 } from "./catalog";
 import { workspaceRelativeFile } from "./project";
+import { isTestSourcePath } from "./source-paths";
 import type {
   AnalyzeDiagnostic,
   AnalyzeRule,
@@ -35,6 +36,7 @@ interface SourceJsxFact {
 
 interface SourceFacts {
   readonly bindings: SourceBindings;
+  readonly nodes: readonly ts.Node[];
   readonly calls: readonly SourceCallFact[];
   readonly allCalls: readonly ts.CallExpression[];
   readonly jsx: readonly SourceJsxFact[];
@@ -106,11 +108,13 @@ function sourceFacts(sourceFile: ts.SourceFile): SourceFacts {
   const cached = SOURCE_FACT_CACHE.get(sourceFile);
   if (cached) return cached;
   const bindings = sourceBindings(sourceFile);
+  const nodes: ts.Node[] = [];
   const calls: SourceCallFact[] = [];
   const allCalls: ts.CallExpression[] = [];
   const jsx: SourceJsxFact[] = [];
   const constructions: ts.NewExpression[] = [];
   const walk = (node: ts.Node): void => {
+    nodes.push(node);
     if (ts.isCallExpression(node)) {
       allCalls.push(node);
       const name = canonicalCallName(node.expression, bindings);
@@ -124,7 +128,7 @@ function sourceFacts(sourceFile: ts.SourceFile): SourceFacts {
     ts.forEachChild(node, walk);
   };
   walk(sourceFile);
-  const facts = { bindings, calls, allCalls, jsx, constructions };
+  const facts = { bindings, nodes, calls, allCalls, jsx, constructions };
   SOURCE_FACT_CACHE.set(sourceFile, facts);
   return facts;
 }
@@ -163,11 +167,9 @@ function diagnostic(
 }
 
 function visit(sourceFile: ts.SourceFile, callback: (node: ts.Node) => void): void {
-  const walk = (node: ts.Node): void => {
+  for (const node of sourceFacts(sourceFile).nodes) {
     callback(node);
-    ts.forEachChild(node, walk);
-  };
-  walk(sourceFile);
+  }
 }
 
 function runtimeLiteralText(node: ts.Node): string | null {
@@ -285,25 +287,21 @@ interface StateBindings {
   readonly owners: Map<ts.Symbol, ts.SignatureDeclaration | null>;
 }
 
-function collectStateBindings(
-  sourceFile: ts.SourceFile,
-  bindings: SourceBindings,
-  checker: ts.TypeChecker,
-): StateBindings {
+function collectStateBindings(sourceFile: ts.SourceFile, checker: ts.TypeChecker): StateBindings {
   const getters = new Set<string>();
   const setters = new Set<string>();
   const getterSymbols = new Set<ts.Symbol>();
   const setterSymbols = new Set<ts.Symbol>();
   const owners = new Map<ts.Symbol, ts.SignatureDeclaration | null>();
-  visit(sourceFile, (node) => {
+  for (const { node: call, name } of sourceFacts(sourceFile).calls) {
     if (
-      !ts.isVariableDeclaration(node) ||
-      !node.initializer ||
-      !ts.isCallExpression(node.initializer) ||
-      canonicalCallName(node.initializer.expression, bindings) !== "state"
+      name !== "state" ||
+      !ts.isVariableDeclaration(call.parent) ||
+      call.parent.initializer !== call
     ) {
-      return;
+      continue;
     }
+    const node = call.parent;
     const owner = containingFunction(node);
     if (ts.isIdentifier(node.name)) {
       getters.add(node.name.text);
@@ -332,7 +330,7 @@ function collectStateBindings(
         }
       }
     }
-  });
+  }
   return { getters, setters, getterSymbols, setterSymbols, owners };
 }
 
@@ -490,8 +488,7 @@ const stateAccessRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
-      const state = collectStateBindings(sourceFile, bindings, context.checker);
+      const state = collectStateBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (
           ts.isCallExpression(node) &&
@@ -537,8 +534,7 @@ const stateRenderWriteRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
-      const state = collectStateBindings(sourceFile, bindings, context.checker);
+      const state = collectStateBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (!ts.isCallExpression(node)) return;
         let cell: { name: string; symbol: ts.Symbol } | null = null;
@@ -1035,8 +1031,7 @@ const preferForRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
-      const state = collectStateBindings(sourceFile, bindings, context.checker);
+      const state = collectStateBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (
           !ts.isCallExpression(node) ||
@@ -1123,6 +1118,7 @@ type RoutePageAnalysisScope = {
 
 type RouteDefinitionAnalysisScope = {
   readonly page: RoutePageAnalysisScope | null;
+  readonly protectedAccess?: "present" | "absent" | "unknown";
 };
 
 type RouteDefinitionCallVisitor = (
@@ -1192,9 +1188,39 @@ function walkRouteDefinition(
     const walkNode = (node: ts.Node): void => {
       if (node !== body && ts.isFunctionLike(node)) return;
       if (ts.isCallExpression(node)) {
-        const name = canonicalCallName(node.expression, bindings);
+        if (scope.protectedAccess !== undefined) {
+          // These expressions execute in the caller's access scope before a
+          // helper or DSL callback runs. Function bodies remain uninvoked here.
+          walkNode(node.expression);
+          for (const argument of node.arguments) walkNode(argument);
+        }
+        const name =
+          scope.protectedAccess === undefined
+            ? canonicalCallName(node.expression, bindings)
+            : cancellationImportName(node.expression, context.checker, /^@askrjs\/askr\/router$/);
         if (name && ROUTE_DEFINITION_CALLS.has(name)) {
           visitor(node, name, scope);
+          if (scope.protectedAccess !== undefined && (name === "group" || name === "page")) {
+            const callback = protectedDefinition(
+              name === "group" ? node.arguments[1] : node.arguments.at(-1),
+              context,
+            );
+            if (callback)
+              walkRouteDefinition(
+                context,
+                callback,
+                {
+                  ...scope,
+                  protectedAccess: inheritedProtectedAccess(
+                    scope.protectedAccess,
+                    protectedCallAccess(node, name, context),
+                  ),
+                },
+                visitor,
+                active,
+              );
+            return;
+          }
           if (name === "group") {
             const callback = routeDefinitionCallback(node, "group", context);
             if (callback) walkRouteDefinition(context, callback, scope, visitor, active);
@@ -1216,11 +1242,19 @@ function walkRouteDefinition(
           return;
         }
 
-        const called = resolvedFunction(node.expression, context);
-        if (called) {
+        const called =
+          scope.protectedAccess === undefined
+            ? resolvedFunction(node.expression, context)
+            : protectedDefinition(node.expression, context);
+        if (
+          called &&
+          (scope.protectedAccess === undefined ||
+            context.sourceFiles.includes(called.getSourceFile()))
+        ) {
           walkRouteDefinition(context, called, scope, visitor, active);
           return;
         }
+        if (scope.protectedAccess !== undefined) return;
       }
       ts.forEachChild(node, walkNode);
     };
@@ -1251,6 +1285,283 @@ function walkRouteDefinitions(
     walkRouteDefinition(context, definition, { page: null }, visitor);
   }
 }
+
+type ProtectedAccess = "present" | "absent" | "unknown";
+type ProtectedProperty = ProtectedAccess | "unset";
+
+function inheritedProtectedAccess(left: ProtectedAccess, right: ProtectedAccess): ProtectedAccess {
+  return left === "present" || right === "present"
+    ? "present"
+    : left === "unknown" || right === "unknown"
+      ? "unknown"
+      : "absent";
+}
+
+function protectedAccessValue(
+  expression: ts.Expression,
+  kind: "auth" | "policies",
+  context: WorkspaceAnalysisContext,
+  depth = 0,
+): ProtectedAccess {
+  const value = unwrapStaticExpression(expression);
+  if (
+    value.kind === ts.SyntaxKind.NullKeyword ||
+    (ts.isIdentifier(value) &&
+      value.text === "undefined" &&
+      !context.checker.getSymbolAtLocation(value)?.declarations?.length) ||
+    ts.isVoidExpression(value)
+  )
+    return "absent";
+  if (kind === "policies") {
+    if (!ts.isArrayLiteralExpression(value)) return "unknown";
+    return value.elements.some((entry) => !ts.isSpreadElement(entry))
+      ? "present"
+      : value.elements.length
+        ? "unknown"
+        : "absent";
+  }
+  if (ts.isArrowFunction(value) || ts.isFunctionExpression(value)) return "present";
+  if (ts.isIdentifier(value)) {
+    let symbol = context.checker.getSymbolAtLocation(value);
+    if (symbol && (symbol.flags & ts.SymbolFlags.Alias) !== 0)
+      symbol = context.checker.getAliasedSymbol(symbol);
+    if (symbol?.valueDeclaration && ts.isFunctionDeclaration(symbol.valueDeclaration))
+      return "present";
+    const initializer = cancellationConstInitializer(value, context.checker);
+    return initializer && depth < 8
+      ? protectedAccessValue(initializer, kind, context, depth + 1)
+      : "unknown";
+  }
+  return ts.isLiteralExpression(value) ||
+    value.kind === ts.SyntaxKind.TrueKeyword ||
+    value.kind === ts.SyntaxKind.FalseKeyword
+    ? "absent"
+    : "unknown";
+}
+
+// Last-write classification is local to literal options. Opaque objects,
+// getters and unknown spreads cannot establish either presence or absence.
+function protectedOptionProperties(
+  expression: ts.Expression | undefined,
+  context: WorkspaceAnalysisContext,
+): Record<"auth" | "policies", ProtectedProperty> {
+  const result: Record<"auth" | "policies", ProtectedProperty> = {
+    auth: "unset",
+    policies: "unset",
+  };
+  if (!expression) return result;
+  const options = unwrapStaticExpression(expression);
+  if (!ts.isObjectLiteralExpression(options)) return { auth: "unknown", policies: "unknown" };
+  for (const property of options.properties) {
+    if (ts.isSpreadAssignment(property)) {
+      const spread = protectedOptionProperties(property.expression, context);
+      for (const key of ["auth", "policies"] as const)
+        if (spread[key] !== "unset") result[key] = spread[key];
+      continue;
+    }
+    const key =
+      property.name &&
+      (ts.isComputedPropertyName(property.name)
+        ? literalString(property.name.expression)
+        : ts.isIdentifier(property.name) || ts.isStringLiteralLike(property.name)
+          ? property.name.text
+          : null);
+    if (key === null) {
+      result.auth = "unknown";
+      result.policies = "unknown";
+      continue;
+    }
+    if (key !== "auth" && key !== "policies") continue;
+    if (ts.isMethodDeclaration(property)) {
+      result[key] = key === "auth" ? "present" : "unknown";
+      continue;
+    }
+    const value =
+      ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)
+        ? propertyInitializer(property)
+        : undefined;
+    result[key] = value ? protectedAccessValue(value, key, context) : "unknown";
+  }
+  return result;
+}
+
+function protectedCallAccess(
+  call: ts.CallExpression,
+  name: string,
+  context: WorkspaceAnalysisContext,
+): ProtectedAccess {
+  const options =
+    name === "group"
+      ? call.arguments[0]
+      : name === "page"
+        ? call.arguments.length >= 4
+          ? call.arguments[2]
+          : undefined
+        : name === "route"
+          ? call.arguments[2]
+          : name === "index"
+            ? call.arguments[1]
+            : undefined;
+  const properties = protectedOptionProperties(options, context);
+  return inheritedProtectedAccess(
+    properties.auth === "unset" ? "absent" : properties.auth,
+    properties.policies === "unset" ? "absent" : properties.policies,
+  );
+}
+
+function protectedRegistryCall(
+  symbol: ts.Symbol | undefined,
+  context: WorkspaceAnalysisContext,
+): ts.CallExpression | undefined {
+  if (symbol && (symbol.flags & ts.SymbolFlags.Alias) !== 0)
+    symbol = context.checker.getAliasedSymbol(symbol);
+  const declaration = symbol?.valueDeclaration;
+  if (
+    declaration &&
+    ts.isVariableDeclaration(declaration) &&
+    (!ts.isVariableDeclarationList(declaration.parent) ||
+      (declaration.parent.flags & ts.NodeFlags.Const) === 0)
+  )
+    return undefined;
+  let expression =
+    declaration && (ts.isVariableDeclaration(declaration) || ts.isExportAssignment(declaration))
+      ? ts.isExportAssignment(declaration)
+        ? declaration.expression
+        : declaration.initializer
+      : undefined;
+  const seen = new Set<ts.Node>();
+  for (let depth = 0; expression && depth < 8; depth++) {
+    const value = unwrapStaticExpression(expression);
+    if (seen.has(value)) return undefined;
+    seen.add(value);
+    if (ts.isCallExpression(value))
+      return cancellationImportName(
+        value.expression,
+        context.checker,
+        /^@askrjs\/askr\/router$/,
+      ) === "createRouteRegistry"
+        ? value
+        : undefined;
+    expression = cancellationConstInitializer(value, context.checker);
+  }
+  return undefined;
+}
+
+function protectedDefinition(
+  expression: ts.Expression | undefined,
+  context: WorkspaceAnalysisContext,
+): ts.SignatureDeclaration | undefined {
+  const seen = new Set<ts.Node>();
+  for (let depth = 0; expression && depth < 8; depth++) {
+    const value = unwrapStaticExpression(expression);
+    if (seen.has(value)) return undefined;
+    seen.add(value);
+    if (ts.isArrowFunction(value) || ts.isFunctionExpression(value)) {
+      return (ts.isFunctionExpression(value) && value.asteriskToken) ||
+        value.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword)
+        ? undefined
+        : value;
+    }
+    if (!ts.isIdentifier(value)) return undefined;
+    let symbol = context.checker.getSymbolAtLocation(value);
+    if (symbol && (symbol.flags & ts.SymbolFlags.Alias) !== 0)
+      symbol = context.checker.getAliasedSymbol(symbol);
+    const declaration = symbol?.valueDeclaration;
+    if (declaration && ts.isFunctionDeclaration(declaration)) {
+      return declaration.asteriskToken ||
+        declaration.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword)
+        ? undefined
+        : declaration;
+    }
+    expression =
+      declaration &&
+      ts.isVariableDeclaration(declaration) &&
+      ts.isVariableDeclarationList(declaration.parent) &&
+      (declaration.parent.flags & ts.NodeFlags.Const) !== 0
+        ? declaration.initializer
+        : undefined;
+  }
+  return undefined;
+}
+
+type ProtectedRegistryDefinition = {
+  readonly identity: { readonly file: string; readonly export: string };
+  readonly definition: ts.SignatureDeclaration;
+};
+const PROTECTED_REGISTRY_DEFINITIONS = new WeakMap<
+  WorkspaceAnalysisContext,
+  readonly ProtectedRegistryDefinition[]
+>();
+
+function protectedRegistryDefinitions(
+  context: WorkspaceAnalysisContext,
+): readonly ProtectedRegistryDefinition[] {
+  const cached = PROTECTED_REGISTRY_DEFINITIONS.get(context);
+  if (cached) return cached;
+  const definitions: ProtectedRegistryDefinition[] = [];
+  for (const identity of context.configuration.protectedRegistries) {
+    const invalid = () =>
+      new Error(
+        `Invalid askr.analyze.protectedRegistries: ${identity.file}#${identity.export} must resolve to an analyzed canonical createRouteRegistry() with a synchronous local definition.`,
+      );
+    const file = context.sourceFiles.find(
+      (source) => path.resolve(source.fileName) === path.resolve(context.root, identity.file),
+    );
+    if (!file) throw invalid();
+    const module = context.checker.getSymbolAtLocation(file);
+    const exported =
+      module &&
+      context.checker.getExportsOfModule(module).find((symbol) => symbol.name === identity.export);
+    const call = protectedRegistryCall(exported, context);
+    if (!call || !context.sourceFiles.includes(call.getSourceFile())) throw invalid();
+    const definition = protectedDefinition(call.arguments[0], context);
+    if (!definition || !context.sourceFiles.includes(definition.getSourceFile())) throw invalid();
+    definitions.push({ identity, definition });
+  }
+  PROTECTED_REGISTRY_DEFINITIONS.set(context, definitions);
+  return definitions;
+}
+
+export function validateProtectedRegistries(context: WorkspaceAnalysisContext): void {
+  protectedRegistryDefinitions(context);
+}
+
+const routeAccessPolicyRule: AnalyzeRule = {
+  id: "askr/route-access-policy",
+  category: "correctness",
+  severity: "warning",
+  description: "Explicit protected registries require a native access policy on each leaf.",
+  analyze(context) {
+    const diagnostics: AnalyzeDiagnostic[] = [];
+    for (const { identity, definition } of protectedRegistryDefinitions(context)) {
+      const reported = new Set<ts.CallExpression>();
+      walkRouteDefinition(
+        context,
+        definition,
+        { page: null, protectedAccess: "absent" },
+        (leaf, name, scope) => {
+          if (name !== "route" && name !== "index" && name !== "fallback") return;
+          const access = inheritedProtectedAccess(
+            scope.protectedAccess ?? "absent",
+            protectedCallAccess(leaf, name, context),
+          );
+          if (access !== "absent" || reported.has(leaf)) return;
+          reported.add(leaf);
+          diagnostics.push(
+            diagnostic(
+              context,
+              leaf,
+              this,
+              `Protected registry ${identity.file}#${identity.export} has a ${name}() leaf without an explicit native access policy.`,
+              "Add auth or a non-empty policies array on this leaf or an enclosing group/page, or remove this registry from protectedRegistries if it is public.",
+            ),
+          );
+        },
+      );
+    }
+    return diagnostics;
+  },
+};
 
 const asyncComponentRule: AnalyzeRule = {
   id: "askr/no-async-component",
@@ -1324,7 +1635,7 @@ function routeRegistrationAncestor(
   definitions: ReadonlySet<ts.SignatureDeclaration>,
 ): boolean {
   for (let current = node.parent; current; current = current.parent) {
-    if (ts.isFunctionLike(current) && definitions.has(current)) return true;
+    if (ts.isFunctionLike(current)) return definitions.has(current);
   }
   return false;
 }
@@ -1338,27 +1649,160 @@ const routeRegistryRule: AnalyzeRule = {
     const diagnostics: AnalyzeDiagnostic[] = [];
     const routeCalls = new Set(["route", "page", "index", "group", "fallback"]);
     const definitions = new Set<ts.SignatureDeclaration>();
+    const callsByFunction = new Map<ts.SignatureDeclaration, ts.CallExpression[]>();
+    const argumentUses = new Map<
+      ts.SignatureDeclaration,
+      { call: ts.CallExpression; index: number }[]
+    >();
+    const registryCalls: ts.CallExpression[] = [];
     for (const sourceFile of context.sourceFiles) {
       const bindings = sourceBindings(sourceFile);
       visit(sourceFile, (node) => {
-        if (
-          ts.isCallExpression(node) &&
-          canonicalCallName(node.expression, bindings) === "createRouteRegistry"
-        ) {
-          const definition = resolvedFunction(node.arguments[0], context);
-          if (definition) definitions.add(definition);
+        if (!ts.isCallExpression(node)) return;
+        const name = canonicalCallName(node.expression, bindings);
+        if (name === "createRouteRegistry") registryCalls.push(node);
+        // Framework calls cannot be workspace factories. Their registry/group
+        // definitions are handled below; index only workspace callback flow.
+        if (name) return;
+        const called = resolvedFunction(node.expression, context);
+        if (called) {
+          const calls = callsByFunction.get(called) ?? [];
+          calls.push(node);
+          callsByFunction.set(called, calls);
         }
+        node.arguments.forEach((argument, index) => {
+          const callback = resolvedFunction(argument, context);
+          if (!callback) return;
+          const uses = argumentUses.get(callback) ?? [];
+          uses.push({ call: node, index });
+          argumentUses.set(callback, uses);
+        });
       });
     }
+
+    // Resolve only workspace function arguments, with a cycle/depth bound.
+    // Parameter invocation remains distinct from an uninvoked nested callback.
+    const resolveDefinitions = (
+      expression: ts.Expression | undefined,
+      active = new Set<ts.ParameterDeclaration>(),
+    ): ts.SignatureDeclaration[] => {
+      const direct = resolvedFunction(expression, context);
+      if (direct) return [direct];
+      if (!expression || !ts.isIdentifier(expression)) return [];
+      const declaration = context.checker.getSymbolAtLocation(expression)?.valueDeclaration;
+      if (
+        !declaration ||
+        !ts.isParameter(declaration) ||
+        active.has(declaration) ||
+        active.size >= 16
+      )
+        return [];
+      const owner = declaration.parent;
+      if (!ts.isFunctionLike(owner)) return [];
+      const index = owner.parameters.indexOf(declaration);
+      const next = new Set(active).add(declaration);
+      return (callsByFunction.get(owner) ?? []).flatMap((call) =>
+        resolveDefinitions(call.arguments[index], next),
+      );
+    };
+    for (const call of registryCalls)
+      for (const definition of resolveDefinitions(call.arguments[0])) definitions.add(definition);
+
     for (const definition of definitions) {
-      ts.forEachChild(definition, function walk(node) {
+      const body =
+        ts.isArrowFunction(definition) ||
+        ts.isFunctionExpression(definition) ||
+        ts.isFunctionDeclaration(definition)
+          ? definition.body
+          : undefined;
+      if (!body) continue;
+      const bindings = sourceBindings(definition.getSourceFile());
+      const walk = (node: ts.Node): void => {
+        if (node !== body && ts.isFunctionLike(node)) return;
         if (ts.isCallExpression(node)) {
-          const called = resolvedFunction(node.expression, context);
-          if (called) definitions.add(called);
+          for (const called of resolveDefinitions(node.expression))
+            if (!isAsyncFunction(called)) definitions.add(called);
+          const name = canonicalCallName(node.expression, bindings);
+          const callback =
+            name === "group"
+              ? node.arguments[1]
+              : name === "page"
+                ? node.arguments.at(-1)
+                : undefined;
+          for (const called of resolveDefinitions(callback))
+            if (!isAsyncFunction(called)) definitions.add(called);
         }
         ts.forEachChild(node, walk);
-      });
+      };
+      walk(body);
     }
+
+    const unresolvedArgumentFlow = (
+      call: ts.CallExpression,
+      index: number,
+      active = new Set<ts.ParameterDeclaration>(),
+    ): boolean => {
+      const known = canonicalCallName(call.expression, sourceBindings(call.getSourceFile()));
+      const callerName = ts.isPropertyAccessExpression(call.expression)
+        ? call.expression.name.text
+        : ts.isIdentifier(call.expression)
+          ? call.expression.text
+          : "";
+      const local = resolvedFunction(call.expression, context);
+      const body =
+        local &&
+        (ts.isArrowFunction(local) ||
+          ts.isFunctionExpression(local) ||
+          ts.isFunctionDeclaration(local))
+          ? local.body
+          : undefined;
+      if (
+        known ||
+        (!body &&
+          [
+            "setTimeout",
+            "setInterval",
+            "queueMicrotask",
+            "requestAnimationFrame",
+            "addEventListener",
+            "then",
+            "catch",
+            "finally",
+            "on",
+            "once",
+          ].includes(callerName))
+      )
+        return false;
+      const parameter = local?.parameters[index];
+      if (
+        !body ||
+        !parameter ||
+        !ts.isIdentifier(parameter.name) ||
+        active.has(parameter) ||
+        active.size >= 16
+      )
+        return true;
+      const symbol = context.checker.getSymbolAtLocation(parameter.name);
+      const next = new Set(active).add(parameter);
+      let observed = false;
+      let unresolved = false;
+      const walk = (node: ts.Node): void => {
+        if (unresolved) return;
+        if (ts.isIdentifier(node) && context.checker.getSymbolAtLocation(node) === symbol) {
+          const parent = node.parent;
+          if (ts.isCallExpression(parent)) {
+            observed = true;
+            if (parent.expression !== node) {
+              const argumentIndex = parent.arguments.indexOf(node);
+              unresolved = argumentIndex < 0 || unresolvedArgumentFlow(parent, argumentIndex, next);
+            }
+          } else unresolved = true;
+        }
+        ts.forEachChild(node, walk);
+      };
+      walk(body);
+      return unresolved || !observed;
+    };
     for (const sourceFile of context.sourceFiles) {
       const bindings = sourceBindings(sourceFile);
       visit(sourceFile, (node) => {
@@ -1366,8 +1810,11 @@ const routeRegistryRule: AnalyzeRule = {
         const name = canonicalCallName(node.expression, bindings);
         if (name === "createRouteRegistry") {
           const definition = node.arguments[0];
-          const resolved = resolvedFunction(definition, context);
-          if (!resolved) {
+          const resolved = resolveDefinitions(definition);
+          if (
+            !definition ||
+            (resolved.length === 0 && staticallyNonFunction(definition, context.checker))
+          ) {
             diagnostics.push(
               diagnostic(
                 context,
@@ -1377,7 +1824,7 @@ const routeRegistryRule: AnalyzeRule = {
                 "Pass () => { ...route declarations... }.",
               ),
             );
-          } else if (isAsyncFunction(resolved)) {
+          } else if (resolved.some(isAsyncFunction)) {
             diagnostics.push(
               diagnostic(
                 context,
@@ -1391,6 +1838,18 @@ const routeRegistryRule: AnalyzeRule = {
           return;
         }
         if (!name || !routeCalls.has(name) || routeRegistrationAncestor(node, definitions)) return;
+        // Unresolved factory flow is uncertainty, including named callbacks and
+        // local wrappers. Known delayed/render calls still establish violations.
+        let callback: ts.Node | undefined = node.parent;
+        while (callback && !ts.isFunctionLike(callback)) callback = callback.parent;
+        if (
+          callback &&
+          ts.isFunctionLike(callback) &&
+          (argumentUses.get(callback) ?? []).some((use) =>
+            unresolvedArgumentFlow(use.call, use.index),
+          )
+        )
+          return;
         diagnostics.push(
           diagnostic(
             context,
@@ -1605,12 +2064,395 @@ function propertyInitializer(
   return ts.isPropertyAssignment(property) ? property.initializer : property.name;
 }
 
-function loaderForDataCall(name: string, call: ts.CallExpression): ts.Expression | undefined {
+// Cancellation provenance is deliberately local. Import symbols establish the
+// owner; bounded const aliases preserve it without guessing at service calls.
+function cancellationConstInitializer(
+  expression: ts.Expression,
+  checker: ts.TypeChecker,
+): ts.Expression | undefined {
+  if (!ts.isIdentifier(expression)) return undefined;
+  const symbol = ts.isShorthandPropertyAssignment(expression.parent)
+    ? checker.getShorthandAssignmentValueSymbol(expression.parent)
+    : checker.getSymbolAtLocation(expression);
+  const declaration = symbol?.valueDeclaration;
+  return declaration &&
+    ts.isVariableDeclaration(declaration) &&
+    ts.isVariableDeclarationList(declaration.parent) &&
+    (declaration.parent.flags & ts.NodeFlags.Const) !== 0
+    ? declaration.initializer
+    : undefined;
+}
+
+function cancellationLoader(
+  name: string,
+  call: ts.CallExpression,
+  checker: ts.TypeChecker,
+): ts.ArrowFunction | ts.FunctionExpression | ts.FunctionDeclaration | undefined {
   const options = call.arguments[0];
   if (!options || !ts.isObjectLiteralExpression(options)) return undefined;
-  const property =
-    name === "createQuery" ? objectProperty(options, "fetch") : objectProperty(options, "action");
-  return propertyInitializer(property);
+  const key = name === "createQuery" ? "fetch" : "action";
+  let expression: ts.Expression | undefined;
+  for (const property of options.properties) {
+    if (ts.isSpreadAssignment(property)) {
+      expression = undefined;
+      continue;
+    }
+    const propertyName = property.name;
+    const text =
+      propertyName &&
+      (ts.isComputedPropertyName(propertyName)
+        ? literalString(propertyName.expression)
+        : ts.isIdentifier(propertyName) || ts.isStringLiteralLike(propertyName)
+          ? propertyName.text
+          : null);
+    if (text == null) expression = undefined;
+    else if (text === key)
+      expression =
+        ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)
+          ? propertyInitializer(property)
+          : undefined;
+  }
+  const seen = new Set<ts.Node>();
+  for (let depth = 0; expression; depth++) {
+    const candidate = unwrapStaticExpression(expression);
+    if (seen.has(candidate)) return undefined;
+    seen.add(candidate);
+    if (ts.isArrowFunction(candidate) || ts.isFunctionExpression(candidate)) return candidate;
+    if (ts.isIdentifier(candidate)) {
+      const symbol = ts.isShorthandPropertyAssignment(candidate.parent)
+        ? checker.getShorthandAssignmentValueSymbol(candidate.parent)
+        : checker.getSymbolAtLocation(candidate);
+      const declaration = symbol?.valueDeclaration;
+      if (declaration && ts.isFunctionDeclaration(declaration)) return declaration;
+    }
+    if (depth >= 8) return undefined;
+    expression = cancellationConstInitializer(candidate, checker);
+  }
+  return undefined;
+}
+
+function cancellationImportName(
+  expression: ts.Expression,
+  checker: ts.TypeChecker,
+  module: RegExp,
+  seen = new Set<ts.Node>(),
+  depth = 0,
+): string | null {
+  const candidate = unwrapStaticExpression(expression);
+  if (seen.has(candidate)) return null;
+  seen.add(candidate);
+  const binding = ts.isIdentifier(candidate)
+    ? candidate
+    : ts.isPropertyAccessExpression(candidate) && ts.isIdentifier(candidate.expression)
+      ? candidate.expression
+      : null;
+  if (!binding) return null;
+  const declaration = checker
+    .getSymbolAtLocation(binding)
+    ?.declarations?.find((node) => ts.isImportSpecifier(node) || ts.isNamespaceImport(node));
+  if (declaration) {
+    let owner: ts.Node = declaration;
+    while (owner.parent && !ts.isImportDeclaration(owner)) owner = owner.parent;
+    if (
+      ts.isImportDeclaration(owner) &&
+      ts.isStringLiteral(owner.moduleSpecifier) &&
+      module.test(owner.moduleSpecifier.text)
+    ) {
+      if (ts.isImportSpecifier(declaration) && ts.isIdentifier(candidate)) {
+        return declaration.propertyName?.text ?? declaration.name.text;
+      }
+      if (ts.isNamespaceImport(declaration) && ts.isPropertyAccessExpression(candidate)) {
+        return candidate.name.text;
+      }
+    }
+    return null;
+  }
+  const initializer = cancellationConstInitializer(candidate, checker);
+  return initializer && depth < 8
+    ? cancellationImportName(initializer, checker, module, seen, depth + 1)
+    : null;
+}
+
+function cancellationClientKind(
+  expression: ts.Expression,
+  checker: ts.TypeChecker,
+  seen = new Set<ts.Node>(),
+  depth = 0,
+): "client" | "fetch" | null {
+  const candidate = unwrapStaticExpression(expression);
+  if (seen.has(candidate)) return null;
+  seen.add(candidate);
+  if (ts.isCallExpression(candidate)) {
+    const name = cancellationImportName(candidate.expression, checker, /^@askrjs\/fetch$/);
+    return name === "createClient" ? "client" : name === "createFetch" ? "fetch" : null;
+  }
+  const initializer = cancellationConstInitializer(candidate, checker);
+  if (!initializer) return null;
+  const ownsFactory = ts.isCallExpression(unwrapStaticExpression(initializer));
+  return ownsFactory || depth < 8
+    ? cancellationClientKind(initializer, checker, seen, depth + (ownsFactory ? 0 : 1))
+    : null;
+}
+
+function cancellationRequestInput(
+  call: ts.CallExpression,
+  checker: ts.TypeChecker,
+): { readonly name: string; readonly input: ts.Expression | undefined } | null {
+  const target = unwrapStaticExpression(call.expression);
+  if (cancellationClientKind(target, checker) === "fetch") {
+    return { name: `${target.getText()}()`, input: call.arguments[0] };
+  }
+  if (
+    ts.isPropertyAccessExpression(target) &&
+    cancellationClientKind(target.expression, checker) === "client"
+  ) {
+    return { name: `${target.getText()}()`, input: call.arguments[0] };
+  }
+  if (ts.isIdentifier(target) && target.text === "fetch") {
+    const symbol = checker.getSymbolAtLocation(target);
+    const declarations = symbol?.declarations ?? [];
+    // Analysis intentionally omits ambient libraries. An unbound global fetch
+    // retains that contract; any lexical binding must prove the DOM owner.
+    if (
+      !symbol ||
+      declarations.some((declaration) =>
+        /(?:^|[/\\])lib\.dom\.d\.ts$/.test(declaration.getSourceFile().fileName),
+      )
+    ) {
+      return { name: "fetch()", input: call.arguments[1] };
+    }
+  }
+  return null;
+}
+
+type CancellationForwarding = "forwarded" | "missing" | "unknown";
+
+function cancellationSignalProperty(name: ts.PropertyName | ts.BindingName): boolean {
+  return (
+    (ts.isComputedPropertyName(name)
+      ? literalString(name.expression)
+      : ts.isIdentifier(name) || ts.isStringLiteralLike(name)
+        ? name.text
+        : null) === "signal"
+  );
+}
+
+// A const binding does not freeze its object. Only follow an input initializer
+// while all observed uses are canonical request inputs or bounded const aliases.
+function cancellationInputMayChange(
+  identifier: ts.Identifier,
+  checker: ts.TypeChecker,
+  seen = new Set<ts.Symbol>(),
+  depth = 0,
+): boolean {
+  const symbol = checker.getSymbolAtLocation(identifier);
+  const declaration = symbol?.valueDeclaration;
+  if (!symbol || !declaration || !ts.isVariableDeclaration(declaration) || seen.has(symbol))
+    return true;
+  if ((ts.getCombinedModifierFlags(declaration) & ts.ModifierFlags.Export) !== 0) return true;
+  seen.add(symbol);
+  for (const node of sourceFacts(identifier.getSourceFile()).nodes) {
+    if (!ts.isIdentifier(node) || node === declaration.name) continue;
+    if (
+      ts.isExportSpecifier(node.parent) &&
+      checker.getExportSpecifierLocalTargetSymbol(node.parent) === symbol
+    )
+      return true;
+    const owner = ts.isShorthandPropertyAssignment(node.parent)
+      ? checker.getShorthandAssignmentValueSymbol(node.parent)
+      : checker.getSymbolAtLocation(node);
+    if (owner !== symbol) continue;
+    const parent = node.parent;
+    if (ts.isCallExpression(parent) && cancellationRequestInput(parent, checker)?.input === node)
+      continue;
+    if (
+      ts.isVariableDeclaration(parent) &&
+      parent.initializer === node &&
+      ts.isIdentifier(parent.name) &&
+      ts.isVariableDeclarationList(parent.parent) &&
+      (parent.parent.flags & ts.NodeFlags.Const) !== 0 &&
+      depth < 8 &&
+      !cancellationInputMayChange(parent.name, checker, new Set(seen), depth + 1)
+    )
+      continue;
+    return true;
+  }
+  return false;
+}
+
+function isOperationContext(
+  expression: ts.Expression,
+  parameter: ts.ParameterDeclaration,
+  checker: ts.TypeChecker,
+  seen = new Set<ts.Node>(),
+  depth = 0,
+): CancellationForwarding {
+  const candidate = unwrapStaticExpression(expression);
+  if (!ts.isIdentifier(candidate) || seen.has(candidate)) return "unknown";
+  seen.add(candidate);
+  if (
+    ts.isIdentifier(parameter.name) &&
+    checker.getSymbolAtLocation(candidate) === checker.getSymbolAtLocation(parameter.name)
+  )
+    return "forwarded";
+  const initializer = cancellationConstInitializer(candidate, checker);
+  if (!initializer) {
+    const declaration = checker.getSymbolAtLocation(candidate)?.valueDeclaration;
+    if (declaration && ts.isBindingElement(declaration) && declaration.dotDotDotToken)
+      return "unknown";
+    return declaration &&
+      ts.isVariableDeclaration(declaration) &&
+      ts.isVariableDeclarationList(declaration.parent) &&
+      (declaration.parent.flags & ts.NodeFlags.Const) === 0
+      ? "unknown"
+      : "missing";
+  }
+  return depth < 8
+    ? isOperationContext(initializer, parameter, checker, seen, depth + 1)
+    : "unknown";
+}
+
+function isOperationSignal(
+  expression: ts.Expression,
+  parameter: ts.ParameterDeclaration | undefined,
+  checker: ts.TypeChecker,
+  seen = new Set<ts.Node>(),
+  depth = 0,
+): CancellationForwarding {
+  if (!parameter) return "missing";
+  const candidate = unwrapStaticExpression(expression);
+  if (
+    candidate.kind === ts.SyntaxKind.NullKeyword ||
+    (ts.isIdentifier(candidate) &&
+      candidate.text === "undefined" &&
+      !checker.getSymbolAtLocation(candidate)?.declarations?.length)
+  )
+    return "missing";
+  if (seen.has(candidate)) return "unknown";
+  seen.add(candidate);
+  if (ts.isPropertyAccessExpression(candidate) && candidate.name.text === "signal") {
+    return isOperationContext(candidate.expression, parameter, checker, seen, depth);
+  }
+  if (
+    ts.isElementAccessExpression(candidate) &&
+    candidate.argumentExpression &&
+    literalString(candidate.argumentExpression) === "signal"
+  ) {
+    return isOperationContext(candidate.expression, parameter, checker, seen, depth);
+  }
+  if (!ts.isIdentifier(candidate))
+    return isNullishLiteral(candidate) ||
+      ts.isStringLiteralLike(candidate) ||
+      ts.isNumericLiteral(candidate) ||
+      candidate.kind === ts.SyntaxKind.TrueKeyword ||
+      candidate.kind === ts.SyntaxKind.FalseKeyword
+      ? "missing"
+      : "unknown";
+  const symbol = ts.isShorthandPropertyAssignment(candidate.parent)
+    ? checker.getShorthandAssignmentValueSymbol(candidate.parent)
+    : checker.getSymbolAtLocation(candidate);
+  if (!symbol) return "unknown";
+  const declaration = symbol.valueDeclaration;
+  if (
+    declaration &&
+    ts.isBindingElement(declaration) &&
+    !declaration.dotDotDotToken &&
+    ts.isObjectBindingPattern(declaration.parent)
+  ) {
+    const owner = declaration.parent.parent;
+    const signalProperty = cancellationSignalProperty(declaration.propertyName ?? declaration.name);
+    if (
+      signalProperty &&
+      ts.isVariableDeclaration(owner) &&
+      owner.initializer &&
+      ts.isVariableDeclarationList(owner.parent) &&
+      (owner.parent.flags & ts.NodeFlags.Const) !== 0
+    ) {
+      return depth < 8
+        ? isOperationContext(owner.initializer, parameter, checker, seen, depth + 1)
+        : "unknown";
+    }
+  }
+  if (ts.isObjectBindingPattern(parameter.name)) {
+    for (const element of parameter.name.elements) {
+      if (
+        !element.dotDotDotToken &&
+        ts.isIdentifier(element.name) &&
+        cancellationSignalProperty(element.propertyName ?? element.name) &&
+        checker.getSymbolAtLocation(element.name) === symbol
+      )
+        return "forwarded";
+    }
+  }
+  const initializer = cancellationConstInitializer(candidate, checker);
+  if (!initializer)
+    return declaration &&
+      ts.isBindingElement(declaration) &&
+      ts.isObjectBindingPattern(declaration.parent) &&
+      ts.isParameter(declaration.parent.parent)
+      ? "missing"
+      : "unknown";
+  return depth < 8
+    ? isOperationSignal(initializer, parameter, checker, seen, depth + 1)
+    : "unknown";
+}
+
+function cancellationForwarding(
+  input: ts.Expression | undefined,
+  parameter: ts.ParameterDeclaration | undefined,
+  checker: ts.TypeChecker,
+  seen = new Set<ts.Node>(),
+  depth = 0,
+): CancellationForwarding {
+  if (!input) return "missing";
+  const candidate = unwrapStaticExpression(input);
+  if (seen.has(candidate)) return "unknown";
+  seen.add(candidate);
+  const initializer = cancellationConstInitializer(candidate, checker);
+  if (initializer)
+    if (ts.isIdentifier(candidate) && cancellationInputMayChange(candidate, checker))
+      return "unknown";
+  if (initializer)
+    return depth < 8
+      ? cancellationForwarding(initializer, parameter, checker, seen, depth + 1)
+      : "unknown";
+  if (
+    candidate.kind === ts.SyntaxKind.NullKeyword ||
+    (ts.isIdentifier(candidate) &&
+      candidate.text === "undefined" &&
+      !checker.getSymbolAtLocation(candidate)?.declarations?.length)
+  )
+    return "missing";
+  if (!ts.isObjectLiteralExpression(candidate)) return "unknown";
+  let result: CancellationForwarding = "missing";
+  for (const property of candidate.properties) {
+    if (ts.isSpreadAssignment(property)) {
+      result = "unknown";
+      continue;
+    }
+    const name = property.name;
+    if (!name) continue;
+    const text = ts.isComputedPropertyName(name)
+      ? literalString(name.expression)
+      : ts.isIdentifier(name) || ts.isStringLiteralLike(name)
+        ? name.text
+        : null;
+    if (text === null) {
+      result = "unknown";
+      continue;
+    }
+    if (text !== "signal") continue;
+    if (ts.isGetAccessorDeclaration(property) || ts.isSetAccessorDeclaration(property)) {
+      result = "unknown";
+      continue;
+    }
+    const value =
+      ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)
+        ? propertyInitializer(property)
+        : undefined;
+    result = value ? isOperationSignal(value, parameter, checker) : "missing";
+  }
+  return result;
 }
 
 const dataCancellationRule: AnalyzeRule = {
@@ -1621,25 +2463,51 @@ const dataCancellationRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
-      visit(sourceFile, (node) => {
-        if (!ts.isCallExpression(node)) return;
-        const name = canonicalCallName(node.expression, bindings);
-        if (name !== "createQuery" && name !== "createMutation") return;
-        const loader = loaderForDataCall(name, node);
-        if (!loader || (!ts.isArrowFunction(loader) && !ts.isFunctionExpression(loader))) return;
-        const body = functionBodyText(loader);
-        if (!/\bfetch\s*\(/.test(body) || /\bsignal\b/.test(body)) return;
+      for (const { node, name: importedName } of sourceFacts(sourceFile).calls) {
+        if (importedName !== "createQuery" && importedName !== "createMutation") continue;
+        const name = cancellationImportName(
+          node.expression,
+          context.checker,
+          /^@askrjs\/askr(?:\/data)?$/,
+        );
+        if (name !== "createQuery" && name !== "createMutation") continue;
+        const loader = cancellationLoader(name, node, context.checker);
+        if (
+          !loader ||
+          (!ts.isArrowFunction(loader) &&
+            !ts.isFunctionExpression(loader) &&
+            !ts.isFunctionDeclaration(loader)) ||
+          !loader.body
+        )
+          continue;
+        const parameter = loader.parameters[name === "createMutation" ? 1 : 0];
+        let missing: { readonly call: ts.CallExpression; readonly name: string } | undefined;
+        const inspect = (child: ts.Node): void => {
+          if (missing || ts.isFunctionLike(child)) return;
+          if (ts.isCallExpression(child)) {
+            const request = cancellationRequestInput(child, context.checker);
+            if (
+              request &&
+              cancellationForwarding(request.input, parameter, context.checker) === "missing"
+            ) {
+              missing = { call: child, name: request.name };
+              return;
+            }
+          }
+          ts.forEachChild(child, inspect);
+        };
+        inspect(loader.body);
+        if (!missing) continue;
         diagnostics.push(
           diagnostic(
             context,
-            loader,
+            missing.call.expression,
             this,
-            `${name}() performs fetch() without forwarding its cancellation signal.`,
-            "Accept the operation context signal and include it in the fetch options.",
+            `${name}() performs ${missing.name} without forwarding its own cancellation signal.`,
+            "Pass the operation context's signal in this request input or fetch options.",
           ),
         );
-      });
+      }
     }
     return diagnostics;
   },
@@ -2860,7 +3728,7 @@ const exhaustiveDependenciesRule: AnalyzeRule = {
       ) {
         continue;
       }
-      const state = collectStateBindings(sourceFile, bindings, context.checker);
+      const state = collectStateBindings(sourceFile, context.checker);
       for (const { node, name } of sourceFacts(sourceFile).calls) {
         if (name !== "resource" && name !== "stream") continue;
         const loader = node.arguments[0];
@@ -2921,7 +3789,7 @@ const forRowClosureCaptureRule: AnalyzeRule = {
     for (const sourceFile of context.sourceFiles) {
       const bindings = sourceBindings(sourceFile);
       if (!sourceFacts(sourceFile).jsx.some((fact) => fact.name === "For")) continue;
-      const state = collectStateBindings(sourceFile, bindings, context.checker);
+      const state = collectStateBindings(sourceFile, context.checker);
       const snapshots = new Set<ts.Symbol>();
       visit(sourceFile, (candidate) => {
         if (
@@ -2968,7 +3836,7 @@ const forRowClosureCaptureRule: AnalyzeRule = {
             ) {
               captured.add(candidate.expression.text);
             }
-            if (ts.isIdentifier(candidate)) {
+            if (snapshots.size > 0 && ts.isIdentifier(candidate)) {
               const symbol = context.checker.getSymbolAtLocation(candidate);
               if (
                 symbol &&
@@ -3753,9 +4621,7 @@ const hardcodedThemeTokenRule: AnalyzeRule = {
     const color = /(?:#[0-9a-f]{3,8}\b|\brgba?\s*\(|\bhsla?\s*\()/i;
     for (const sourceFile of context.sourceFiles) {
       const checkColors =
-        !mayHardcodeColors &&
-        !/(?:^|[./_-])(?:test|spec)\.[cm]?[jt]sx?$/.test(sourceFile.fileName) &&
-        color.test(sourceFile.text);
+        !mayHardcodeColors && !isTestSourcePath(sourceFile.fileName) && color.test(sourceFile.text);
       const checkTokens = !ownsThemeTokens && sourceFile.text.includes("--ak-");
       if (!checkColors && !checkTokens) continue;
       visit(sourceFile, (node) => {
@@ -3796,9 +4662,8 @@ const noEffectDataLoadingRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
       if (!sourceFacts(sourceFile).calls.some((fact) => fact.name === "task")) continue;
-      const state = collectStateBindings(sourceFile, bindings, context.checker);
+      const state = collectStateBindings(sourceFile, context.checker);
       for (const { node, name } of sourceFacts(sourceFile).calls) {
         if (name !== "task") continue;
         const callback = node.arguments[0];
@@ -3926,6 +4791,7 @@ export const ANALYZE_RULES: readonly AnalyzeRule[] = [
   routeRegistryRule,
   routePathRule,
   routeScopeStructureRule,
+  routeAccessPolicyRule,
   dataCancellationRule,
   bootRegistryRule,
   islandContractRule,

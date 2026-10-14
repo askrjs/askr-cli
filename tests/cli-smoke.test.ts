@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { expect, test, vi } from "vitest";
+import { expect, test, vi } from "vite-plus/test";
 import { runAddCli } from "../src/bin/add";
 import { runCli } from "../src/bin/cli";
 import { runCreateCli } from "../src/bin/create";
@@ -147,7 +147,7 @@ test("should ensure package surface ships project templates for installed create
     await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),
   ) as { files: string[] };
 
-  expect(manifest.files).toEqual(["dist"]);
+  expect(manifest.files).toEqual(["dist", "CHANGELOG.md", "docs/0.5.0-api.md"]);
 
   for (const template of ["full-stack", "spa", "ssr", "ssg", "startkit"]) {
     const templateRoot = new URL(`../templates/${template}/`, import.meta.url);
@@ -416,7 +416,7 @@ test("should ensure runCreateCli scaffolds SPA with the route-first themed app s
     expect(appLayoutFile).toMatch(/Sidebar/);
     expect(appLayoutFile).toMatch(/ThemeToggle/);
     expect(appLayoutFile).toMatch(/appNavItems/);
-    expect(packageJson).toMatch(/"@askrjs\/charts": ">=0\.4\.0 <0\.5\.0"/);
+    expect(packageJson).toMatch(/"@askrjs\/charts": ">=0\.5\.0 <0\.6\.0"/);
     expect(routesFile).toMatch(/registerPublicRoutes/);
     expect(routesFile).toMatch(/registerAuthRoutes/);
     expect(routesFile).toMatch(/registerAppRoutes/);
@@ -487,7 +487,7 @@ test("should ensure runCreateCli scaffolds SSG with shared route registration an
     expect(packageJson).toMatch(
       /"generate": "askr ssg --config \.\/ssg\.config\.ts --output \.\/dist"/,
     );
-    expect(packageJson).toMatch(/"@askrjs\/cli": ">=0\.4\.0 <0\.5\.0"/);
+    expect(packageJson).toMatch(/"@askrjs\/cli": ">=0\.5\.0 <0\.6\.0"/);
     expect(packageJson).toMatch(/"test": "vp test run -c \.\/vitest\.config\.ts"/);
     expect(packageJson).toMatch(/"fmt": "vp fmt \."/);
     expect(mainFile).toMatch(/registry:\s*pageRegistry/);
@@ -650,10 +650,10 @@ test("should ensure runCreateCli scaffolds a function-first full-stack project",
     expect(packageJson).toMatch(/"@askrjs\/schema"/);
     expect(packageJson).toMatch(/"@askrjs\/i18n"/);
     expect(packageJson).toMatch(/"@askrjs\/otel"/);
-    expect(packageManifest.dependencies["@askrjs/askr"]).toBe(">=0.4.0 <0.5.0");
-    expect(packageManifest.dependencies["@askrjs/themes"]).toBe(">=0.4.0 <0.5.0");
-    expect(packageManifest.dependencies["@askrjs/ui"]).toBe(">=0.4.0 <0.5.0");
-    expect(packageManifest.devDependencies["@askrjs/vite"]).toBe(">=0.4.0 <0.5.0");
+    expect(packageManifest.dependencies["@askrjs/askr"]).toBe(">=0.5.0 <0.6.0");
+    expect(packageManifest.dependencies["@askrjs/themes"]).toBe(">=0.5.0 <0.6.0");
+    expect(packageManifest.dependencies["@askrjs/ui"]).toBe(">=0.5.0 <0.6.0");
+    expect(packageManifest.devDependencies["@askrjs/vite"]).toBe(">=0.5.0 <0.6.0");
     expect(indexHtml.match(/<!--askr-app-->/g)).toHaveLength(1);
     expect(indexHtml.match(/<!--askr-head-->/g)).toHaveLength(1);
     expect(gitignore).toContain("node_modules");
@@ -680,21 +680,21 @@ test("should ensure runCreateCli scaffolds a function-first full-stack project",
   }
 });
 
-test("should ensure templates require the 0.4 platform floor", async () => {
+test("should ensure templates require the 0.5 platform floor", async () => {
   for (const template of ["full-stack", "spa", "ssr", "ssg", "startkit"]) {
     const manifest = JSON.parse(
       await fs.readFile(new URL(`../templates/${template}/package.json`, import.meta.url), "utf8"),
     ) as { dependencies: Record<string, string> };
 
-    expect(manifest.dependencies["@askrjs/askr"], template).toBe(">=0.4.0 <0.5.0");
+    expect(manifest.dependencies["@askrjs/askr"], template).toBe(">=0.5.0 <0.6.0");
     if (manifest.dependencies["@askrjs/themes"]) {
-      expect(manifest.dependencies["@askrjs/themes"], template).toBe(">=0.4.0 <0.5.0");
+      expect(manifest.dependencies["@askrjs/themes"], template).toBe(">=0.5.0 <0.6.0");
     }
     if (manifest.dependencies["@askrjs/ui"]) {
-      expect(manifest.dependencies["@askrjs/ui"], template).toBe(">=0.4.0 <0.5.0");
+      expect(manifest.dependencies["@askrjs/ui"], template).toBe(">=0.5.0 <0.6.0");
     }
     if (manifest.dependencies["@askrjs/auth"]) {
-      expect(manifest.dependencies["@askrjs/auth"], template).toBe(">=0.4.0 <0.5.0");
+      expect(manifest.dependencies["@askrjs/auth"], template).toBe(">=0.5.0 <0.6.0");
     }
   }
 });
@@ -834,7 +834,7 @@ test("should ensure runAddCli transactionally scaffolds both database dialects",
       };
       expect(definition).toContain(`from '@askrjs/orm/${dialect}'`);
       expect(definition).toContain(`driver: ${dialect}()`);
-      expect(manifest.dependencies["@askrjs/orm"]).toBe(">=0.4.0 <0.5.0");
+      expect(manifest.dependencies["@askrjs/orm"]).toBe(">=0.5.0 <0.6.0");
       expect(manifest.dependencies.pg).toBe(dialect === "postgres" ? "^8.16.0" : undefined);
       await expect(
         fs.access(path.join(tempRoot, "src", "database", "migrations", ".gitkeep")),
@@ -861,7 +861,7 @@ test("should ensure concurrent database generators report one complete winner", 
     expect(definition.includes("sqlite()") || definition.includes("postgres()")).toBe(true);
     expect(
       JSON.parse(await fs.readFile(path.join(tempRoot, "package.json"), "utf8")).dependencies,
-    ).toHaveProperty("@askrjs/orm", ">=0.4.0 <0.5.0");
+    ).toHaveProperty("@askrjs/orm", ">=0.5.0 <0.6.0");
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
@@ -2643,6 +2643,160 @@ test("should ensure concurrent skill syncs publish complete trees", async () => 
       (await fs.readdir(path.join(tempRoot, "skills"))).filter((name) => name.startsWith("askr-")),
     ).toHaveLength(26);
   } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("should ensure many concurrent skill syncs all succeed and preserve unrelated skills", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-stress-"));
+  try {
+    const skillsRoot = path.join(tempRoot, "skills");
+    await fs.mkdir(path.join(skillsRoot, "custom-skill"), { recursive: true });
+    await fs.writeFile(path.join(skillsRoot, "custom-skill", "SKILL.md"), "custom", "utf8");
+
+    // Syncs serialize on the target lock (~0.5s each on Windows CI), so keep the
+    // count modest and the timeout explicit.
+    const runs = Array.from({ length: 6 }, () => createIo());
+    const results = await Promise.all(
+      runs.map(({ io }) => runSkillsCli(["sync", "--cwd", tempRoot], io)),
+    );
+
+    expect(runs.flatMap(({ errors }) => errors)).toEqual([]);
+    expect(results).toEqual(runs.map(() => 0));
+    await expect(
+      fs.readFile(path.join(skillsRoot, "custom-skill", "SKILL.md"), "utf8"),
+    ).resolves.toBe("custom");
+    const entries = await fs.readdir(tempRoot);
+    expect(entries).toEqual(["skills"]);
+    expect((await fs.readdir(skillsRoot)).filter((name) => name.startsWith("askr-"))).toHaveLength(
+      26,
+    );
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+}, 20_000);
+
+test("should ensure concurrent skill installs admit exactly one into an empty target", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-install-race-"));
+  try {
+    const runs = [createIo(), createIo()];
+    const results = await Promise.all(
+      runs.map(({ io }) => runSkillsCli(["install", "--cwd", tempRoot], io)),
+    );
+
+    expect([...results].sort()).toEqual([0, 1]);
+    expect(runs.flatMap(({ errors }) => errors).join("\n")).toMatch(
+      /Refusing to install into non-empty/,
+    );
+    expect(
+      (await fs.readdir(path.join(tempRoot, "skills"))).filter((name) => name.startsWith("askr-")),
+    ).toHaveLength(26);
+    expect(await fs.readdir(tempRoot)).toEqual(["skills"]);
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("should ensure skill sync never swaps the live tree while another sync is copying it", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-handles-"));
+  const skillsRoot = path.join(tempRoot, "skills");
+  const lockPath = `${skillsRoot}.askr-lock`;
+  await fs.mkdir(path.join(skillsRoot, "custom-skill"), { recursive: true });
+  await fs.writeFile(path.join(skillsRoot, "custom-skill", "SKILL.md"), "custom", "utf8");
+
+  // Emulate Windows: a directory with open handles beneath it cannot be renamed.
+  let copiesInFlight = 0;
+  let swapsDuringCopy = 0;
+  let gated = false;
+  let releaseGate!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    releaseGate = resolve;
+  });
+  const originalCp = fs.cp.bind(fs);
+  const originalRename = fs.rename.bind(fs);
+  const cp = vi.spyOn(fs, "cp").mockImplementation((async (...args: Parameters<typeof fs.cp>) => {
+    if (path.resolve(String(args[0])) !== skillsRoot) return originalCp(...args);
+    copiesInFlight += 1;
+    try {
+      if (!gated) {
+        gated = true;
+        await gate;
+      }
+      return await originalCp(...args);
+    } finally {
+      copiesInFlight -= 1;
+    }
+  }) as typeof fs.cp);
+  const rename = vi.spyOn(fs, "rename").mockImplementation((async (
+    ...args: Parameters<typeof fs.rename>
+  ) => {
+    if (path.resolve(String(args[0])) === skillsRoot && copiesInFlight > 0) {
+      swapsDuringCopy += 1;
+      releaseGate();
+      throw Object.assign(new Error(`EPERM: operation not permitted, rename '${args[0]}'`), {
+        code: "EPERM",
+      });
+    }
+    try {
+      return await originalRename(...args);
+    } catch (error) {
+      // A second sync waiting on the lock lets the first one finish its copy.
+      if (path.resolve(String(args[1])) === lockPath) releaseGate();
+      throw error;
+    }
+  }) as typeof fs.rename);
+
+  try {
+    const results = await Promise.all([
+      runSkillsCli(["sync", "--cwd", tempRoot], createIo().io),
+      runSkillsCli(["sync", "--cwd", tempRoot], createIo().io),
+    ]);
+
+    expect(swapsDuringCopy).toBe(0);
+    expect(results).toEqual([0, 0]);
+    await expect(
+      fs.readFile(path.join(skillsRoot, "custom-skill", "SKILL.md"), "utf8"),
+    ).resolves.toBe("custom");
+  } finally {
+    cp.mockRestore();
+    rename.mockRestore();
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("should ensure skill sync retries a transient Windows EPERM when replacing the tree", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-skills-eperm-"));
+  const skillsRoot = path.join(tempRoot, "skills");
+  await fs.mkdir(path.join(skillsRoot, "custom-skill"), { recursive: true });
+  await fs.writeFile(path.join(skillsRoot, "custom-skill", "SKILL.md"), "custom", "utf8");
+  const originalRename = fs.rename.bind(fs);
+  let failures = 0;
+  const rename = vi.spyOn(fs, "rename").mockImplementation((async (
+    ...args: Parameters<typeof fs.rename>
+  ) => {
+    if (failures === 0 && path.resolve(String(args[0])) === skillsRoot) {
+      failures += 1;
+      throw Object.assign(new Error(`EPERM: operation not permitted, rename '${args[0]}'`), {
+        code: "EPERM",
+      });
+    }
+    return originalRename(...args);
+  }) as typeof fs.rename);
+  const { io, errors } = createIo();
+
+  try {
+    expect(await runSkillsCli(["sync", "--cwd", tempRoot], io)).toBe(0);
+    expect(errors).toEqual([]);
+    expect(failures).toBe(1);
+    await expect(
+      fs.access(path.join(skillsRoot, "askr-app-builder", "SKILL.md")),
+    ).resolves.toBeUndefined();
+    await expect(
+      fs.readFile(path.join(skillsRoot, "custom-skill", "SKILL.md"), "utf8"),
+    ).resolves.toBe("custom");
+    expect(await fs.readdir(tempRoot)).toEqual(["skills"]);
+  } finally {
+    rename.mockRestore();
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
 });

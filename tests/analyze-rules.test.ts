@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vite-plus/test";
 import { createWorkspaceAnalysisContext, readAnalyzeConfiguration } from "../src/analyze/project";
 import { runAnalysis } from "../src/analyze/runner";
 import { discoverWorkspaceProject } from "../src/update/discovery";
@@ -55,6 +55,433 @@ afterEach(async () => {
 });
 
 describe("analyzer rules", () => {
+  it.each([
+    ["exported declaration", "export const request = {};"],
+    ["shorthand export", "const request = {}; export { request };"],
+    ["renamed export", "const request = {}; export { request as shared };"],
+  ])("should treat %s of a request object as an escape", async (_name, declaration) => {
+    const root = await fixture({
+      "src/records.ts": `
+        import { createQuery } from "@askrjs/askr/data";
+        import { createClient } from "@askrjs/fetch";
+        declare const api: any;
+        const client = createClient(api);
+        ${declaration}
+        export function Records() { return createQuery({ key: "records", fetch: () => client.records(request) }); }
+      `,
+    });
+    expect(
+      (await diagnostics(root)).filter((entry) => entry.ruleId === "askr/data-cancellation"),
+    ).toEqual([]);
+  });
+
+  it.each([
+    ["late unknown options", "fetch: () => client.records(), ...options", "", 0],
+    ["explicit loader after unknown options", "...options, fetch: () => client.records()", "", 1],
+    [
+      "last explicit loader",
+      "fetch: () => client.records(), fetch: (ctx) => client.records({ signal: ctx.signal })",
+      "",
+      0,
+    ],
+    ["late computed option", "fetch: () => client.records(), [key]: value", "", 0],
+    [
+      "mutable loader",
+      "fetch: loader",
+      "let loader = () => client.records(); loader = (ctx) => client.records({ signal: ctx.signal });",
+      0,
+    ],
+    ["const loader", "fetch: loader", "const loader = () => client.records();", 1],
+  ] as const)(
+    "should honor %s when resolving cancellation loaders",
+    async (_name, options, declarations, expected) => {
+      const root = await fixture({
+        "src/records.ts": `
+        import { createQuery } from "@askrjs/askr/data";
+        import { createClient } from "@askrjs/fetch";
+        declare const api: any, options: any, key: string, value: any;
+        const client = createClient(api);
+        ${declarations}
+        export function Records() { return createQuery({ key: "records", ${options} }); }
+      `,
+      });
+      expect(
+        (await diagnostics(root)).filter((entry) => entry.ruleId === "askr/data-cancellation"),
+      ).toHaveLength(expected);
+    },
+  );
+
+  it.each([8, 9])(
+    "should bound signal, context, request and client aliases at %i const links",
+    async (depth) => {
+      const aliases = (prefix: string, initial: string) =>
+        Array.from(
+          { length: depth },
+          (_, index) =>
+            `const ${prefix}${index + 1} = ${index === 0 ? initial : `${prefix}${index}`};`,
+        ).join("\n");
+      const root = await fixture({
+        "src/records.ts": `
+        import { createQuery } from "@askrjs/askr/data";
+        import { createClient } from "@askrjs/fetch";
+        declare const api: any;
+        const client = createClient(api);
+        ${aliases("c", "client")}
+        export function Records() {
+          createQuery({ key: "client", fetch: () => c${depth}.records() });
+          createQuery({ key: "signal", fetch: (ctx) => { ${aliases("s", "ctx.signal")} return client.records({ signal: s${depth} }); } });
+          createQuery({ key: "context", fetch: (ctx) => { ${aliases("x", "ctx")} return client.records({ signal: x${depth}.signal }); } });
+          createQuery({ key: "input", fetch: (ctx) => { ${aliases("i", "{}")} return client.records(i${depth}); } });
+        }
+      `,
+      });
+      const found = (await diagnostics(root)).filter(
+        (entry) => entry.ruleId === "askr/data-cancellation",
+      );
+      expect(found).toHaveLength(depth === 8 ? 2 : 0);
+      if (depth === 8)
+        expect(found.map((entry) => entry.message)).toEqual([
+          expect.stringContaining("c8.records()"),
+          expect.stringContaining("client.records()"),
+        ]);
+    },
+  );
+
+  it("should skip cyclic const provenance without treating it as missing cancellation", async () => {
+    const root = await fixture({
+      "src/records.ts": `
+        import { createQuery } from "@askrjs/askr/data";
+        import { createClient } from "@askrjs/fetch";
+        declare const api: any;
+        const client = createClient(api);
+        const a = b, b = a;
+        export function Records() {
+          createQuery({ key: "client", fetch: () => a.records() });
+          createQuery({ key: "signal", fetch: (ctx) => client.records({ signal: a }) });
+          createQuery({ key: "context", fetch: (ctx) => client.records({ signal: a.signal }) });
+          createQuery({ key: "input", fetch: (ctx) => client.records(a) });
+        }
+      `,
+    });
+    expect(
+      (await diagnostics(root)).filter((entry) => entry.ruleId === "askr/data-cancellation"),
+    ).toEqual([]);
+  });
+
+  it("should distinguish unbound undefined from dynamic shadowed request input", async () => {
+    const root = await fixture({
+      "src/records.ts": `
+        import { createQuery } from "@askrjs/askr/data";
+        import { createClient } from "@askrjs/fetch";
+        declare const api: any, input: any;
+        const client = createClient(api);
+        export function Records() {
+          createQuery({ key: "global", fetch: () => client.records(undefined) });
+          createQuery({ key: "local", fetch: () => { let undefined = input; return client.records(undefined); } });
+        }
+      `,
+    });
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/data-cancellation",
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]?.line).toBe(7);
+  });
+
+  it.each([
+    ["missing typed input", "() => client.records()", 1],
+    ["query signal", "({ signal }) => client.records({ signal })", 0],
+    ["signal alias", "({ signal: cancellation }) => client.records({ signal: cancellation })", 0],
+    ["context member", "(context) => client.records({ signal: context.signal })", 0],
+    ["rest context parameter", "({ ...context }) => client.records({ signal: context.signal })", 0],
+    [
+      "rest context alias",
+      "(context) => { const { ...copy } = context; return client.records({ signal: copy.signal }); }",
+      0,
+    ],
+    ["computed context member", "(context) => client.records({ signal: context['signal'] })", 0],
+    [
+      "computed destructure",
+      "(context) => { const { ['signal']: own } = context; return client.records({ signal: own }); }",
+      0,
+    ],
+    [
+      "composed signal",
+      "(context) => client.records({ signal: AbortSignal.any([context.signal, foreign.signal]) })",
+      0,
+    ],
+    [
+      "mutable signal",
+      "(context) => { let signal = context.signal; return client.records({ signal }); }",
+      0,
+    ],
+    ["opaque signal", "(context) => client.records({ signal: service(context.signal) })", 0],
+    [
+      "filled request object",
+      "(context) => { const request = {}; request.signal = context.signal; return client.records(request); }",
+      0,
+    ],
+    [
+      "overwritten request object",
+      "(context) => { const request = { signal: context.signal }; request.signal = foreign.signal; return client.records(request); }",
+      0,
+    ],
+    [
+      "escaped request object",
+      "(context) => { const request = {}; service(request, context.signal); return client.records(request); }",
+      0,
+    ],
+    [
+      "mutated request alias",
+      "(context) => { const request = {}; const alias = request; alias.signal = context.signal; return client.records(request); }",
+      0,
+    ],
+    [
+      "local shorthand signal",
+      "(context) => { const signal = context.signal; return client.records({ signal }); }",
+      0,
+    ],
+    [
+      "local signal alias",
+      "(context) => { const own = context.signal; return client.records({ signal: own }); }",
+      0,
+    ],
+    [
+      "local context alias",
+      "(context) => { const own = context; return client.records({ signal: own.signal }); }",
+      0,
+    ],
+    [
+      "local destructure",
+      "(context) => { const { signal: own } = context; return client.records({ signal: own }); }",
+      0,
+    ],
+    [
+      "foreign same spelling",
+      "(context) => { const signal = foreign.signal; return client.records({ signal }); }",
+      1,
+    ],
+    ["wrong binding", "({ signal }) => client.records({ signal: foreign.signal })", 1],
+    ["comment exemption", "() => { /* signal */ return client.records(); }", 1],
+    ["two requests", "({ signal }) => { client.records({ signal }); return client.records(); }", 1],
+    ["unknown spread", "({ signal }) => client.records({ ...input })", 0],
+    [
+      "wrong after spread",
+      "({ signal }) => client.records({ ...input, signal: foreign.signal })",
+      1,
+    ],
+    [
+      "unknown after wrong",
+      "({ signal }) => client.records({ signal: foreign.signal, ...input })",
+      0,
+    ],
+    ["forwarded after spread", "({ signal }) => client.records({ ...input, signal })", 0],
+    ["unknown input", "({ signal }) => client.records(input)", 0],
+    ["uninvoked helper", "({ signal }) => { const later = () => client.records(); return 1; }", 0],
+    [
+      "shadowed client",
+      "({ signal }) => { const client = unknownClient; return client.records(); }",
+      0,
+    ],
+    ["raw own binding", "({ signal: own }) => fetch('/api', { signal: own })", 0],
+    ["raw wrong binding", "({ signal }) => fetch('/api', { signal: foreign.signal })", 1],
+    ["raw comment", "() => { /* signal */ return fetch('/api'); }", 1],
+    ["shadowed raw fetch", "() => { const fetch = service; return fetch('/api'); }", 0],
+    [
+      "local input alias",
+      "({ signal }) => { const request = { signal }; return client.records(request); }",
+      0,
+    ],
+    [
+      "local missing input alias",
+      "({ signal }) => { const request = {}; return client.records(request); }",
+      1,
+    ],
+    ["dynamic getter", "({ signal }) => client.records({ get signal() { return signal; } })", 0],
+  ] as const)("should resolve cancellation for %s", async (_name, loader, expected) => {
+    const root = await fixture({
+      "src/records.ts": `
+        import { createQuery } from "@askrjs/askr/data";
+        import { createClient } from "@askrjs/fetch";
+        declare const api: any, foreign: any, input: any, unknownClient: any, service: any;
+        const client = createClient(api);
+        export function Records() { return createQuery({ key: "records", fetch: ${loader} }); }
+      `,
+    });
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/data-cancellation",
+    );
+    expect(found).toHaveLength(expected);
+    for (const entry of found) {
+      expect(entry.severity).toBe("warning");
+      expect(entry.file).toBe("src/records.ts");
+      expect(entry.message).toContain("cancellation signal");
+    }
+  });
+
+  it("should recognize aliased and namespaced fetch factories, clients and named operation callbacks", async () => {
+    const root = await fixture({
+      "src/records.ts": `
+        import { createQuery as query, createMutation as mutation } from "@askrjs/askr/data";
+        import { createClient as makeClient, createFetch as makeFetch } from "@askrjs/fetch";
+        import * as Typed from "@askrjs/fetch";
+        declare const api: any;
+        const factory = makeClient;
+        const initial = factory(api);
+        const client = initial;
+        const request = makeFetch();
+        const namespaceClient = Typed.createClient(api);
+        const namespaceFetch = Typed.createFetch();
+        function missing() { return client.records(); }
+        function forwarded(context: any) { return namespaceClient.records({ signal: context.signal }); }
+        export function Records() {
+          query({ key: "one", fetch: missing });
+          query({ key: "two", fetch: forwarded });
+          query({ key: "three", fetch: () => request({ url: "/api" }) });
+          query({ key: "four", fetch: ({ signal }) => namespaceFetch({ url: "/api", signal }) });
+          mutation({ action: (input, { signal: own }) => client.records({ ...input, signal: own }) });
+          mutation({ action: ({ signal }, context) => client.records({ signal }) });
+        }
+      `,
+    });
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/data-cancellation",
+    );
+    expect(found).toHaveLength(3);
+    expect(found.map((entry) => entry.message)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("client.records()"),
+        expect.stringContaining("request()"),
+      ]),
+    );
+  });
+
+  it("should skip unresolved clients, other modules, computed endpoints and shadowed canonical names", async () => {
+    const root = await fixture({
+      "src/records.ts": `
+        import { createQuery } from "@askrjs/askr/data";
+        import { createClient } from "@askrjs/fetch";
+        import { createClient as otherClient } from "another-library";
+        import { service } from "./service";
+        declare const api: any, endpoint: string, imported: any;
+        const unknown = imported;
+        const other = otherClient(api);
+        const client = createClient(api);
+        export function Records() {
+          createQuery({ key: "one", fetch: () => unknown.records() });
+          createQuery({ key: "two", fetch: () => other.records() });
+          createQuery({ key: "three", fetch: () => client[endpoint]() });
+          createQuery({ key: "four", fetch: () => service() });
+          const createClient = (value: any) => value;
+          const local = createClient(api);
+          createQuery({ key: "five", fetch: () => local.records() });
+          function nested(createQuery: any) { createQuery({ key: "six", fetch: () => client.records() }); }
+        }
+      `,
+      "src/service.ts": "export function service() { return 1; }",
+    });
+    expect(
+      (await diagnostics(root)).filter((entry) => entry.ruleId === "askr/data-cancellation"),
+    ).toEqual([]);
+  });
+
+  it("preserves nested reads and setter calls and refreshes facts after a source rewrite", async () => {
+    const root = await fixture({
+      "src/page.tsx": [
+        'import { state as cell } from "@askrjs/askr";',
+        "export function Page() {",
+        "  const [count, setCount] = cell(0);",
+        "  function nested() { return count; }",
+        "  return <button onClick={() => setCount()}>{count}</button>;",
+        "}",
+      ].join("\n"),
+    });
+    const first = (await diagnostics(root)).filter((entry) => entry.ruleId === "askr/state-access");
+    expect(first.map(({ line, message }) => ({ line, message }))).toEqual([
+      { line: 4, message: "State getter 'count' is used as a value instead of being called." },
+      { line: 5, message: "State setter 'setCount' is called without a value or updater." },
+      { line: 5, message: "State getter 'count' is used as a value instead of being called." },
+    ]);
+
+    await fs.writeFile(
+      path.join(root, "src/page.tsx"),
+      [
+        'import * as Askr from "@askrjs/askr";',
+        "export function Page() {",
+        "  const [value, update] = Askr.state(0);",
+        "  return <button onClick={() => update(1)}>{value()}</button>;",
+        "}",
+      ].join("\n"),
+    );
+    const second = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/state-access",
+    );
+    expect(second).toEqual([]);
+    expect(first).toHaveLength(3);
+  });
+
+  it("preserves unused exclusion patterns behind a prior match", async () => {
+    const root = await fixture(
+      { "src/page.ts": `export const token = "--ak-color-text";` },
+      {
+        manifest: { name: "fixture", askr: { analyze: { exclude: ["**", "x".repeat(65537)] } } },
+      },
+    );
+    expect(await diagnostics(root)).toEqual([]);
+  });
+
+  it("preserves direct state declarations while excluding calls nested in other initializers", async () => {
+    const root = await fixture({
+      "src/page.ts": `
+        import { state as cell } from "@askrjs/askr";
+        import * as Askr from "@askrjs/askr";
+        function wrap<T>(value: T): T { return value; }
+        export function Page() {
+          const [count] = cell(0);
+          const value = Askr.state(1);
+          const [wrapped] = wrap(cell(2));
+          return [count, value, wrapped];
+        }
+      `,
+    });
+    const found = (await diagnostics(root)).filter((entry) => entry.ruleId === "askr/state-access");
+    expect(found).toHaveLength(2);
+    expect(found.every((entry) => entry.file === "src/page.ts")).toBe(true);
+  });
+
+  it("applies brace dot and single-character exclusions to configured and discovered sources", async () => {
+    const source = `export const token = "--ak-color-text";`;
+    const root = await fixture(
+      {
+        "src/visible.ts": source,
+        "src/vendor/dropped.ts": source,
+        "src/.cache/dropped.ts": source,
+        "extra/visible.ts": source,
+        "extra/skip-a.ts": source,
+        "extra/skip-long.ts": source,
+      },
+      {
+        manifest: {
+          name: "fixture",
+          askr: { analyze: { exclude: ["**/{vendor,.cache}/**", "**/skip-?.[tj]s", "# comment"] } },
+        },
+        tsconfig: {
+          compilerOptions: { module: "ESNext", moduleResolution: "Bundler", target: "ES2022" },
+          include: ["src"],
+          files: ["extra/skip-a.ts", "extra/skip-long.ts"],
+        },
+      },
+    );
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/no-hardcoded-theme-token",
+    );
+    expect(found.map((entry) => entry.file).sort()).toEqual([
+      "extra/skip-long.ts",
+      "extra/visible.ts",
+      "src/visible.ts",
+    ]);
+  });
+
   it("should recognize canonical aliased and namespace imports without matching unrelated functions", async () => {
     const root = await fixture({
       "src/page.tsx": `
@@ -353,6 +780,106 @@ describe("analyzer rules", () => {
     expect(found.filter((entry) => entry.ruleId === "askr/control-contract")).toHaveLength(3);
     expect(found.filter((entry) => entry.ruleId === "askr/data-cancellation")).toHaveLength(2);
     expect(found.filter((entry) => entry.ruleId === "askr/no-async-component")).toHaveLength(1);
+  });
+
+  it("should follow synchronous registry factory parameters across modules", async () => {
+    const root = await fixture({
+      "src/factory.ts": `
+        import { createRouteRegistry, group } from "@askrjs/askr/router";
+        export function withLayout(define: () => void) {
+          return createRouteRegistry(() => group({}, () => define()));
+        }
+        export function directRegistry(define: () => void) {
+          return createRouteRegistry(define);
+        }
+        export function forwardedRegistry(define: () => void) {
+          return directRegistry(define);
+        }
+      `,
+      "src/routes.ts": `
+        import { createRouteRegistry, route } from "@askrjs/askr/router";
+        import { withLayout, directRegistry, forwardedRegistry } from "./factory";
+        withLayout(() => route("/wrapped", () => null));
+        const define = () => route("/named", () => null);
+        directRegistry(define);
+        forwardedRegistry(() => route("/forwarded", () => null));
+        function recursiveSection() { if (false) recursiveSection(); route("/recursive", () => null); }
+        createRouteRegistry(() => recursiveSection());
+      `,
+    });
+    expect(
+      (await diagnostics(root)).filter((entry) => entry.ruleId === "askr/route-registry"),
+    ).toEqual([]);
+  });
+
+  it("should resolve workspace factory imports through a symlinked project root", async () => {
+    const root = await fixture({
+      "src/factory.ts": `
+        import { createRouteRegistry } from "@askrjs/askr/router";
+        export function registry(define: () => void) { return createRouteRegistry(define); }
+      `,
+      "src/routes.ts": `
+        import { route } from "@askrjs/askr/router";
+        import { registry } from "./factory";
+        registry(() => route("/", () => null));
+      `,
+    });
+    const aliases = await fixture({});
+    const alias = path.join(aliases, "linked-project");
+    await fs.symlink(root, alias, "junction");
+    expect(
+      (await diagnostics(alias)).filter((entry) => entry.ruleId === "askr/route-registry"),
+    ).toEqual([]);
+  });
+
+  it("should avoid definite registry errors for unresolved callable definitions and factories", async () => {
+    const root = await fixture({
+      "src/routes.ts": `
+        import { createRouteRegistry, route } from "@askrjs/askr/router";
+        import { externalRegistry } from "external-package";
+        declare const dynamicRegistry: (define: () => void) => unknown;
+        declare const definition: () => void;
+        const namedDefinition = () => route("/named-external", () => null);
+        function localWrapper(define: () => void) { return externalRegistry(define); }
+        function on(define: () => void) { return externalRegistry(define); }
+        createRouteRegistry(definition);
+        externalRegistry(() => route("/external", () => null));
+        externalRegistry(namedDefinition);
+        localWrapper(() => route("/wrapped-external", () => null));
+        on(() => route("/custom-on", () => null));
+        dynamicRegistry(() => route("/dynamic", () => null));
+      `,
+    });
+    expect(
+      (await diagnostics(root)).filter((entry) => entry.ruleId === "askr/route-registry"),
+    ).toEqual([]);
+  });
+
+  it("should keep module-scope, deferred factory, timer and event registrations invalid", async () => {
+    const root = await fixture({
+      "src/routes.ts": `
+        import { createRouteRegistry, route } from "@askrjs/askr/router";
+        route("/outside", () => null);
+        createRouteRegistry(() => {
+          setTimeout(() => route("/timer", () => null), 0);
+          document.addEventListener("click", () => route("/event", () => null));
+          const neverCalled = () => route("/uninvoked", () => null);
+        });
+        function deferredRegistry(define: () => void) {
+          return createRouteRegistry(() => setTimeout(() => define(), 0));
+        }
+        deferredRegistry(() => route("/deferred", () => null));
+        createRouteRegistry(async () => {
+          await Promise.resolve();
+          route("/after-await", () => null);
+        });
+      `,
+    });
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/route-registry",
+    );
+    expect(found.filter((entry) => /outside/.test(entry.message))).toHaveLength(5);
+    expect(found.filter((entry) => /async definition/.test(entry.message))).toHaveLength(1);
   });
 
   it("should enforce the complete runtime route-path contract", async () => {
@@ -752,6 +1279,58 @@ describe("analyzer rules", () => {
     expect(found.map((entry) => entry.file)).toEqual(
       expect.arrayContaining(["src/theme.tsx", "src/extra.js"]),
     );
+  });
+
+  it("should exempt test color fixtures without exempting production paths or other rules", async () => {
+    const exempt = [
+      "src/palette.test.ts",
+      "src/palette.tests.tsx",
+      "src/palette.spec.jsx",
+      "src/palette.tests.mts",
+      "src/palette.tests.cts",
+      "src/palette.tests.mjs",
+      "src/palette.tests.cjs",
+      "src/tests/palette.ts",
+      "src/test/palette.js",
+      "src/__tests__/nested/palette.ts",
+      "src/fixtures\\tests\\palette.ts",
+    ];
+    const production = [
+      "src/contest.ts",
+      "src/testimonials/palette.ts",
+      "src/tests-utils/palette.ts",
+      "src/palette.tests-helper.ts",
+      "src/palette.test.config.ts",
+    ];
+    const root = await fixture({
+      ...Object.fromEntries(
+        [...exempt, ...production].map((file) => [file, 'export const color = "#5c2d91";']),
+      ),
+      "src/tests/tokens.ts": 'export const token = "--ak-color-text";',
+      "src/tests/cancellation.ts": `
+        import { createQuery } from "@askrjs/askr/data";
+        export function Page() {
+          createQuery({ key: "private", fetch: () => fetch("/private") });
+          return null;
+        }
+      `,
+    });
+    const report = await runAnalysis({ cwd: root, workspacePatterns: [], check: true });
+    const found = report.diagnostics.filter(
+      (entry) => entry.ruleId === "askr/no-hardcoded-theme-token",
+    );
+    expect(found.map((entry) => entry.file).sort()).toEqual(
+      [...production, "src/tests/tokens.ts"].sort(),
+    );
+    expect(found.every((entry) => entry.severity === "warning")).toBe(true);
+    expect(
+      report.diagnostics.some(
+        (entry) =>
+          entry.ruleId === "askr/data-cancellation" && entry.file === "src/tests/cancellation.ts",
+      ),
+    ).toBe(true);
+    expect(report.schemaVersion).toBe(1);
+    expect(report.appliedFixes).toEqual([]);
   });
 
   it("should ignore comments and nonliteral token flow", async () => {

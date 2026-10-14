@@ -17,6 +17,18 @@ parser before publication. Output reporting and configured budgets inspect the
 complete staged result, so a failed integrity check leaves the previous live
 directory unchanged.
 
+Before replacing existing output, the CLI writes a sibling
+`.<output-name>.askr-publication.json` record identifying the original backup and
+staged directory. The next locked operation recovers an interrupted publication
+before copying or replacing output: restore the original if the live directory
+is missing, or remove its backup after verifying the completed stage's filesystem
+identity. Failed backup cleanup leaves the record for the next operation. A file
+or symbolic-link destination, invalid record, or conflicting live directory stops
+the operation; inspect the named record and retained original backup before
+retrying. Caller-owned abandoned stages are retained after abrupt termination.
+This covers tested process termination at the rename checkpoints, not power-loss
+durability or uncooperative concurrent filesystem changes.
+
 ## Sitemap ownership
 
 Unless `sitemap: false` is explicit, config must provide an absolute HTTP(S)
@@ -115,3 +127,18 @@ exempts that exact route. Hydration shares use ratios from `0` through `1`.
 Asset limits are exact emitted paths. A failure lists every violating
 route/asset, measurement, limit, and a remediation before the staged directory
 is discarded.
+
+## Type the output-report configuration
+
+```ts
+import type { SsgOutputReportConfig } from "@askrjs/cli/ssg";
+
+const outputReport = {
+  budgets: { routes: { raw: 65536, gzip: 16384 } },
+  largestPages: 10,
+} satisfies SsgOutputReportConfig;
+```
+
+Put `outputReport` on the same exported SSG configuration object as `sitemap`.
+For supporting shapes, derive the type from those two configuration owners;
+see [the 0.5 migration table](0.5.0-api.md).

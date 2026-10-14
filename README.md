@@ -142,7 +142,7 @@ export const staticConfig = {
 };
 ```
 
-The sitemap config types are available from `@askrjs/cli/ssg` for projects that
+`SitemapConfig` and `SsgOutputReportConfig` are available from `@askrjs/cli/ssg` for projects that
 want an explicit annotation.
 
 Successful and incrementally skipped concrete routes are included by default.
@@ -156,8 +156,15 @@ and enforces the sitemap protocol limits of 50,000 URLs and 50 MB per file.
 Larger sites receive deterministic sitemap chunks plus a sitemap index. It also
 creates or updates `robots.txt` while preserving unrelated directives and tracks
 owned files so stale chunks and previous output paths are removed. Full and
-incremental builds publish through a sibling staging directory, so route output,
-metadata, assets, and sitemap artifacts change together or not at all.
+incremental builds publish route output, metadata, assets and sitemap artifacts
+as one complete tree through a sibling staging directory.
+If a process exits between publication renames, the next build restores the old
+output or finishes cleanup of the completed output before copying it. A recovery
+conflict stops the build and names the record and original backup for inspection.
+See the [SSG recovery boundary](docs/ssg.md) for details.
+OpenAPI client generation uses the same publication recovery. Project creation
+checks that its destination is still missing or empty under the publication lock,
+so a concurrent create cannot replace an already published project.
 
 ## OpenAPI artifacts
 
@@ -212,6 +219,11 @@ lockfile, installs packages, runs lifecycle scripts, or edits overrides,
 resolutions, catalogs, or `packageManager` metadata. See the
 [update command reference](./docs/update.md) for policy and output details.
 
+Writes save original copies before replacement and reject manifests changed
+since planning. If restoring a failed replacement also fails, the error names
+the preserved recovery copy and target to restore before retrying. See the
+reference for recovery after process termination.
+
 ## Agent skills
 
 Install the bundled Askr skills into a project:
@@ -251,3 +263,6 @@ Templates are stored in `templates/`.
 ## Docs
 
 - [CLI docs](./docs/README.md)
+
+The 0.5 SSG surface keeps those two configuration types. See the
+[complete export decisions and migration guide](docs/0.5.0-api.md) for supporting-type replacements.

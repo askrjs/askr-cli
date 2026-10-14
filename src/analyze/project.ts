@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import createIgnore from "ignore";
-import { minimatch } from "minimatch";
+import { Minimatch } from "minimatch";
 import ts from "typescript";
 import type { AnalyzeConfiguration, WorkspaceAnalysisContext } from "./types";
 import type { WorkspaceManifest } from "../update/types";
@@ -40,12 +40,12 @@ export function readAnalyzeConfiguration(
 ): AnalyzeConfiguration {
   const askr = rootManifest.askr;
   if (askr === undefined) {
-    return { exclude: [...DEFAULT_ANALYZE_EXCLUDES], rules: {} };
+    return { exclude: [...DEFAULT_ANALYZE_EXCLUDES], rules: {}, protectedRegistries: [] };
   }
   const askrConfig = asObject(askr, "Invalid askr configuration in the workspace root.");
   const raw = askrConfig.analyze;
   if (raw === undefined) {
-    return { exclude: [...DEFAULT_ANALYZE_EXCLUDES], rules: {} };
+    return { exclude: [...DEFAULT_ANALYZE_EXCLUDES], rules: {}, protectedRegistries: [] };
   }
   const analyze = asObject(raw, "Invalid askr.analyze configuration; expected an object.");
   const exclude = analyze.exclude ?? [];
@@ -65,9 +65,43 @@ export function readAnalyzeConfiguration(
   ) {
     throw new Error("Invalid askr.analyze.rules; severities must be off, info, warning, or error.");
   }
+  const protectedEntries =
+    analyze.protectedRegistries === undefined ? [] : analyze.protectedRegistries;
+  if (!Array.isArray(protectedEntries)) {
+    throw new Error(
+      "Invalid askr.analyze.protectedRegistries; expected an array of {file, export} identities.",
+    );
+  }
+  const identities = new Set<string>();
+  const protectedRegistries = protectedEntries.map((entry: unknown) => {
+    const invalid = () =>
+      new Error(
+        "Invalid askr.analyze.protectedRegistries; use unique root-relative source files and named/default exports, without globs or paths outside the project.",
+      );
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw invalid();
+    const record = entry as Record<string, unknown>;
+    if (
+      Object.keys(record).some((key) => key !== "file" && key !== "export") ||
+      typeof record.file !== "string" ||
+      !record.file ||
+      typeof record.export !== "string" ||
+      !/^[A-Za-z_$][\w$]*$/.test(record.export) ||
+      path.posix.isAbsolute(record.file) ||
+      path.win32.isAbsolute(record.file) ||
+      /[*?\[\]{}]/.test(record.file)
+    )
+      throw invalid();
+    const file = path.posix.normalize(record.file.replace(/\\/g, "/"));
+    if (file === ".." || file.startsWith("../") || !SOURCE_EXTENSION.test(file)) throw invalid();
+    const identity = `${file}\0${record.export}`;
+    if (identities.has(identity)) throw invalid();
+    identities.add(identity);
+    return { file, export: record.export };
+  });
   return {
     exclude: [...DEFAULT_ANALYZE_EXCLUDES, ...(exclude as string[])],
     rules: ruleObject as AnalyzeConfiguration["rules"],
+    protectedRegistries,
   };
 }
 
@@ -75,15 +109,23 @@ function normalizeRelative(root: string, filePath: string): string {
   return path.relative(root, filePath).split(path.sep).join("/");
 }
 
-function isExcluded(root: string, filePath: string, patterns: readonly string[]): boolean {
-  const relative = normalizeRelative(root, filePath);
-  return patterns.some((pattern) =>
-    minimatch(relative, pattern, {
-      dot: true,
-      nocase: process.platform === "win32",
-      windowsPathsNoEscape: true,
-    }),
-  );
+function sourceExclusions(
+  root: string,
+  patterns: readonly string[],
+): (filePath: string) => boolean {
+  const matchers: Array<Minimatch | undefined> = [];
+  return (filePath) => {
+    const relative = normalizeRelative(root, filePath);
+    return patterns.some((pattern, index) => {
+      // Preserve short-circuiting: an unreached pattern must not be compiled.
+      const matcher = (matchers[index] ??= new Minimatch(pattern, {
+        dot: true,
+        nocase: process.platform === "win32",
+        windowsPathsNoEscape: true,
+      }));
+      return matcher.match(relative);
+    });
+  };
 }
 
 function isWithin(root: string, target: string): boolean {
@@ -165,7 +207,7 @@ class GitIgnoreHierarchy {
 async function discoverSourceFiles(
   directory: string,
   projectRoot: string,
-  exclusions: readonly string[],
+  isExcluded: (filePath: string) => boolean,
 ): Promise<{ files: string[]; ignores: (filePath: string) => Promise<boolean> }> {
   const ignoreRoot = isWithin(projectRoot, directory) ? projectRoot : directory;
   const hierarchy = new GitIgnoreHierarchy(ignoreRoot);
@@ -175,10 +217,7 @@ async function discoverSourceFiles(
     entries.sort((left, right) => left.name.localeCompare(right.name));
     for (const entry of entries) {
       const child = path.join(current, entry.name);
-      if (
-        isExcluded(directory, child, exclusions) ||
-        isIgnoredByScopes(child, entry.isDirectory(), scopes)
-      ) {
+      if (isExcluded(child) || isIgnoredByScopes(child, entry.isDirectory(), scopes)) {
         continue;
       }
       if (entry.isDirectory()) {
@@ -248,18 +287,12 @@ async function compilerInputs(
     configuredFiles = parsed.fileNames;
   }
 
-  const discovered = await discoverSourceFiles(
-    workspace.directory,
-    projectRoot,
-    configuration.exclude,
-  );
+  const isExcluded = sourceExclusions(workspace.directory, configuration.exclude);
+  const discovered = await discoverSourceFiles(workspace.directory, projectRoot, isExcluded);
   const configuredIncluded = (
     await Promise.all(
       configuredFiles.map(async (filePath) =>
-        !isExcluded(workspace.directory, filePath, configuration.exclude) &&
-        !(await discovered.ignores(filePath))
-          ? filePath
-          : null,
+        !isExcluded(filePath) && !(await discovered.ignores(filePath)) ? filePath : null,
       ),
     )
   ).filter((filePath): filePath is string => filePath !== null);
@@ -275,6 +308,7 @@ export async function createWorkspaceAnalysisContext(
   configuration: AnalyzeConfiguration,
 ): Promise<{ context: WorkspaceAnalysisContext; tsconfig: string | null }> {
   const inputs = await compilerInputs(root, workspace, configuration);
+  const realProjectRoot = ts.sys.realpath?.(root) ?? root;
   const compilerHost = ts.createCompilerHost(inputs.options, true);
   const moduleResolutionCache = ts.createModuleResolutionCache(
     workspace.directory,
@@ -299,7 +333,7 @@ export async function createWorkspaceAnalysisContext(
       const resolved = resolution.resolvedModule;
       if (!resolved) return resolution;
       const realPath = ts.sys.realpath?.(resolved.resolvedFileName) ?? resolved.resolvedFileName;
-      const relativeToProject = path.relative(root, realPath);
+      const relativeToProject = path.relative(realProjectRoot, realPath);
       const isProjectFile =
         relativeToProject !== ".." &&
         !relativeToProject.startsWith(`..${path.sep}`) &&

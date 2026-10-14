@@ -7,10 +7,20 @@ askr generate ./openapi.yml --output ./src/generated/api --json
 ```
 
 Generation accepts OpenAPI 3.0.x and 3.1.x JSON or YAML, bundles local and HTTPS
-references, and atomically replaces only directories carrying the CLI ownership
-manifest. `--check` performs no writes and fails for missing, extra, or stale
+references, and publishes complete trees only to missing/empty directories or
+directories carrying the CLI ownership manifest. `--check` performs no writes and fails for missing, extra, or stale
 generated files.
 `--json` emits a single machine-readable success or error object.
+
+Normal generation recovers an interrupted publication before checking output
+ownership. The shared sibling record restores the original directory if it is
+missing, or finishes cleanup after a completed publication; cleanup failure
+never rolls back to a partly deleted backup. A failed stage write removes its
+partial stage. If stage cleanup also fails, the error names the retained stage
+and preserves both failures. A check-only invocation reports the observed state
+without performing recovery. Symbolic-link outputs and filesystem errors other
+than a missing path are rejected. See the [publication recovery boundary](ssg.md)
+for process-termination checkpoints and limits.
 
 Remote references use a DNS-pinned HTTPS connection for every root and redirect
 hop. Cross-origin references require `--allow-ref-origin <https-origin>`.

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { constants, existsSync } from "node:fs";
+import { existsSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import * as path from "node:path";
@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 import { register } from "tsx/esm/api";
 import { isDirectExecution } from "./is-direct-execution";
 import { generateSitemap, removeGeneratedSitemap, type SitemapConfig } from "../ssg/sitemap";
-import { createSiblingStage, publishStagedDirectory } from "../directory-swap";
+import { copyTargetIntoStage, createSiblingStage, publishStagedDirectory } from "../directory-swap";
 import { inspectSsgDocuments } from "../ssg/documents";
 import {
   removeSsgOutputReport,
@@ -108,15 +108,6 @@ const defaultDeps: Required<Pick<SsgDeps, "cwd" | "existsSync" | "now">> = {
   now: () => Date.now(),
   existsSync,
 };
-
-async function pathExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 async function importProjectConfig(filePath: string): Promise<{
   module: unknown;
@@ -352,11 +343,8 @@ export async function runSsgCli(
     const routeSource = { registry: config.registry };
 
     cliStagingDir = await createSiblingStage(resolvedOutputDir, "askr-ssg");
-    if (parsed.incremental && !parsed.forceFull && (await pathExists(resolvedOutputDir))) {
-      await fs.cp(resolvedOutputDir, cliStagingDir, {
-        recursive: true,
-        mode: constants.COPYFILE_FICLONE,
-      });
+    if (parsed.incremental && !parsed.forceFull) {
+      await copyTargetIntoStage(resolvedOutputDir, cliStagingDir);
     }
     const generationOutputDir = cliStagingDir;
 

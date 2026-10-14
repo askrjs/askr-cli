@@ -36,9 +36,9 @@ npm run dev         # Local dev server with HMR
 npm run build       # Production build
 npm run preview     # Preview production build
 npm run typecheck   # TypeScript checks
-npm run lint        # ESLint across project files
+npm run lint        # Vite+ lint across project files
 npm test            # Vitest suite
-npm run fmt         # Format full project with Prettier
+npm run fmt         # Format full project with Vite+
 npm run fmt:check   # Verify formatting
 npm run check       # lint + typecheck + tests + production build
 ```

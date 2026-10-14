@@ -1,5 +1,5 @@
 import type { JSXElement } from '@askrjs/askr/foundations';
-import type { IconProps } from '@askrjs/lucide';
+import type { IconProps } from '@askrjs/askr/foundations/icon';
 
 type IconComponent = (props: IconProps) => JSXElement;
 

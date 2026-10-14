@@ -7,6 +7,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-12
+
+### Added
+
+- Generate Auth0, Microsoft, Google and Apple provider sessions with
+  `askr create --auth` and `askr add auth`, using explicit HTTPS origins
+  and typed client bindings.
+
+- Add opt-in `askr/route-access-policy` analysis for exact protected registry
+  file/export identities. Warn when a statically known leaf has no native
+  `auth` requirement or non-empty `policies`, including inherited access.
+
+- Extend `askr/data-cancellation` to canonical typed Fetch clients and ad hoc request functions, checking each request against its own operation signal while preserving unknown/spread inputs and warning severity.
+
+### Breaking
+
+- Retain only `SitemapConfig` and `SsgOutputReportConfig` from the SSG type
+  entrypoint. Derive supporting configuration shapes from those owners. Generated
+  report implementation types are private; the documented JSON artifact remains.
+  See [all eleven export decisions and migration notes](docs/0.5.0-api.md).
+
+### Fixed
+
+- Wire generated provider servers to the configured HTTPS origin and canonical
+  host, include Node types in generated provider projects, and serve built assets
+  from the production directory while excluding server bundles and Vite manifests.
+
+- Dispose rejected or redirected OpenAPI response bodies, including header
+  validation and redirect-limit failures. Stop streaming unused bodies after
+  reporting an error. Keep normal complete responses and load limits unchanged.
+- Keep lock preflight errors separate from rename contention so a denied
+  observation cannot silently admit a transaction. Preserve the existing
+  bounded retry for Windows lock observations and propagate other failures.
+
+- Retry a denied lock-directory scan during Windows publication handoff within
+  the existing wait bound. Also retry denied owner-record reads and lock
+  observations while a prior owner removes them. Retain the native error when
+  denial persists and preserve the owner. Avoid rejecting contenders during
+  normal lock handoff.
+
+- Prepare file and directory locks with unique owner records before publishing
+  them. Recover only the observed dead owner so delayed stale-lock recovery
+  cannot delete a successor's lock and allow overlapping updates. Preserve
+  ambiguous lock contents and junctions; report failed private-stage cleanup.
+
+- Publish generated OpenAPI clients through the same recoverable directory
+  swap as other commands. Keep complete published output when backup cleanup
+  fails, clean partial stages, and report retained stages after cleanup failure.
+  Recheck project destination ownership under the publication lock so concurrent
+  creates cannot replace each other's projects or unrelated files. Print project
+  creation success only after publication completes.
+
+- Record directory publication before moving the original tree. Recover an
+  interrupted create, skills or SSG swap before the next locked operation;
+  finish failed backup cleanup on retry. Reject file and symbolic-link targets,
+  preserve permission errors, and retain ambiguous recovery trees for inspection.
+
+- Save original file copies before replacing any files, retain copies that cannot
+  be restored, and report recovery paths. Manifest edits use the shared guarded
+  writer so unrelated edits made after planning are preserved. Clean partial
+  staging writes, reject filesystem permission errors, and preserve existing
+  POSIX permission bits while respecting the umask for new files.
+
+- Reuse the syntax-fact index's node order across analyzer rules instead of
+  repeatedly walking each syntax tree. Preserve diagnostics, source fixes and
+  fresh bindings when a file changes, with the existing benchmark budgets.
+
+- Compile analyzer exclusions once per workspace and reuse the existing syntax
+  call index when collecting state declarations, preserving the matcher and
+  diagnostic contracts without increasing benchmark budgets.
+
+- Generate starter-kit icon prop types from the owning core icon entrypoint,
+  preparing templates for the Lucide 0.5 public helper/type contraction.
+
+- Wire the analyzer budget reporter into benchmark mode, initialize benchmark
+  fixtures through global setup, and reject failed, missing, non-finite, or
+  sample-free measurements. Fixture assertion failures now fail the benchmark
+  command instead of yielding a successful `NaN` comparison.
+- Retain the analyzer's strict local performance targets and establish a
+  measured GitHub-hosted Ubuntu envelope against the pre-fix implementation.
+- Refresh `http-cache-semantics` to 4.3.0 and `source-map-js` to 1.2.2 within
+  their existing dependency ranges; the clean-install dependency audit is clear.
+- Consolidate the analyzer's `askr/no-hardcoded-theme-token` documentation into
+  one entry covering token and color policies
+  ([#166](https://github.com/askrjs/askr-cli/issues/166)).
+- Recognize plural test filenames, test directories, module extensions, and
+  Windows paths when exempting color fixtures. Other analyzer rules still run
+  in those files ([#167](https://github.com/askrjs/askr-cli/issues/167)).
+- Follow synchronous workspace registry factories and imported callback helpers
+  without treating unresolved callable arguments as definite violations. Keep
+  timer and event callbacks outside registry ownership, and resolve local source
+  imports through symlinked project paths
+  ([#168](https://github.com/askrjs/askr-cli/issues/168)).
+- `askr outdated`, `askr update`, and `askr upgrade` no longer crash with
+  `ERR_UNSUPPORTED_DIR_IMPORT` when loading npm configuration under Node ESM
+  ([#150](https://github.com/askrjs/askr-cli/issues/150)).
+- Concurrent `askr skills sync` runs against the same project no longer fail
+  intermittently on Windows. The live `skills/` tree is now copied, updated, and
+  swapped under a single directory lock, and the swap retries transient
+  `EPERM`/`EBUSY`/`EACCES` rename errors. Concurrent `askr skills install`
+  runs without `--force` now admit exactly one install into an empty target
+  ([#153](https://github.com/askrjs/askr-cli/issues/153)).
+- `askr ssg --incremental` copies the live output folder into its staging
+  folder under the directory lock, so concurrent incremental builds into one
+  folder can no longer stage from a half-swapped tree or race the final swap.
+  The lock is held only for the copy, not for site generation
+  ([#155](https://github.com/askrjs/askr-cli/issues/155)).
+
 ## [0.4.0] - 2026-09-28
 
 ### Changed

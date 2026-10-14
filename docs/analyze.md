@@ -36,6 +36,12 @@ module is not treated as an Askr API.
 - `askr/no-hardcoded-theme-token` reports `--ak-*` token names in runtime
   JavaScript and TypeScript string, template, and JSX attribute literals. The
   exact `@askrjs/themes` workspace is exempt because it owns those declarations.
+  The same rule reports runtime color literals outside framework and theme owner
+  packages. Color fixtures are exempt in `test/`, `tests/`, and `__tests__/`
+  directories and files ending in `.test`, `.tests`, or `.spec` with a supported
+  JavaScript or TypeScript extension, including `.mjs`, `.cjs`, `.mts`, and `.cts`.
+  Both `/` and `\\` path separators are recognized. This exemption applies only
+  to color literals: token names, cancellation, and other rules still run in tests.
 - `askr/stable-render-call` enforces stable top-level calls for state, derived
   values, selectors, resources, lifecycle operations, actions, queries, and
   mutations where the AST establishes a component render context.
@@ -60,6 +66,38 @@ module is not treated as an Askr API.
 - `askr/resource-cancellation` and `askr/data-cancellation` report fetch-based
   resource, query, and mutation loaders that do not forward their cancellation
   signal.
+
+  `askr/data-cancellation` also recognizes direct, statically named calls on a
+  canonical `createClient()` result and calls to a `createFetch()` result from
+  `@askrjs/fetch`. Pass the query context's signal, or the mutation's second
+  context parameter signal, in each request input:
+
+  ```ts
+  const records = createQuery({
+    key: "records",
+    fetch: ({ signal }) => client.records({ signal }),
+  });
+  ```
+
+  Import aliases, namespace imports, function declarations and const local
+  loaders retain their ownership. Const aliases of Fetch factories, clients,
+  operation contexts, signals and request inputs are followed for up to eight
+  links; cycles and longer chains remain unknown. Mutable loader variables are
+  skipped. An unrelated variable named `signal` does not satisfy the rule, and
+  forwarding to one request does not cover another request. Literal operation
+  options and request inputs are evaluated in overwrite order. A later unknown
+  options spread invalidates an earlier loader; a later explicit loader restores
+  it. For request inputs:
+  `{ ...input, signal: wrong }` reports, while `{ signal: wrong, ...input }`
+  remains unknown and is accepted. Computed literal `context["signal"]` and
+  signal destructuring are supported. Observed writes or escapes invalidate a
+  const request object's initializer; mutable and opaque signal expressions
+  (including composed signals) remain unknown. Unknown inputs, dynamic endpoints,
+  unresolved clients/service calls and uninvoked nested callbacks are skipped.
+  The rule does not follow a request into a service function or prove runtime
+  cancellation. It reports one concrete offending request per loader and
+  retains warning severity; `--check` exits unsuccessfully for warnings.
+
 - `askr/for-contract` requires `each`, an item renderer, and exactly one of
   `by` or `byIndex`.
 - `askr/control-contract` validates required `Show` and `Match` conditions and
@@ -69,7 +107,13 @@ module is not treated as an Askr API.
   directly during a proven component render.
 - `askr/no-async-component` reports async JSX components.
 - `askr/route-registry` keeps route DSL calls inside a synchronous
-  `createRouteRegistry()` definition.
+  `createRouteRegistry()` definition. It follows workspace function arguments
+  through synchronous registry factories and directly invoked helpers, including
+  local imports. Nested timers, event handlers, and uninvoked functions do not
+  inherit registry ownership. Unresolved callable definitions and external
+  factory flow remain uncertain rather than producing a definite misuse error;
+  missing, statically non-callable, and async definitions still produce errors.
+  Parameter forwarding is bounded to 16 steps and stops at cycles.
 - `askr/route-path-syntax` mirrors the runtime's static path validation,
   including leading and duplicate slashes, complete `{name}` interpolation,
   non-empty unique parameter names, final named splats, and non-empty page
@@ -96,8 +140,6 @@ module is not treated as an Askr API.
   subpath in one transactional fix per declaration while retaining aliases,
   type modifiers, and valid root specifiers. It routes lazy controls to
   `@askrjs/askr/control` and query APIs and types to `@askrjs/askr/data`.
-- `askr/no-hardcoded-theme-token` reports runtime color literals outside tests
-  and the framework/theme owner packages.
 - `askr/no-effect-data-loading` reports direct fetch-to-component-state flows
   in `task()` callbacks; arbitrary service-call inference is intentionally out
   of scope.
@@ -161,7 +203,13 @@ of type-checking dependency declarations it never reports.
 `npm run bench:analyze` runs the analyzer's Vitest benchmark suite. It covers a
 50-file workspace, a 250-file workspace, and five workspaces containing 250
 files in total. The benchmark reporter enforces mean-time budgets of 100 ms,
-250 ms, and 300 ms respectively. The general `npm run bench` gate also checks a
+250 ms, and 300 ms respectively on the local profile. GitHub-hosted Ubuntu uses
+an explicit 150/550/550 ms envelope: the pre-fix analyzer measured 104/459/426 ms
+with the corrected harness in [baseline run 37943456683](https://github.com/askrjs/askr-cli/actions/runs/37943456683).
+The old harness did not enforce these measurements. Both profiles reject missing,
+failed, non-finite, and sample-free results; every fixture must produce its
+expected source-file and diagnostic counts. Local targets remain unchanged.
+The general `npm run bench` gate also checks a
 cold installed-CLI scan of the 35-file startkit template against a 350 ms p95
 budget.
 
@@ -189,6 +237,46 @@ Rule values are `error`, `warning`, `info`, or `off`. Source discovery honors
 including nested rules and negation. `askr.analyze.exclude` adds analyzer-only
 patterns relative to each workspace. The analyzer also always ignores dependency,
 VCS, coverage, generated, and common build-output directories by default.
+
+### Protected registries
+
+Opt in to `askr/route-access-policy` for an exact exported route registry:
+
+```json
+{
+  "askr": {
+    "analyze": {
+      "protectedRegistries": [{ "file": "src/pages/reports/_routes.ts", "export": "reportRoutes" }]
+    }
+  }
+}
+```
+
+Paths name source files relative to the workspace root, without globs. Use a
+named export or `"default"` for a canonical `createRouteRegistry()` call held by
+a const binding or exported directly. Aliased exports and canonical import
+aliases work. The definition must be a synchronous function authored in the
+selected workspace; directly called same-workspace helpers are followed.
+Generator and async definitions are unsupported. Call arguments are evaluated
+in the caller's access scope; passing a function does not invoke its body.
+Malformed, duplicate, missing or unsupported selected identities produce a
+configuration error, including when diagnostics are off. Identities belonging
+to unselected workspaces are left for their owning workspace's analysis.
+
+The rule warns for each statically known `route()`, `index()` or `fallback()`
+leaf without a callable `auth` requirement or non-empty `policies` array, either
+on the leaf or inherited from a `group()` or `page()`. Equal paths in other
+registries keep their own access scope. Public registries produce no findings
+unless explicitly listed. Empty or absent configuration keeps this check off.
+
+This is a check for authored policy presence. It does not assess policy strength,
+evaluate grants or prove backend authorization. An allow-all policy still meets
+this structural check. `appMeta.requiredGrants` is presentation metadata and
+does not count as an access policy. Literal options respect overwrite order;
+opaque options, unknown spreads, getters and dynamic callbacks are skipped
+conservatively. Uninvoked callbacks are not route definitions. No automatic
+policy or source fix is generated. Use the existing `rules` setting to select
+`warning`, `error`, `info` or `off`; `--check` fails for warnings and errors.
 
 ## CI
 

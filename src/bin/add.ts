@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { isDirectExecution } from "./is-direct-execution";
 import { writeFileChanges } from "../file-changes";
+import { planProviderAuth } from "../generate/auth";
 
 type CliIo = Pick<Console, "error" | "log">;
 type WriteChanges = typeof writeFileChanges;
@@ -34,6 +35,7 @@ interface ParsedArgs {
   command: string;
   name: string;
   positionals: string[];
+  origins: string[];
 }
 
 function helpText(): string {
@@ -44,17 +46,20 @@ function helpText(): string {
     "  askr add page <name> [--branch app|public] [--cwd <dir>] [--title <title>] [--route <path>] [--force]",
     "  askr add action <name> --route <path> [--cwd <dir>] [--force]",
     "  askr add database postgres|sqlite [--cwd <dir>] [--force]",
+    "  askr add auth auth0|microsoft|google|apple --origin <https://app.example> [--origin <https://preview.example>] [--cwd <dir>]",
     "",
     "Commands:",
     "  page      Scaffold a route page and register it in a route-first SPA branch",
     "  action    Scaffold a browser descriptor, server handler, registration, authorization, and test",
     "  database  Scaffold a dialect-specific Askr ORM database definition",
+    "  auth      Register a server-owned provider session and typed client binding",
     "",
     "Options:",
     "  --branch <name>  Route branch to target (default: app)",
     "  --cwd <dir>      Project directory (default: current directory)",
     "  --title <text>   Override the generated page title",
     "  --route <path>   Override the generated route path",
+    "  --origin <url>   Exact HTTPS application origin for provider-console instructions; repeat for environments",
     "  --force          Overwrite an existing page file",
     "  --help           Show this help message",
     "",
@@ -81,6 +86,7 @@ function parseArgs(args: string[]): ParsedArgs {
     routePath: "",
     title: "",
     errors: [] as string[],
+    origins: [] as string[],
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -90,6 +96,13 @@ function parseArgs(args: string[]): ParsedArgs {
       parsed.help = true;
     } else if (arg === "--force") {
       parsed.force = true;
+    } else if (arg === "--origin") {
+      if (index + 1 >= args.length || args[index + 1].startsWith("-")) {
+        parsed.errors.push("Missing value for --origin");
+      } else {
+        parsed.origins.push(args[index + 1]);
+        index += 1;
+      }
     } else if (arg === "--branch") {
       if (index + 1 >= args.length || args[index + 1].startsWith("-")) {
         parsed.errors.push("Missing value for --branch");
@@ -330,7 +343,7 @@ function renderActionHandler(options: {
 
 function renderActionTest(options: { descriptorName: string; slug: string }): string {
   return [
-    "import { describe, expect, it } from 'vitest';",
+    "import { describe, expect, it } from 'vite-plus/test';",
     `import { ${options.descriptorName} } from '../../src/actions/${options.slug}.js';`,
     "",
     `describe('${options.slug} action', () => {`,
@@ -652,7 +665,7 @@ async function addDatabase(
     };
     manifest.dependencies = {
       ...manifest.dependencies,
-      "@askrjs/orm": ">=0.4.0 <0.5.0",
+      "@askrjs/orm": ">=0.5.0 <0.6.0",
       ...(parsed.name === "postgres" ? { pg: "^8.16.0", "pg-query-stream": "^4.10.0" } : {}),
     };
     manifest.dependencies = Object.fromEntries(
@@ -757,6 +770,23 @@ export async function runAddCli(
 
   if (parsed.command === "database") {
     return addDatabase(parsed, io, writeChanges);
+  }
+
+  if (parsed.command === "auth") {
+    try {
+      if (parsed.force)
+        throw new Error(
+          "Auth generation does not overwrite custom wiring with --force; review it manually.",
+        );
+      const plan = await planProviderAuth(path.resolve(parsed.cwd), parsed.name, parsed.origins);
+      await writeChanges(plan.changes);
+      for (const message of plan.messages) io.log(message);
+      return 0;
+    } catch (error) {
+      io.error("Failed to generate provider auth.");
+      io.error(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
   }
 
   io.error(`Unknown add command: ${parsed.command}`);

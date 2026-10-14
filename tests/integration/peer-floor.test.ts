@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { expect, test } from "vitest";
+import { expect, test } from "vite-plus/test";
 
 const execFileAsync = promisify(execFile);
 const repository = fileURLToPath(new URL("../../", import.meta.url));
@@ -51,7 +51,7 @@ test("should ensure packed CLI works with the minimum supported Askr peer", asyn
           private: true,
           type: "module",
           dependencies: {
-            "@askrjs/askr": "0.4.0",
+            "@askrjs/askr": "0.5.0",
             "@askrjs/cli": `file:${archive}`,
           },
         },
@@ -78,7 +78,7 @@ export const staticConfig = {
 `,
     );
 
-    await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund"], root);
+    await run("npm", ["install", "--no-audit", "--no-fund"], root);
     await fs.mkdir(path.join(root, "src"));
     await fs.writeFile(
       path.join(root, "src", "page.ts"),
@@ -89,6 +89,27 @@ export const staticConfig = {
       'export const token = "--ak-color-surface";\n',
     );
     await fs.writeFile(path.join(root, ".gitignore"), "ignored.ts\n");
+    await fs.writeFile(
+      path.join(root, "src", "factory.ts"),
+      `import { createRouteRegistry, group } from "@askrjs/askr/router";
+export function registry(define: () => void) {
+  return createRouteRegistry(() => group({}, () => define()));
+}
+`,
+    );
+    await fs.writeFile(
+      path.join(root, "src", "routes.ts"),
+      `import { route } from "@askrjs/askr/router";
+import { registry } from "./factory";
+registry(() => route("/valid", () => null));
+route("/invalid", () => null);
+`,
+    );
+    await fs.mkdir(path.join(root, "src", "tests"));
+    await fs.writeFile(
+      path.join(root, "src", "tests", "palette.tests.mts"),
+      'export const color = "#f00";\n',
+    );
     const analysis = JSON.parse(
       await run(path.join(root, "node_modules", ".bin", "askr"), ["analyze", "--json"], root, 1),
     );
@@ -97,6 +118,14 @@ export const staticConfig = {
         .filter((entry: { ruleId: string }) => entry.ruleId === "askr/no-hardcoded-theme-token")
         .map((entry: { file: string }) => entry.file),
     ).toEqual(["src/page.ts"]);
+    expect(
+      analysis.diagnostics
+        .filter((entry: { ruleId: string }) => entry.ruleId === "askr/route-registry")
+        .map((entry: { file: string; severity: string }) => ({
+          file: entry.file,
+          severity: entry.severity,
+        })),
+    ).toEqual([{ file: "src/routes.ts", severity: "error" }]);
 
     await run(
       path.join(root, "node_modules", ".bin", "askr"),

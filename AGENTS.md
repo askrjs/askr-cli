@@ -46,6 +46,8 @@ Add regression tests with every behavior change. Use Vitest’s `test`/`describe
 
 Use imperative, conventional commit subjects such as `fix: ...`, `test: ...`, `ci: ...`, or `chore: ...`. Keep commits focused. Pull requests should explain the behavior change, identify validation commands and results, link the relevant issue, and call out workflow, package, or release implications. Do not publish packages or create tags without explicit authorization.
 
+Any change to the `version` field in `package.json`, whether a release, prerelease, or patch bump, must include a matching `## <version>` section in `CHANGELOG.md` in the same commit or pull request. Date the section and list breaking changes (with migration notes), deprecations, additions, and fixes. Move entries from `Unreleased` into the new version section rather than leaving them there. Do not publish or tag a version whose changelog section is missing. Check with `npm run test:changelog` (also part of `npm run check`), which fails unless `CHANGELOG.md` has a `## [Unreleased]` heading and a `## [<version>] - YYYY-MM-DD` section for the current version.
+
 ## Configuration and Security
 
 Do not commit credentials, generated `dist/` output, temporary tarballs, or local `node_modules/`. Preserve `package-lock.json` whenever dependency manifests change. Prefer `npm ci` for reproducible CI installs and review npm script-install warnings before approving new dependencies.

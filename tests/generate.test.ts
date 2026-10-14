@@ -1,8 +1,8 @@
-import { mkdir, mkdtemp, readFile, readdir, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import ts from "typescript";
 import { runGenerateCli } from "../src/bin/generate";
 import { generateFiles, loadOpenApi, writeGenerated } from "../src/generate/generator";
@@ -190,7 +190,7 @@ describe("askr generate", () => {
     );
     expect(await readFile(output, "utf8")).toBe("keep");
   });
-  it("should preserve generated output when its backup rename fails", async () => {
+  it("should preserve an unrelated stale backup while replacing owned generated output", async () => {
     const root = await mkdtemp(join(tmpdir(), "askr-stale-backup-"));
     const output = join(root, "generated");
     const backup = `${output}.backup-${process.pid}`;
@@ -200,12 +200,13 @@ describe("askr generate", () => {
     await mkdir(backup);
     await writeFile(join(backup, "stale.txt"), "stale backup\n");
 
-    await expect(writeGenerated(output, generateFiles(document), false)).rejects.toThrow();
+    const files = generateFiles(document);
+    await expect(writeGenerated(output, files, false)).resolves.toBeUndefined();
 
     expect(await readFile(join(output, ".askr-generated.json"), "utf8")).toBe(
-      "original manifest\n",
+      files[".askr-generated.json"],
     );
-    expect(await readFile(join(output, "schemas.ts"), "utf8")).toBe("original schema\n");
+    expect(await readFile(join(output, "schemas.ts"), "utf8")).toBe(files["schemas.ts"]);
     expect(await readFile(join(backup, "stale.txt"), "utf8")).toBe("stale backup\n");
   });
   it("should leave one complete result under concurrent generation", async () => {
@@ -217,11 +218,40 @@ describe("askr generate", () => {
       writeGenerated(output, first, false),
       writeGenerated(output, second, false),
     ]);
-    expect(results.filter(({ status }) => status === "fulfilled")).toHaveLength(2);
+    expect(results).toEqual([
+      { status: "fulfilled", value: undefined },
+      { status: "fulfilled", value: undefined },
+    ]);
     const schema = await readFile(join(output, "schemas.ts"), "utf8");
     expect([first["schemas.ts"], second["schemas.ts"]]).toContain(schema);
     expect((await readdir(output)).sort()).toEqual(Object.keys(first).sort());
   });
+  it("should serialize repeated publication without rejecting contenders during handoff", async () => {
+    const root = await mkdtemp(join(tmpdir(), "askr-repeated-concurrent-generate-"));
+    const output = join(root, "generated");
+    const files = generateFiles(document);
+    try {
+      for (let batch = 0; batch < 50; batch += 1) {
+        const schemas = Array.from(
+          { length: 4 },
+          (_, index) => `${files["schemas.ts"]}// batch ${batch}, writer ${index}\n`,
+        );
+        const results = await Promise.allSettled(
+          schemas.map((schema) =>
+            writeGenerated(output, { ...files, "schemas.ts": schema }, false),
+          ),
+        );
+        // Keep rejection reasons visible in hosted output instead of reporting
+        // only the number of completed writers.
+        expect(results).toEqual(schemas.map(() => ({ status: "fulfilled", value: undefined })));
+        expect(schemas).toContain(await readFile(join(output, "schemas.ts"), "utf8"));
+        expect((await readdir(output)).sort()).toEqual(Object.keys(files).sort());
+        expect(await readdir(root)).toEqual(["generated"]);
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }, 60_000);
   it("should generate safely in a path containing spaces and Unicode", async () => {
     const root = await mkdtemp(join(tmpdir(), "askr hostile 路径 "));
     const output = join(root, "generated client ✓");

@@ -24,8 +24,14 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: "lts/*"
+          node-version: "24.21.0"
           cache: npm
+      - name: Setup qualified npm
+        shell: bash
+        run: |
+          npm install --global npm@12.0.1
+          test "$(node --version)" = "v24.21.0"
+          test "$(npm --version)" = "12.0.1"
       - name: Install dependencies
         run: npm ci
       - name: Audit production and development dependencies
@@ -39,7 +45,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node: ["lts/*"]
+        node: ["24.21.0"]
 
     steps:
       - name: Checkout repository
@@ -50,6 +56,12 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: npm
+      - name: Setup qualified npm
+        shell: bash
+        run: |
+          npm install --global npm@12.0.1
+          test "$(node --version)" = "v24.21.0"
+          test "$(npm --version)" = "12.0.1"
       - name: Install dependencies
         run: npm ci
 
@@ -60,24 +72,14 @@ jobs:
       - name: Format check
         run: npm run fmt --if-present -- --check
 
-      - name: Lint
-        run: npm run lint
+      - name: Full release checks
+        run: npm run check
 
-      - name: Build
-        run: npm run build
+      - name: Installed typed-client cancellation contract
+        run: npm run test:analyze-cancellation
 
-      - name: Test
-        run: npm run test:coverage
-
-      - name: Type checks
-        run: |
-          npm run typecheck --if-present
-          npm run test:types --if-present
-
-      - name: Package contract
-        run: |
-          npm run test:publint
-          npm run pack:check
+      - name: Installed protected-registry access contract
+        run: npm run test:analyze-access
 
   packed-templates:
     name: Packed template integration (Node LTS)
@@ -89,15 +91,21 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: "lts/*"
+          node-version: "24.21.0"
           cache: npm
+      - name: Setup qualified npm
+        shell: bash
+        run: |
+          npm install --global npm@12.0.1
+          test "$(node --version)" = "v24.21.0"
+          test "$(npm --version)" = "12.0.1"
       - name: Install dependencies
         run: npm ci
       - name: Verify packed CLI against every template
         run: npm run test:templates
 
   peer-floor:
-    name: Packed Askr peer floor (0.4.0)
+    name: Packed Askr peer floor (0.5.0)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -106,8 +114,14 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: "lts/*"
+          node-version: "24.21.0"
           cache: npm
+      - name: Setup qualified npm
+        shell: bash
+        run: |
+          npm install --global npm@12.0.1
+          test "$(node --version)" = "v24.21.0"
+          test "$(npm --version)" = "12.0.1"
       - name: Install dependencies
         run: npm ci
       - name: Verify the minimum supported Askr peer
@@ -123,8 +137,14 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: "lts/*"
+          node-version: "24.21.0"
           cache: npm
+      - name: Setup qualified npm
+        shell: bash
+        run: |
+          npm install --global npm@12.0.1
+          test "$(node --version)" = "v24.21.0"
+          test "$(npm --version)" = "12.0.1"
       - name: Install dependencies
         run: npm ci
       - name: Run deterministic CLI performance gate

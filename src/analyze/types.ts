@@ -38,6 +38,7 @@ export interface PublicDiagnostic extends Omit<AnalyzeDiagnostic, "fix"> {
 export interface AnalyzeConfiguration {
   readonly exclude: string[];
   readonly rules: Record<string, RuleSetting>;
+  readonly protectedRegistries: readonly { readonly file: string; readonly export: string }[];
 }
 
 export interface WorkspaceAnalysisContext {
