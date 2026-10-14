@@ -665,7 +665,7 @@ async function addDatabase(
     };
     manifest.dependencies = {
       ...manifest.dependencies,
-      "@askrjs/orm": ">=0.4.0 <0.5.0",
+      "@askrjs/orm": ">=0.5.0 <0.6.0",
       ...(parsed.name === "postgres" ? { pg: "^8.16.0", "pg-query-stream": "^4.10.0" } : {}),
     };
     manifest.dependencies = Object.fromEntries(
