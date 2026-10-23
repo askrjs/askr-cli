@@ -38,15 +38,15 @@ code lives in `src/adapters`.
 
 ```tsx
 // src/pages/_routes.tsx
-import { createRouteRegistry, fallback, group } from '@askrjs/askr/router';
-import RootLayout from './_layout';
-import NotFoundPage from './not-found';
-import AuthLayout from './auth/_layout';
-import { registerAuthRoutes } from './auth/_routes';
-import AppLayout from './app/_layout';
-import { registerAppRoutes } from './app/_routes';
-import PublicLayout from './public/_layout';
-import { registerPublicRoutes } from './public/_routes';
+import { createRouteRegistry, fallback, group } from "@askrjs/askr/router";
+import RootLayout from "./_layout";
+import NotFoundPage from "./not-found";
+import AuthLayout from "./auth/_layout";
+import { registerAuthRoutes } from "./auth/_routes";
+import AppLayout from "./app/_layout";
+import { registerAppRoutes } from "./app/_routes";
+import PublicLayout from "./public/_layout";
+import { registerPublicRoutes } from "./public/_routes";
 
 export const pageRegistry = createRouteRegistry(() => {
   group({ layout: RootLayout }, () => {

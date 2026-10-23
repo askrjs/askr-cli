@@ -1,14 +1,14 @@
-import { Link } from '@askrjs/askr/router';
-import { Block, Header } from '@askrjs/themes/components';
-import { Container, Section, Stack } from '@askrjs/themes/components';
-import { Nav, NavLink } from '@askrjs/themes/components';
-import Badge from './badge';
+import { Link } from "@askrjs/askr/router";
+import { Block, Header } from "@askrjs/themes/components";
+import { Container, Section, Stack } from "@askrjs/themes/components";
+import { Nav, NavLink } from "@askrjs/themes/components";
+import Badge from "./badge";
 
 export const navItems = [
-  { href: '/', label: 'Home' },
-  { href: '/workflow', label: 'Workflow' },
-  { href: '/content', label: 'Content' },
-  { href: '/preview', label: 'Preview' },
+  { href: "/", label: "Home" },
+  { href: "/workflow", label: "Workflow" },
+  { href: "/content", label: "Content" },
+  { href: "/preview", label: "Preview" },
 ] as const;
 
 export function SiteHeader() {
@@ -18,17 +18,12 @@ export function SiteHeader() {
         <Block class="navbar-shell">
           <Block class="navbar-brand">
             <Link class="brand" href="/">
-              <strong>{'{{appName}}'}</strong>
+              <strong>{"{{appName}}"}</strong>
               <span>Static site generation sample</span>
             </Link>
           </Block>
 
-          <Nav
-            as="div"
-            aria-label="Primary navigation"
-            class="navbar-group"
-            data-align="end"
-          >
+          <Nav as="div" aria-label="Primary navigation" class="navbar-group" data-align="end">
             {navItems.map((item) => (
               <NavLink href={item.href}>{item.label}</NavLink>
             ))}

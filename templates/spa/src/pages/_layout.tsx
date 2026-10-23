@@ -1,4 +1,4 @@
-import { ThemeScope } from '@askrjs/themes/theme';
+import { ThemeScope } from "@askrjs/themes/theme";
 
 export default function RootLayout({ children }: { children?: unknown }) {
   return (

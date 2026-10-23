@@ -1,5 +1,5 @@
-import { currentRoute, Link } from '@askrjs/askr/router';
-import { Input } from '@askrjs/ui/input';
+import { currentRoute, Link } from "@askrjs/askr/router";
+import { Input } from "@askrjs/ui/input";
 import {
   Avatar,
   AvatarFallback,
@@ -12,11 +12,11 @@ import {
   DropdownMenuPortal,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@askrjs/themes/components';
-import { SearchIcon } from '@askrjs/lucide';
-import { buildLoginHref, getRouteLabel, settingsRoute } from '../lib/routes';
-import { showToast } from '../toast';
-import { signOut } from '../lib/mock-data';
+} from "@askrjs/themes/components";
+import { SearchIcon } from "@askrjs/lucide";
+import { buildLoginHref, getRouteLabel, settingsRoute } from "../lib/routes";
+import { showToast } from "../toast";
+import { signOut } from "../lib/mock-data";
 
 export default function AppHeader() {
   const breadcrumb = () => getRouteLabel(currentRoute().path);
@@ -52,9 +52,8 @@ export default function AppHeader() {
                 <DropdownMenuItem
                   onSelect={() =>
                     showToast({
-                      title: 'Notifications enabled',
-                      description:
-                        'Connect this action to your notification center.',
+                      title: "Notifications enabled",
+                      description: "Connect this action to your notification center.",
                     })
                   }
                 >
@@ -65,14 +64,13 @@ export default function AppHeader() {
               <DropdownMenuItem
                 onSelect={() => {
                   const nextTarget =
-                    typeof window === 'undefined'
+                    typeof window === "undefined"
                       ? undefined
                       : `${window.location.pathname}${window.location.search}${window.location.hash}`;
                   signOut();
                   showToast({
-                    title: 'Signed out',
-                    description:
-                      'Session state is now cleared from local storage.',
+                    title: "Signed out",
+                    description: "Session state is now cleared from local storage.",
                   });
                   window.location.assign(buildLoginHref(nextTarget));
                 }}

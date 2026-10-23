@@ -1,4 +1,4 @@
-import { Block } from '@askrjs/themes/components';
+import { Block } from "@askrjs/themes/components";
 
 export default function PageHeader(props: {
   title: string;

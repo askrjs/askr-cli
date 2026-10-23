@@ -69,7 +69,11 @@ export class AnalyzeBudgetReporter implements Reporter {
     this.#observations.set(
       testCase.name,
       benchmark
-        ? { mean: benchmark.latency.mean, sampleCount: benchmark.latency.samplesCount, state: result.state }
+        ? {
+            mean: benchmark.latency.mean,
+            sampleCount: benchmark.latency.samplesCount,
+            state: result.state,
+          }
         : undefined,
     );
   }

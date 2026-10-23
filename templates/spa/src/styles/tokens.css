@@ -6,11 +6,7 @@
       calc(100% - 2 * var(--spa-shell-gutter))
     );
     --spa-auth-card-width: min(100%, 28rem);
-    --spa-header-backdrop: color-mix(
-      in srgb,
-      var(--ak-color-bg) 92%,
-      transparent
-    );
+    --spa-header-backdrop: color-mix(in srgb, var(--ak-color-bg) 92%, transparent);
     --spa-surface-glow: linear-gradient(
       180deg,
       color-mix(in srgb, var(--ak-color-surface-muted) 58%, transparent),
