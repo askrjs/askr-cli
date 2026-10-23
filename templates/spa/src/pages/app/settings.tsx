@@ -1,5 +1,5 @@
-import { state } from '@askrjs/askr';
-import { Input } from '@askrjs/ui';
+import { state } from "@askrjs/askr";
+import { Input } from "@askrjs/ui";
 import {
   Block,
   Button,
@@ -7,7 +7,7 @@ import {
   FieldHint,
   InputGroup,
   InputGroupText,
-} from '@askrjs/themes/components';
+} from "@askrjs/themes/components";
 import {
   Badge,
   Card,
@@ -15,15 +15,13 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@askrjs/themes/components';
-import { Stack } from '@askrjs/themes/components';
+} from "@askrjs/themes/components";
+import { Stack } from "@askrjs/themes/components";
 
 export default function SettingsPage() {
-  const [endpoint, setEndpoint] = state(
-    'https://api.example.test'
-  ) as unknown as [
+  const [endpoint, setEndpoint] = state("https://api.example.test") as unknown as [
     ReturnType<typeof state<string>>,
-    ReturnType<typeof state<string>>['set'],
+    ReturnType<typeof state<string>>["set"],
   ];
 
   return (
@@ -33,8 +31,7 @@ export default function SettingsPage() {
           <Badge>environment</Badge>
           <h1>Settings</h1>
           <p class="lead">
-            Configuration stays in shared boundaries and adapters receive it
-            through one clear path.
+            Configuration stays in shared boundaries and adapters receive it through one clear path.
           </p>
         </Stack>
       </section>
@@ -44,8 +41,7 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>API adapter</CardTitle>
             <CardDescription>
-              Keep generated clients and transport concerns out of route
-              components.
+              Keep generated clients and transport concerns out of route components.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -62,8 +58,7 @@ export default function SettingsPage() {
                 />
               </InputGroup>
               <FieldHint>
-                Demo-only value. Real apps should validate public config at
-                startup.
+                Demo-only value. Real apps should validate public config at startup.
               </FieldHint>
             </Field>
           </CardContent>
@@ -73,8 +68,7 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Consistency policy</CardTitle>
             <CardDescription>
-              Event-sourced apps should expose lag, retries, and stale states
-              directly.
+              Event-sourced apps should expose lag, retries, and stale states directly.
             </CardDescription>
           </CardHeader>
           <CardContent>

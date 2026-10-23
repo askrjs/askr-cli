@@ -1,32 +1,24 @@
-import { state } from '@askrjs/askr';
-import { Link } from '@askrjs/askr/router';
-import { Button, Input } from '@askrjs/ui';
-import Counter from '../components/counter';
-import {
-  ActionRow,
-  Card,
-  CardGrid,
-  SectionHeader,
-} from '../components/site-shell';
+import { state } from "@askrjs/askr";
+import { Link } from "@askrjs/askr/router";
+import { Button, Input } from "@askrjs/ui";
+import Counter from "../components/counter";
+import { ActionRow, Card, CardGrid, SectionHeader } from "../components/site-shell";
 
-const sampleUsers: Record<
-  number,
-  { name: string; email: string; note: string }
-> = {
+const sampleUsers: Record<number, { name: string; email: string; note: string }> = {
   1: {
-    name: 'User 1',
-    email: 'user1@example.com',
-    note: 'Replace this with your own content or connect it to real data later.',
+    name: "User 1",
+    email: "user1@example.com",
+    note: "Replace this with your own content or connect it to real data later.",
   },
   2: {
-    name: 'User 2',
-    email: 'user2@example.com',
-    note: 'This stays simple on purpose so the starter remains easy to delete or extend.',
+    name: "User 2",
+    email: "user2@example.com",
+    note: "This stays simple on purpose so the starter remains easy to delete or extend.",
   },
   3: {
-    name: 'User 3',
-    email: 'user3@example.com',
-    note: 'Interactive state still hydrates after static generation without adding async complexity.',
+    name: "User 3",
+    email: "user3@example.com",
+    note: "Interactive state still hydrates after static generation without adding async complexity.",
   },
 };
 
@@ -35,7 +27,7 @@ export default function Preview() {
   const user = sampleUsers[userId()] ?? {
     name: `User ${userId()}`,
     email: `user${userId()}@example.com`,
-    note: 'Use this route as a safe place to try small interactive changes.',
+    note: "Use this route as a safe place to try small interactive changes.",
   };
 
   return (
@@ -69,10 +61,7 @@ export default function Preview() {
               type="number"
               value={String(userId())}
               onInput={(event: Event) => {
-                const nextValue = Number.parseInt(
-                  (event.target as HTMLInputElement).value,
-                  10
-                );
+                const nextValue = Number.parseInt((event.target as HTMLInputElement).value, 10);
 
                 setUserId(Number.isNaN(nextValue) ? 1 : Math.max(1, nextValue));
               }}

@@ -4,9 +4,9 @@ import {
   BotIcon,
   CheckCircle2Icon,
   ShieldCheckIcon,
-} from '@askrjs/lucide';
-import { Link } from '@askrjs/askr/router';
-import { Block, Button } from '@askrjs/themes/components';
+} from "@askrjs/lucide";
+import { Link } from "@askrjs/askr/router";
+import { Block, Button } from "@askrjs/themes/components";
 import {
   Badge,
   Card,
@@ -14,28 +14,28 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@askrjs/themes/components';
-import { Container, Section, Stack } from '@askrjs/themes/components';
-import { EmptyState } from '@askrjs/themes/components';
+} from "@askrjs/themes/components";
+import { Container, Section, Stack } from "@askrjs/themes/components";
+import { EmptyState } from "@askrjs/themes/components";
 
 const capabilities = [
   {
     icon: <BotIcon size={16} aria-hidden="true" />,
-    title: 'Agent runs',
+    title: "Agent runs",
     description:
-      'Track queued, running, approval, and completed work without collapsing it into one loading state.',
+      "Track queued, running, approval, and completed work without collapsing it into one loading state.",
   },
   {
     icon: <ActivityIcon size={16} aria-hidden="true" />,
-    title: 'Evented operations',
+    title: "Evented operations",
     description:
-      'Make pending writes, projection lag, and stale read models visible before users need to ask.',
+      "Make pending writes, projection lag, and stale read models visible before users need to ask.",
   },
   {
     icon: <ShieldCheckIcon size={16} aria-hidden="true" />,
-    title: 'App-ready shell',
+    title: "App-ready shell",
     description:
-      'Use route branches, layouts, and theme primitives instead of a one-page demo wrapper.',
+      "Use route branches, layouts, and theme primitives instead of a one-page demo wrapper.",
   },
 ];
 
@@ -50,10 +50,9 @@ export default function HomePage() {
               <Stack gap="md">
                 <h1>Operate agent workflows with a UI that tells the truth.</h1>
                 <p class="lead">
-                  {'{{appName}}'} is a focused Askr console for agentic
-                  products: public branch, auth branch, app branch, theme
-                  primitives, consistency-aware states, and no invented layout
-                  system.
+                  {"{{appName}}"} is a focused Askr console for agentic products: public branch,
+                  auth branch, app branch, theme primitives, consistency-aware states, and no
+                  invented layout system.
                 </p>
               </Stack>
               <Block direction="row" gap="md" wrap>
@@ -76,8 +75,7 @@ export default function HomePage() {
                 </Block>
                 <CardTitle>Command center</CardTitle>
                 <CardDescription>
-                  A concise preview of the authenticated shell users see after
-                  sign-in.
+                  A concise preview of the authenticated shell users see after sign-in.
                 </CardDescription>
               </CardHeader>
               <CardContent>

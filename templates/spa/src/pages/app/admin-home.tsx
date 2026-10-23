@@ -1,7 +1,7 @@
-import { resource } from '@askrjs/askr/resources';
-import { createPlot } from '@askrjs/charts';
-import { AlertCircleIcon, RefreshCwIcon } from '@askrjs/lucide';
-import { Block, Button } from '@askrjs/themes/components';
+import { resource } from "@askrjs/askr/resources";
+import { createPlot } from "@askrjs/charts";
+import { AlertCircleIcon, RefreshCwIcon } from "@askrjs/lucide";
+import { Block, Button } from "@askrjs/themes/components";
 import {
   Alert,
   Badge,
@@ -11,14 +11,14 @@ import {
   CardHeader,
   CardTitle,
   Skeleton,
-} from '@askrjs/themes/components';
-import { Section, Stack } from '@askrjs/themes/components';
-import { EmptyState } from '@askrjs/themes/components';
-import MetricCard from '../../components/shared/metric-card';
-import StatusBadge from '../../components/shared/status-badge';
-import type { OperationsChartRow } from '../../adapters/operations-client';
-import { loadOperations } from '../../features/operations/operations.query';
-import { formatRelativeTime } from '../../shared/format';
+} from "@askrjs/themes/components";
+import { Section, Stack } from "@askrjs/themes/components";
+import { EmptyState } from "@askrjs/themes/components";
+import MetricCard from "../../components/shared/metric-card";
+import StatusBadge from "../../components/shared/status-badge";
+import type { OperationsChartRow } from "../../adapters/operations-client";
+import { loadOperations } from "../../features/operations/operations.query";
+import { formatRelativeTime } from "../../shared/format";
 
 const OperationsPlot = createPlot<OperationsChartRow>();
 
@@ -43,11 +43,11 @@ export default function AdminHomePage() {
     <Stack gap="xl">
       <section class="page-heading">
         <Stack gap="sm">
-          <Badge>projection v{snapshot?.version ?? '...'}</Badge>
+          <Badge>projection v{snapshot?.version ?? "..."}</Badge>
           <h1>Workspace home</h1>
           <p class="lead">
-            A consistency-aware dashboard for agent runs, queue health, and
-            event-sourced read models.
+            A consistency-aware dashboard for agent runs, queue health, and event-sourced read
+            models.
           </p>
         </Stack>
         <Block direction="row" gap="sm" align="center">
@@ -70,11 +70,7 @@ export default function AdminHomePage() {
         <>
           <Block class="metric-grid">
             {snapshot.metrics.map((metric) => (
-              <MetricCard
-                label={metric.label}
-                value={metric.value}
-                trend={metric.trend}
-              />
+              <MetricCard label={metric.label} value={metric.value} trend={metric.trend} />
             ))}
           </Block>
 
@@ -82,9 +78,7 @@ export default function AdminHomePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Run throughput</CardTitle>
-                <CardDescription>
-                  Accepted commands by work type.
-                </CardDescription>
+                <CardDescription>Accepted commands by work type.</CardDescription>
               </CardHeader>
               <CardContent>
                 <OperationsPlot.Root
@@ -100,9 +94,7 @@ export default function AdminHomePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Projection lag</CardTitle>
-                <CardDescription>
-                  Lower is better; stale states stay visible.
-                </CardDescription>
+                <CardDescription>Lower is better; stale states stay visible.</CardDescription>
               </CardHeader>
               <CardContent>
                 <OperationsPlot.Root
@@ -118,10 +110,10 @@ export default function AdminHomePage() {
             </Card>
           </Block>
 
-          {snapshot.consistency !== 'fresh' ? (
+          {snapshot.consistency !== "fresh" ? (
             <Alert variant="warning">
-              Read models are {snapshot.consistency}. Last processed event is{' '}
-              {snapshot.lastEventId}.
+              Read models are {snapshot.consistency}. Last processed event is {snapshot.lastEventId}
+              .
             </Alert>
           ) : null}
 
@@ -129,8 +121,7 @@ export default function AdminHomePage() {
             <CardHeader>
               <CardTitle>Recent agent runs</CardTitle>
               <CardDescription>
-                Run state is modeled as product state, not a single loading
-                boolean.
+                Run state is modeled as product state, not a single loading boolean.
               </CardDescription>
             </CardHeader>
             <CardContent>

@@ -1,9 +1,9 @@
-import { createAskrApp } from '@askrjs/server/askr';
-import { pageRegistry } from './routes';
+import { createAskrApp } from "@askrjs/server/askr";
+import { pageRegistry } from "./routes";
 
 const app = createAskrApp({
-  name: '{{appName}}',
-  version: '0.1.0',
+  name: "{{appName}}",
+  version: "0.1.0",
   dependencies: undefined,
   pages: pageRegistry,
 });

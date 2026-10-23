@@ -492,8 +492,8 @@ test("should ensure runCreateCli scaffolds SSG with shared route registration an
     expect(packageJson).toMatch(/"fmt": "vp fmt \."/);
     expect(mainFile).toMatch(/registry:\s*pageRegistry/);
     expect(routesFile).toMatch(/export const pageRegistry = createRouteRegistry/);
-    expect(routesFile).toMatch(/route\('\/', Home\);/);
-    expect(routesFile).toMatch(/route\('\/preview', Preview\);/);
+    expect(routesFile).toMatch(/route\(["']\/["'], Home\);/);
+    expect(routesFile).toMatch(/route\(["']\/preview["'], Preview\);/);
     expect(shellFile).toMatch(/@askrjs\/themes\/components/);
     expect(shellFile).toMatch(/export function SiteHeader/);
     expect(ssgConfigFile).toMatch(/registry:\s*pageRegistry/);
