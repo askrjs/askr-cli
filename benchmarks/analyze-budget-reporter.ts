@@ -24,16 +24,6 @@ interface BenchmarkObservation {
   readonly state: string;
 }
 
-interface BenchmarkTaskResult {
-  readonly result?: {
-    readonly state: string;
-    readonly benchmark?: {
-      readonly mean: number;
-      readonly sampleCount: number;
-    };
-  };
-}
-
 interface ReporterRuntime {
   readonly fail: () => void;
   readonly write: (message: string) => void;
@@ -71,16 +61,15 @@ export class AnalyzeBudgetReporter implements Reporter {
   }
 
   onTestCaseResult(testCase: ReportedTestCase): void {
-    if (!Object.hasOwn(ANALYZE_BUDGETS_MS, testCase.name) || !testCase.meta().benchmark) return;
+    if (!Object.hasOwn(ANALYZE_BUDGETS_MS, testCase.name)) return;
 
-    const task = testCase as ReportedTestCase & { readonly task: BenchmarkTaskResult };
-    const result = task.task.result;
-    const benchmark = result?.benchmark;
+    const result = testCase.result();
+    const benchmark = testCase.benchmarks().flatMap((entry) => entry.tasks)[0];
     if (this.#observations.has(testCase.name)) this.#duplicates.add(testCase.name);
     this.#observations.set(
       testCase.name,
       benchmark
-        ? { mean: benchmark.mean, sampleCount: benchmark.sampleCount, state: result.state }
+        ? { mean: benchmark.latency.mean, sampleCount: benchmark.latency.samplesCount, state: result.state }
         : undefined,
     );
   }
@@ -96,7 +85,7 @@ export class AnalyzeBudgetReporter implements Reporter {
       }
 
       const result = this.#observations.get(name);
-      if (!result || result.state !== "pass") {
+      if (!result || result.state !== "passed") {
         failures.push(`${name}: successful benchmark result missing`);
       } else if (!Number.isFinite(result.mean) || result.mean <= 0) {
         failures.push(`${name}: benchmark mean must be finite and positive`);
