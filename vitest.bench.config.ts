@@ -8,8 +8,8 @@ export default defineConfig({
     maxWorkers: 1,
     pool: "forks",
     globalSetup: ["./benchmarks/analyze-global-setup.ts"],
+    reporters: ["default", new AnalyzeBudgetReporter()],
     benchmark: {
-      reporters: ["default", new AnalyzeBudgetReporter()],
       include: ["benchmarks/**/*.bench.ts"],
       includeSamples: false,
     },

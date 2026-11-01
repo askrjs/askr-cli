@@ -1,4 +1,4 @@
-import { bench, describe, expect, inject } from "vite-plus/test";
+import { describe, expect, inject, test } from "vite-plus/test";
 import { runAnalysis } from "../src/analyze/runner";
 
 const { mediumWorkspace, largeWorkspace, monorepo } = inject("analyzerFixtures");
@@ -24,7 +24,17 @@ async function analyzeFixture(root: string, expectedFiles: number): Promise<void
 }
 
 describe("askr analyze", () => {
-  bench("50-file workspace", () => analyzeFixture(mediumWorkspace, 50), benchOptions);
-  bench("250-file workspace", () => analyzeFixture(largeWorkspace, 250), benchOptions);
-  bench("5-workspace monorepo with 250 files", () => analyzeFixture(monorepo, 250), benchOptions);
+  test("50-file workspace", async ({ bench }) => {
+    await bench("50-file workspace", () => analyzeFixture(mediumWorkspace, 50)).run(benchOptions);
+  });
+
+  test("250-file workspace", async ({ bench }) => {
+    await bench("250-file workspace", () => analyzeFixture(largeWorkspace, 250)).run(benchOptions);
+  });
+
+  test("5-workspace monorepo with 250 files", async ({ bench }) => {
+    await bench("5-workspace monorepo with 250 files", () => analyzeFixture(monorepo, 250)).run(
+      benchOptions,
+    );
+  });
 });

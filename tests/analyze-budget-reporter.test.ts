@@ -10,14 +10,15 @@ function benchmarkCase(
   mean: number | undefined,
   sampleCount = 8,
   benchmark = true,
-  state = "pass",
+  state = "passed",
 ): ReportedTestCase {
   return {
     name,
-    meta: () => ({ benchmark }),
-    task: {
-      result: mean === undefined ? { state } : { state, benchmark: { mean, sampleCount } },
-    },
+    result: () => ({ state }),
+    benchmarks: () =>
+      benchmark && mean !== undefined
+        ? [{ name, tasks: [{ name, latency: { mean, samplesCount: sampleCount } }] }]
+        : [],
   } as unknown as ReportedTestCase;
 }
 
@@ -66,7 +67,7 @@ describe("AnalyzeBudgetReporter", () => {
   it("rejects over-budget, failed, and missing results", () => {
     const result = runReporter([
       benchmarkCase("50-file workspace", 101),
-      benchmarkCase("250-file workspace", 10, 8, true, "fail"),
+      benchmarkCase("250-file workspace", 10, 8, true, "failed"),
     ]);
     expect(result.failed).toBe(true);
     expect(result.output).toContain("50-file workspace: mean 101.0 ms exceeds 100 ms");
