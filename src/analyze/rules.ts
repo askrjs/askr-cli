@@ -16,8 +16,9 @@ import type {
 } from "./types";
 
 interface SourceBindings {
-  readonly named: Map<string, ImportedAskrBinding>;
-  readonly namespaces: Set<string>;
+  readonly named: Map<string, ImportedAskrBinding & { readonly symbol?: ts.Symbol }>;
+  readonly namespaces: Map<string, ts.Symbol | undefined>;
+  readonly checker?: ts.TypeChecker;
 }
 
 const SOURCE_BINDING_CACHE = new WeakMap<ts.SourceFile, SourceBindings>();
@@ -43,13 +44,17 @@ interface SourceFacts {
   readonly constructions: readonly ts.NewExpression[];
 }
 
-const SOURCE_FACT_CACHE = new WeakMap<ts.SourceFile, SourceFacts>();
+const SOURCE_FACT_CACHE = new WeakMap<
+  ts.SourceFile,
+  { readonly checker?: ts.TypeChecker; readonly facts: SourceFacts }
+>();
 
-function sourceBindings(sourceFile: ts.SourceFile): SourceBindings {
+function sourceBindings(sourceFile: ts.SourceFile, checker?: ts.TypeChecker): SourceBindings {
   const cached = SOURCE_BINDING_CACHE.get(sourceFile);
-  if (cached) return cached;
-  const named = new Map<string, ImportedAskrBinding>();
-  const namespaces = new Set<string>();
+  const activeChecker = checker ?? cached?.checker;
+  if (cached && cached.checker === activeChecker) return cached;
+  const named = new Map<string, ImportedAskrBinding & { readonly symbol?: ts.Symbol }>();
+  const namespaces = new Map<string, ts.Symbol | undefined>();
   for (const statement of sourceFile.statements) {
     if (
       !ts.isImportDeclaration(statement) ||
@@ -66,13 +71,14 @@ function sourceBindings(sourceFile: ts.SourceFile): SourceBindings {
         named.set(element.name.text, {
           imported: element.propertyName?.text ?? element.name.text,
           module: statement.moduleSpecifier.text,
+          ...(activeChecker ? { symbol: activeChecker.getSymbolAtLocation(element.name) } : {}),
         });
       }
     } else if (bindings && ts.isNamespaceImport(bindings)) {
-      namespaces.add(bindings.name.text);
+      namespaces.set(bindings.name.text, activeChecker?.getSymbolAtLocation(bindings.name));
     }
   }
-  const bindings = { named, namespaces };
+  const bindings = { named, namespaces, ...(activeChecker ? { checker: activeChecker } : {}) };
   SOURCE_BINDING_CACHE.set(sourceFile, bindings);
   return bindings;
 }
@@ -81,11 +87,22 @@ function canonicalCallName(
   expression: ts.LeftHandSideExpression,
   bindings: SourceBindings,
 ): string | null {
-  if (ts.isIdentifier(expression)) return bindings.named.get(expression.text)?.imported ?? null;
+  if (ts.isIdentifier(expression)) {
+    const binding = bindings.named.get(expression.text);
+    if (
+      !binding ||
+      (bindings.checker && binding.symbol !== bindings.checker.getSymbolAtLocation(expression))
+    )
+      return null;
+    return binding.imported;
+  }
   if (
     ts.isPropertyAccessExpression(expression) &&
     ts.isIdentifier(expression.expression) &&
-    bindings.namespaces.has(expression.expression.text)
+    bindings.namespaces.has(expression.expression.text) &&
+    (!bindings.checker ||
+      bindings.namespaces.get(expression.expression.text) ===
+        bindings.checker.getSymbolAtLocation(expression.expression))
   ) {
     return expression.name.text;
   }
@@ -93,21 +110,33 @@ function canonicalCallName(
 }
 
 function canonicalJsxName(name: ts.JsxTagNameExpression, bindings: SourceBindings): string | null {
-  if (ts.isIdentifier(name)) return bindings.named.get(name.text)?.imported ?? null;
+  if (ts.isIdentifier(name)) {
+    const binding = bindings.named.get(name.text);
+    if (
+      !binding ||
+      (bindings.checker && binding.symbol !== bindings.checker.getSymbolAtLocation(name))
+    )
+      return null;
+    return binding.imported;
+  }
   if (
     ts.isPropertyAccessExpression(name) &&
     ts.isIdentifier(name.expression) &&
-    bindings.namespaces.has(name.expression.text)
+    bindings.namespaces.has(name.expression.text) &&
+    (!bindings.checker ||
+      bindings.namespaces.get(name.expression.text) ===
+        bindings.checker.getSymbolAtLocation(name.expression))
   ) {
     return name.name.text;
   }
   return null;
 }
 
-function sourceFacts(sourceFile: ts.SourceFile): SourceFacts {
+function sourceFacts(sourceFile: ts.SourceFile, checker?: ts.TypeChecker): SourceFacts {
   const cached = SOURCE_FACT_CACHE.get(sourceFile);
-  if (cached) return cached;
-  const bindings = sourceBindings(sourceFile);
+  const activeChecker = checker ?? cached?.checker ?? SOURCE_BINDING_CACHE.get(sourceFile)?.checker;
+  if (cached && cached.checker === activeChecker) return cached.facts;
+  const bindings = sourceBindings(sourceFile, activeChecker);
   const nodes: ts.Node[] = [];
   const calls: SourceCallFact[] = [];
   const allCalls: ts.CallExpression[] = [];
@@ -129,7 +158,7 @@ function sourceFacts(sourceFile: ts.SourceFile): SourceFacts {
   };
   walk(sourceFile);
   const facts = { bindings, nodes, calls, allCalls, jsx, constructions };
-  SOURCE_FACT_CACHE.set(sourceFile, facts);
+  SOURCE_FACT_CACHE.set(sourceFile, { checker: activeChecker, facts });
   return facts;
 }
 
@@ -166,8 +195,12 @@ function diagnostic(
   };
 }
 
-function visit(sourceFile: ts.SourceFile, callback: (node: ts.Node) => void): void {
-  for (const node of sourceFacts(sourceFile).nodes) {
+function visit(
+  sourceFile: ts.SourceFile,
+  callback: (node: ts.Node) => void,
+  checker?: ts.TypeChecker,
+): void {
+  for (const node of sourceFacts(sourceFile, checker).nodes) {
     callback(node);
   }
 }
@@ -236,7 +269,7 @@ const stableRenderRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
+      const bindings = sourceBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (!ts.isCallExpression(node)) return;
         const name = canonicalCallName(node.expression, bindings);
@@ -293,7 +326,7 @@ function collectStateBindings(sourceFile: ts.SourceFile, checker: ts.TypeChecker
   const getterSymbols = new Set<ts.Symbol>();
   const setterSymbols = new Set<ts.Symbol>();
   const owners = new Map<ts.Symbol, ts.SignatureDeclaration | null>();
-  for (const { node: call, name } of sourceFacts(sourceFile).calls) {
+  for (const { node: call, name } of sourceFacts(sourceFile, checker).calls) {
     if (
       name !== "state" ||
       !ts.isVariableDeclaration(call.parent) ||
@@ -567,8 +600,39 @@ const stateRenderWriteRule: AnalyzeRule = {
   },
 };
 
-function functionBodyText(node: ts.Expression): string {
-  return ts.isArrowFunction(node) || ts.isFunctionExpression(node) ? node.body.getText() : "";
+type ResourceLoader = ts.ArrowFunction | ts.FunctionExpression | ts.FunctionDeclaration;
+
+function resolveResourceLoader(
+  expression: ts.Expression | undefined,
+  checker: ts.TypeChecker,
+  seen = new Set<ts.Symbol>(),
+  depth = 0,
+): ResourceLoader | undefined {
+  if (!expression || depth > 8) return undefined;
+  const candidate = unwrapStaticExpression(expression);
+  if (ts.isArrowFunction(candidate) || ts.isFunctionExpression(candidate)) return candidate;
+  if (!ts.isIdentifier(candidate)) return undefined;
+  let symbol = checker.getSymbolAtLocation(candidate);
+  if (!symbol || seen.has(symbol)) return undefined;
+  seen.add(symbol);
+  if ((symbol.flags & ts.SymbolFlags.Alias) !== 0) {
+    try {
+      symbol = checker.getAliasedSymbol(symbol);
+    } catch {
+      return undefined;
+    }
+  }
+  const declaration = symbol.valueDeclaration;
+  if (declaration && ts.isFunctionDeclaration(declaration)) return declaration;
+  if (
+    declaration &&
+    ts.isVariableDeclaration(declaration) &&
+    declaration.initializer &&
+    ts.isVariableDeclarationList(declaration.parent) &&
+    (declaration.parent.flags & ts.NodeFlags.Const) !== 0
+  )
+    return resolveResourceLoader(declaration.initializer, checker, seen, depth + 1);
+  return undefined;
 }
 
 const resourceCancellationRule: AnalyzeRule = {
@@ -579,7 +643,7 @@ const resourceCancellationRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
+      const bindings = sourceBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (
           !ts.isCallExpression(node) ||
@@ -587,8 +651,11 @@ const resourceCancellationRule: AnalyzeRule = {
         ) {
           return;
         }
-        const loader = node.arguments[0];
-        if (!loader || (!ts.isArrowFunction(loader) && !ts.isFunctionExpression(loader))) {
+        const checker = context.checker;
+        const firstLoader = resolveResourceLoader(node.arguments[0], checker);
+        const sourceLoader = resolveResourceLoader(node.arguments[1], checker);
+        const loader = sourceLoader ?? firstLoader;
+        if (!loader) {
           diagnostics.push(
             diagnostic(
               context,
@@ -600,30 +667,16 @@ const resourceCancellationRule: AnalyzeRule = {
           );
           return;
         }
-        const text = functionBodyText(loader);
-        if (!/\bfetch\s*\(/.test(text)) return;
-        const firstParameter = loader.parameters[0];
-        const parameterText = firstParameter?.name.getText() ?? "";
-        const signalName =
-          firstParameter && ts.isObjectBindingPattern(firstParameter.name)
-            ? firstParameter.name.elements
-                .find(
-                  (element) =>
-                    (element.propertyName && element.propertyName.getText() === "signal") ||
-                    element.name.getText() === "signal",
-                )
-                ?.name.getText()
-            : parameterText
-              ? `${parameterText}.signal`
-              : null;
-        if (!signalName || !text.includes(signalName)) {
+        const parameter = loader.parameters[sourceLoader ? 1 : 0];
+        const missing = uncancelledRequest(loader, parameter, checker);
+        if (missing) {
           diagnostics.push(
             diagnostic(
               context,
-              loader,
+              missing.call.expression,
               this,
-              "This resource loader calls fetch() without forwarding its AbortSignal.",
-              "Accept { signal } and pass signal in the fetch options.",
+              `resource() performs ${missing.name} without forwarding its own cancellation signal.`,
+              "Pass the resource operation's signal in this request input or fetch options.",
             ),
           );
         }
@@ -653,7 +706,7 @@ const stableDependenciesRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
+      const bindings = sourceBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (!ts.isCallExpression(node)) return;
         const name = canonicalCallName(node.expression, bindings);
@@ -782,7 +835,7 @@ const forContractRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
+      const bindings = sourceBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (!ts.isJsxOpeningElement(node) && !ts.isJsxSelfClosingElement(node)) {
           return;
@@ -889,7 +942,7 @@ const controlContractRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
+      const bindings = sourceBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (!ts.isJsxOpeningElement(node) && !ts.isJsxSelfClosingElement(node)) return;
         const name = canonicalJsxName(node.tagName, bindings);
@@ -967,7 +1020,7 @@ const stableKeyRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
+      const bindings = sourceBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (!ts.isJsxOpeningElement(node) && !ts.isJsxSelfClosingElement(node)) return;
         if (canonicalJsxName(node.tagName, bindings) !== "For") return;
@@ -1177,7 +1230,7 @@ function walkRouteDefinition(
 ): void {
   if (active.has(definition)) return;
   active.add(definition);
-  const bindings = sourceBindings(definition.getSourceFile());
+  const bindings = sourceBindings(definition.getSourceFile(), context.checker);
   const body =
     ts.isArrowFunction(definition) ||
     ts.isFunctionExpression(definition) ||
@@ -1269,7 +1322,7 @@ function walkRouteDefinitions(
 ): void {
   const entrypoints: ts.SignatureDeclaration[] = [];
   for (const sourceFile of context.sourceFiles) {
-    const bindings = sourceBindings(sourceFile);
+    const bindings = sourceBindings(sourceFile, context.checker);
     visit(sourceFile, (node) => {
       if (
         ts.isCallExpression(node) &&
@@ -1571,7 +1624,7 @@ const asyncComponentRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
+      const bindings = sourceBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         let name: ts.Identifier | undefined;
         let asyncToken = false;
@@ -1656,7 +1709,7 @@ const routeRegistryRule: AnalyzeRule = {
     >();
     const registryCalls: ts.CallExpression[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
+      const bindings = sourceBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (!ts.isCallExpression(node)) return;
         const name = canonicalCallName(node.expression, bindings);
@@ -1716,7 +1769,7 @@ const routeRegistryRule: AnalyzeRule = {
           ? definition.body
           : undefined;
       if (!body) continue;
-      const bindings = sourceBindings(definition.getSourceFile());
+      const bindings = sourceBindings(definition.getSourceFile(), context.checker);
       const walk = (node: ts.Node): void => {
         if (node !== body && ts.isFunctionLike(node)) return;
         if (ts.isCallExpression(node)) {
@@ -1742,7 +1795,10 @@ const routeRegistryRule: AnalyzeRule = {
       index: number,
       active = new Set<ts.ParameterDeclaration>(),
     ): boolean => {
-      const known = canonicalCallName(call.expression, sourceBindings(call.getSourceFile()));
+      const known = canonicalCallName(
+        call.expression,
+        sourceBindings(call.getSourceFile(), context.checker),
+      );
       const callerName = ts.isPropertyAccessExpression(call.expression)
         ? call.expression.name.text
         : ts.isIdentifier(call.expression)
@@ -1804,7 +1860,7 @@ const routeRegistryRule: AnalyzeRule = {
       return unresolved || !observed;
     };
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
+      const bindings = sourceBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (!ts.isCallExpression(node)) return;
         const name = canonicalCallName(node.expression, bindings);
@@ -2048,7 +2104,7 @@ const routePathRule: AnalyzeRule = {
     };
     walkRouteDefinitions(context, inspect);
     for (const sourceFile of context.sourceFiles) {
-      for (const { node, name } of sourceFacts(sourceFile).calls) {
+      for (const { node, name } of sourceFacts(sourceFile, context.checker).calls) {
         if (name !== "route" && name !== "page") continue;
         inspect(node, name, { page: null });
       }
@@ -2251,7 +2307,7 @@ function cancellationInputMayChange(
     return true;
   if ((ts.getCombinedModifierFlags(declaration) & ts.ModifierFlags.Export) !== 0) return true;
   seen.add(symbol);
-  for (const node of sourceFacts(identifier.getSourceFile()).nodes) {
+  for (const node of sourceFacts(identifier.getSourceFile(), checker).nodes) {
     if (!ts.isIdentifier(node) || node === declaration.name) continue;
     if (
       ts.isExportSpecifier(node.parent) &&
@@ -2455,6 +2511,28 @@ function cancellationForwarding(
   return result;
 }
 
+function uncancelledRequest(
+  loader: ResourceLoader,
+  parameter: ts.ParameterDeclaration | undefined,
+  checker: ts.TypeChecker,
+): { readonly call: ts.CallExpression; readonly name: string } | undefined {
+  if (!loader.body) return undefined;
+  let missing: { readonly call: ts.CallExpression; readonly name: string } | undefined;
+  const inspect = (child: ts.Node): void => {
+    if (missing || ts.isFunctionLike(child)) return;
+    if (ts.isCallExpression(child)) {
+      const request = cancellationRequestInput(child, checker);
+      if (request && cancellationForwarding(request.input, parameter, checker) === "missing") {
+        missing = { call: child, name: request.name };
+        return;
+      }
+    }
+    ts.forEachChild(child, inspect);
+  };
+  inspect(loader.body);
+  return missing;
+}
+
 const dataCancellationRule: AnalyzeRule = {
   id: "askr/data-cancellation",
   category: "correctness",
@@ -2463,7 +2541,7 @@ const dataCancellationRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      for (const { node, name: importedName } of sourceFacts(sourceFile).calls) {
+      for (const { node, name: importedName } of sourceFacts(sourceFile, context.checker).calls) {
         if (importedName !== "createQuery" && importedName !== "createMutation") continue;
         const name = cancellationImportName(
           node.expression,
@@ -2638,7 +2716,7 @@ const lifecycleContractRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      for (const { node, name } of sourceFacts(sourceFile).calls) {
+      for (const { node, name } of sourceFacts(sourceFile, context.checker).calls) {
         if (name === "on") {
           const [target, event, handler] = node.arguments;
           if (!target || isNullishLiteral(target) || ts.isLiteralExpression(target)) {
@@ -2746,7 +2824,7 @@ const streamContractRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      for (const { node, name } of sourceFacts(sourceFile).calls) {
+      for (const { node, name } of sourceFacts(sourceFile, context.checker).calls) {
         if (name !== "stream") continue;
         const source = node.arguments[0];
         if (!source || isProvablyNonFunction(source)) {
@@ -2825,7 +2903,7 @@ const dataContractRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      for (const { node, name } of sourceFacts(sourceFile).calls) {
+      for (const { node, name } of sourceFacts(sourceFile, context.checker).calls) {
         if (name !== "createQuery" && name !== "createMutation") continue;
         const options = node.arguments[0];
         if (!options) {
@@ -2926,7 +3004,7 @@ const invalidationContractRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      for (const { node, name } of sourceFacts(sourceFile).calls) {
+      for (const { node, name } of sourceFacts(sourceFile, context.checker).calls) {
         if (!["invalidate", "queryScope", "invalidateOnInterval"].includes(name)) continue;
         const prefix = node.arguments[0];
         if (
@@ -3047,7 +3125,7 @@ const islandContractRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      for (const { node, name } of sourceFacts(sourceFile).calls) {
+      for (const { node, name } of sourceFacts(sourceFile, context.checker).calls) {
         if (name !== "createIsland" && name !== "createIslands") continue;
         const config = node.arguments[0];
         if (!config || !ts.isObjectLiteralExpression(config)) {
@@ -3104,7 +3182,7 @@ const executionModelRule: AnalyzeRule = {
     const routed: SourceCallFact[] = [];
     const islands: SourceCallFact[] = [];
     for (const sourceFile of context.sourceFiles) {
-      for (const fact of sourceFacts(sourceFile).calls) {
+      for (const fact of sourceFacts(sourceFile, context.checker).calls) {
         if (fact.name === "createSPA" || fact.name === "hydrateSPA") routed.push(fact);
         if (fact.name === "createIsland" || fact.name === "createIslands") islands.push(fact);
       }
@@ -3141,7 +3219,7 @@ const actionContractRule: AnalyzeRule = {
     const diagnostics: AnalyzeDiagnostic[] = [];
     const literalIds = new Map<string, ts.Expression>();
     for (const sourceFile of context.sourceFiles) {
-      const facts = sourceFacts(sourceFile);
+      const facts = sourceFacts(sourceFile, context.checker);
       for (const { node, name } of facts.calls) {
         if (name !== "defineAction") continue;
         const options = node.arguments[0];
@@ -3235,7 +3313,7 @@ const actionPromiseRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const facts = sourceFacts(sourceFile);
+      const facts = sourceFacts(sourceFile, context.checker);
       const handles = new Set<string>();
       for (const { node, name } of facts.calls) {
         if (name !== "action") continue;
@@ -3294,7 +3372,7 @@ const renderAllocationRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      for (const construction of sourceFacts(sourceFile).constructions) {
+      for (const construction of sourceFacts(sourceFile, context.checker).constructions) {
         const name = allocationName(construction.expression);
         if (!name) continue;
         const owner = containingFunction(construction);
@@ -3324,7 +3402,7 @@ const bootRegistryRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
+      const bindings = sourceBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (!ts.isCallExpression(node)) return;
         const name = canonicalCallName(node.expression, bindings);
@@ -3571,15 +3649,19 @@ const frameworkConfigRule: AnalyzeRule = {
       }
       let pluginCalled = false;
       if (pluginLocalName) {
-        visit(viteConfig, (node) => {
-          if (
-            ts.isCallExpression(node) &&
-            ts.isIdentifier(node.expression) &&
-            node.expression.text === pluginLocalName
-          ) {
-            pluginCalled = true;
-          }
-        });
+        visit(
+          viteConfig,
+          (node) => {
+            if (
+              ts.isCallExpression(node) &&
+              ts.isIdentifier(node.expression) &&
+              node.expression.text === pluginLocalName
+            ) {
+              pluginCalled = true;
+            }
+          },
+          context.checker,
+        );
       }
       const dependencyPresent = hasDependency(context.workspace.manifest, "@askrjs/vite");
       if (dependencyPresent && pluginCalled) return diagnostics;
@@ -3670,8 +3752,8 @@ const stableControlBoundaryRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
-      const facts = sourceFacts(sourceFile);
+      const bindings = sourceBindings(sourceFile, context.checker);
+      const facts = sourceFacts(sourceFile, context.checker);
       if (!facts.calls.some((fact) => fact.name === "defineScope")) {
         continue;
       }
@@ -3720,16 +3802,16 @@ const exhaustiveDependenciesRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
+      const bindings = sourceBindings(sourceFile, context.checker);
       if (
-        !sourceFacts(sourceFile).calls.some(
+        !sourceFacts(sourceFile, context.checker).calls.some(
           (fact) => fact.name === "resource" || fact.name === "stream",
         )
       ) {
         continue;
       }
       const state = collectStateBindings(sourceFile, context.checker);
-      for (const { node, name } of sourceFacts(sourceFile).calls) {
+      for (const { node, name } of sourceFacts(sourceFile, context.checker).calls) {
         if (name !== "resource" && name !== "stream") continue;
         const loader = node.arguments[0];
         const deps =
@@ -3787,8 +3869,9 @@ const forRowClosureCaptureRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
-      if (!sourceFacts(sourceFile).jsx.some((fact) => fact.name === "For")) continue;
+      const bindings = sourceBindings(sourceFile, context.checker);
+      if (!sourceFacts(sourceFile, context.checker).jsx.some((fact) => fact.name === "For"))
+        continue;
       const state = collectStateBindings(sourceFile, context.checker);
       const snapshots = new Set<ts.Symbol>();
       visit(sourceFile, (candidate) => {
@@ -3928,9 +4011,9 @@ const renderScopeRequiredRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
+      const bindings = sourceBindings(sourceFile, context.checker);
       if (
-        !sourceFacts(sourceFile).calls.some(
+        !sourceFacts(sourceFile, context.checker).calls.some(
           (fact) =>
             RENDER_REQUIRED_CONCEPTS.has(fact.name) || RENDER_SCOPED_CONCEPTS.has(fact.name),
         )
@@ -3989,7 +4072,7 @@ const stableModuleIdentityRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      for (const { node, name } of sourceFacts(sourceFile).calls) {
+      for (const { node, name } of sourceFacts(sourceFile, context.checker).calls) {
         if (name !== "lazy" && name !== "defineScope") continue;
         const owner = nearestComponent(node);
         if (!owner || isInsideNestedFunction(node, owner)) continue;
@@ -4017,15 +4100,15 @@ const queryKeyContractRule: AnalyzeRule = {
     const diagnostics: AnalyzeDiagnostic[] = [];
     const nondeterministic = new Set(["random", "now", "randomUUID"]);
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
+      const bindings = sourceBindings(sourceFile, context.checker);
       if (
-        !sourceFacts(sourceFile).calls.some(
+        !sourceFacts(sourceFile, context.checker).calls.some(
           (fact) => fact.name === "createQuery" || fact.name === "queryScope",
         )
       ) {
         continue;
       }
-      for (const call of sourceFacts(sourceFile).allCalls) {
+      for (const call of sourceFacts(sourceFile, context.checker).allCalls) {
         const name = canonicalCallName(call.expression, bindings);
         let expression: ts.Expression | undefined;
         if (name === "createQuery") {
@@ -4148,7 +4231,7 @@ const routeScopeStructureRule: AnalyzeRule = {
 
     walkRouteDefinitions(context, inspect);
     for (const sourceFile of context.sourceFiles) {
-      for (const { node, name } of sourceFacts(sourceFile).calls) {
+      for (const { node, name } of sourceFacts(sourceFile, context.checker).calls) {
         if (name !== "page" || visitedCalls.has(node)) continue;
         const callback = routeDefinitionCallback(node, "page", context);
         if (!callback) continue;
@@ -4373,20 +4456,24 @@ function routeReferencePath(
   if (!target) return null;
   const importedName = importSpecifier.propertyName?.text ?? importSpecifier.name.text;
   let pathname: string | null = null;
-  visit(target, (node) => {
-    if (
-      pathname !== null ||
-      !ts.isVariableDeclaration(node) ||
-      !ts.isIdentifier(node.name) ||
-      node.name.text !== importedName ||
-      !node.initializer ||
-      containingFunction(node)
-    ) {
-      return;
-    }
-    const initializer = unwrapStaticExpression(node.initializer);
-    if (ts.isCallExpression(initializer)) pathname = routePaths.get(initializer) ?? null;
-  });
+  visit(
+    target,
+    (node) => {
+      if (
+        pathname !== null ||
+        !ts.isVariableDeclaration(node) ||
+        !ts.isIdentifier(node.name) ||
+        node.name.text !== importedName ||
+        !node.initializer ||
+        containingFunction(node)
+      ) {
+        return;
+      }
+      const initializer = unwrapStaticExpression(node.initializer);
+      if (ts.isCallExpression(initializer)) pathname = routePaths.get(initializer) ?? null;
+    },
+    context.checker,
+  );
   return pathname;
 }
 
@@ -4435,7 +4522,7 @@ const linkContractRule: AnalyzeRule = {
     const unsafe = /^(?:javascript|data|vbscript):/i;
     const routePaths = new Map<ts.CallExpression, string>();
     for (const sourceFile of context.sourceFiles) {
-      for (const { node, name } of sourceFacts(sourceFile).calls) {
+      for (const { node, name } of sourceFacts(sourceFile, context.checker).calls) {
         if (name !== "route" && name !== "page") continue;
         const literal = node.arguments[0];
         if (!literal || !ts.isStringLiteral(literal)) continue;
@@ -4453,8 +4540,9 @@ const linkContractRule: AnalyzeRule = {
     });
 
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
-      if (!sourceFacts(sourceFile).jsx.some((fact) => fact.name === "Link")) continue;
+      const bindings = sourceBindings(sourceFile, context.checker);
+      if (!sourceFacts(sourceFile, context.checker).jsx.some((fact) => fact.name === "Link"))
+        continue;
       visit(sourceFile, (node) => {
         if (!ts.isJsxOpeningElement(node) && !ts.isJsxSelfClosingElement(node)) return;
         if (canonicalJsxName(node.tagName, bindings) !== "Link") return;
@@ -4539,7 +4627,7 @@ const noSlotStyleOverrideRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
+      const bindings = sourceBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (!ts.isJsxOpeningElement(node) && !ts.isJsxSelfClosingElement(node)) return;
         if (hasJsxSpreadAttribute(node)) return;
@@ -4577,7 +4665,7 @@ const blockLayoutAuthorityConflictRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      const bindings = sourceBindings(sourceFile);
+      const bindings = sourceBindings(sourceFile, context.checker);
       visit(sourceFile, (node) => {
         if (!ts.isJsxOpeningElement(node) && !ts.isJsxSelfClosingElement(node)) return;
         if (hasJsxSpreadAttribute(node)) return;
@@ -4662,9 +4750,10 @@ const noEffectDataLoadingRule: AnalyzeRule = {
   analyze(context) {
     const diagnostics: AnalyzeDiagnostic[] = [];
     for (const sourceFile of context.sourceFiles) {
-      if (!sourceFacts(sourceFile).calls.some((fact) => fact.name === "task")) continue;
+      if (!sourceFacts(sourceFile, context.checker).calls.some((fact) => fact.name === "task"))
+        continue;
       const state = collectStateBindings(sourceFile, context.checker);
-      for (const { node, name } of sourceFacts(sourceFile).calls) {
+      for (const { node, name } of sourceFacts(sourceFile, context.checker).calls) {
         if (name !== "task") continue;
         const callback = node.arguments[0];
         if (

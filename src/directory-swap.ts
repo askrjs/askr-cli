@@ -27,6 +27,11 @@ interface PublicationRecord {
   publishedIdentity: { device: string; inode: string };
 }
 
+export interface DirectoryTargetSnapshot {
+  readonly device: string;
+  readonly inode: string;
+}
+
 function publicationPath(target: string): string {
   return path.join(path.dirname(target), `.${path.basename(target)}.askr-publication.json`);
 }
@@ -163,18 +168,23 @@ export async function createSiblingStage(target: string, label: string): Promise
 /**
  * Copies the live `target` into `stage` while holding the target lock, so the
  * copy can never observe a folder another build is half-way through swapping.
- * The lock covers only the copy, not site generation. Resolves to `false` when
- * the target does not exist and nothing was copied.
+ * The lock covers only the copy, not site generation. Resolves to `null` when
+ * the target does not exist; otherwise returns the identity of the copied tree
+ * so a later publication can reject a stale incremental stage.
  */
-export async function copyTargetIntoStage(target: string, stage: string): Promise<boolean> {
+export async function copyTargetIntoStage(
+  target: string,
+  stage: string,
+): Promise<DirectoryTargetSnapshot | null> {
   return withDirectoryTargetLock(target, async () => {
     const resolvedTarget = path.resolve(target);
-    if (!(await directoryStat(resolvedTarget))) return false;
+    const snapshot = await directoryStat(resolvedTarget);
+    if (!snapshot) return null;
     await fs.cp(resolvedTarget, stage, {
       recursive: true,
       mode: constants.COPYFILE_FICLONE,
     });
-    return true;
+    return { device: snapshot.dev.toString(), inode: snapshot.ino.toString() };
   });
 }
 
@@ -261,6 +271,32 @@ export async function swapStagedDirectoryLocked(stage: string, target: string): 
   await cleanPublication(record).catch(() => undefined);
 }
 
-export async function publishStagedDirectory(stage: string, target: string): Promise<void> {
-  return withDirectoryTargetLock(target, () => swapStagedDirectoryLocked(stage, target));
+async function ensureTargetMatchesSnapshot(
+  target: string,
+  expected: DirectoryTargetSnapshot | null,
+): Promise<void> {
+  const resolvedTarget = path.resolve(target);
+  const current = await directoryStat(resolvedTarget);
+  const unchanged =
+    expected === null
+      ? current === null
+      : current !== null &&
+        current.dev.toString() === expected.device &&
+        current.ino.toString() === expected.inode;
+  if (!unchanged) {
+    throw new Error(
+      `Output directory changed during incremental generation at ${JSON.stringify(resolvedTarget)}; refusing to replace newer output. Rerun the SSG command.`,
+    );
+  }
+}
+
+export async function publishStagedDirectory(
+  stage: string,
+  target: string,
+  expectedTarget?: DirectoryTargetSnapshot | null,
+): Promise<void> {
+  return withDirectoryTargetLock(target, async () => {
+    if (expectedTarget !== undefined) await ensureTargetMatchesSnapshot(target, expectedTarget);
+    await swapStagedDirectoryLocked(stage, target);
+  });
 }

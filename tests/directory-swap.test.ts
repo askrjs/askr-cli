@@ -66,7 +66,7 @@ describe("directory publication", () => {
     async (phase) => {
       const { root, target, stage, backup } = await interruptedPublication(phase);
       const copy = await createSiblingStage(target, "copy");
-      expect(await copyTargetIntoStage(target, copy)).toBe(true);
+      expect(await copyTargetIntoStage(target, copy)).not.toBeNull();
       const file = phase === "published" ? "new.txt" : "old.txt";
       const contents = phase === "published" ? "new" : "old";
       expect(await fs.readFile(path.join(target, file), "utf8")).toBe(contents);
@@ -195,7 +195,7 @@ describe("directory publication", () => {
       if (fault === "backup")
         expect(await fs.readFile(path.join(record.backup, "old.txt"), "utf8")).toBe("old");
       const copy = await createSiblingStage(target, "copy");
-      expect(await copyTargetIntoStage(target, copy)).toBe(true);
+      expect(await copyTargetIntoStage(target, copy)).not.toBeNull();
       expect(await fs.readFile(path.join(copy, "new.txt"), "utf8")).toBe("new");
       await expect(fs.access(record.backup)).rejects.toMatchObject({ code: "ENOENT" });
       await expect(fs.access(recordPath)).rejects.toMatchObject({ code: "ENOENT" });
@@ -230,7 +230,7 @@ describe("directory publication", () => {
     expect(await fs.readFile(path.join(record.backup, "old.txt"), "utf8")).toBe("old");
     expect(await fs.readFile(path.join(stage, "new.txt"), "utf8")).toBe("new");
     const copy = await createSiblingStage(target, "copy");
-    expect(await copyTargetIntoStage(target, copy)).toBe(true);
+    expect(await copyTargetIntoStage(target, copy)).not.toBeNull();
     expect(await fs.readFile(path.join(target, "old.txt"), "utf8")).toBe("old");
     expect(await fs.readFile(path.join(copy, "old.txt"), "utf8")).toBe("old");
     await expect(fs.access(recordPath)).rejects.toMatchObject({ code: "ENOENT" });
@@ -465,7 +465,7 @@ describe("directory publication", () => {
 
     release();
     await swap;
-    expect(await copy).toBe(true);
+    expect(await copy).not.toBeNull();
     expect(await fs.readdir(stage)).toEqual(["new.txt"]);
   });
 
@@ -475,7 +475,7 @@ describe("directory publication", () => {
     const target = path.join(root, "target");
     const stage = await createSiblingStage(target, "copy");
 
-    expect(await copyTargetIntoStage(target, stage)).toBe(false);
+    expect(await copyTargetIntoStage(target, stage)).toBeNull();
     expect(await fs.readdir(stage)).toEqual([]);
   });
 });

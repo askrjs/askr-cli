@@ -8,7 +8,12 @@ import { pathToFileURL } from "node:url";
 import { register } from "tsx/esm/api";
 import { isDirectExecution } from "./is-direct-execution";
 import { generateSitemap, removeGeneratedSitemap, type SitemapConfig } from "../ssg/sitemap";
-import { copyTargetIntoStage, createSiblingStage, publishStagedDirectory } from "../directory-swap";
+import {
+  copyTargetIntoStage,
+  createSiblingStage,
+  publishStagedDirectory,
+  type DirectoryTargetSnapshot,
+} from "../directory-swap";
 import { inspectSsgDocuments } from "../ssg/documents";
 import {
   removeSsgOutputReport,
@@ -296,6 +301,7 @@ export async function runSsgCli(
 
   let unregisterProjectLoader: (() => Promise<void>) | undefined;
   let cliStagingDir: string | undefined;
+  let incrementalSnapshot: DirectoryTargetSnapshot | null | undefined;
   try {
     io.log(`Loading config: ${resolvedConfigPath}`);
 
@@ -344,7 +350,7 @@ export async function runSsgCli(
 
     cliStagingDir = await createSiblingStage(resolvedOutputDir, "askr-ssg");
     if (parsed.incremental && !parsed.forceFull) {
-      await copyTargetIntoStage(resolvedOutputDir, cliStagingDir);
+      incrementalSnapshot = await copyTargetIntoStage(resolvedOutputDir, cliStagingDir);
     }
     const generationOutputDir = cliStagingDir;
 
@@ -396,7 +402,7 @@ export async function runSsgCli(
       await removeSsgOutputReport(generationOutputDir);
     }
     if (result.failed === 0 && cliStagingDir) {
-      await publishStagedDirectory(cliStagingDir, resolvedOutputDir);
+      await publishStagedDirectory(cliStagingDir, resolvedOutputDir, incrementalSnapshot);
       cliStagingDir = undefined;
     }
     const duration = ((resolvedDeps.now() - startTime) / 1000).toFixed(2);
