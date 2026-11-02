@@ -150,6 +150,38 @@ async function pathExists(filePath: string): Promise<boolean> {
   return Boolean(await fs.stat(filePath).catch(() => null));
 }
 
+async function assertProjectFilePaths(
+  projectRoot: string,
+  filePaths: readonly string[],
+): Promise<void> {
+  const root = path.resolve(projectRoot);
+  for (const filePath of filePaths) {
+    const resolved = path.resolve(filePath);
+    const relative = path.relative(root, resolved);
+    if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+      throw new Error(`Generated output must remain inside the project: ${filePath}`);
+    }
+    const parts = relative.split(path.sep).filter(Boolean);
+    let current = root;
+    for (const [index, part] of parts.entries()) {
+      current = path.join(current, part);
+      let stat;
+      try {
+        stat = await fs.lstat(current);
+      } catch (error) {
+        if (error instanceof Error && "code" in error && error.code === "ENOENT") break;
+        throw error;
+      }
+      if (stat.isSymbolicLink())
+        throw new Error(`Refusing symbolic link in generated output path: ${current}`);
+      if (index < parts.length - 1 && !stat.isDirectory())
+        throw new Error(`Generated output parent is not a directory: ${current}`);
+      if (index === parts.length - 1 && !stat.isFile())
+        throw new Error(`Generated output is not a regular file: ${current}`);
+    }
+  }
+}
+
 function slugifySegment(value: string): string {
   return value
     .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
@@ -181,16 +213,103 @@ function toTitleCase(words: string[]): string {
 }
 
 function buildComponentName(segments: string[]): string {
-  return `${toWords(segments)
+  const name = `${toWords(segments)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join("")}Page`;
+  return /^[A-Za-z_$]/.test(name) ? name : `Page${name}`;
 }
+
+function escapeJsxText(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
+const RESERVED_IDENTIFIERS = new Set([
+  "abstract",
+  "any",
+  "as",
+  "asserts",
+  "async",
+  "await",
+  "boolean",
+  "break",
+  "case",
+  "catch",
+  "class",
+  "const",
+  "constructor",
+  "continue",
+  "debugger",
+  "declare",
+  "default",
+  "delete",
+  "do",
+  "else",
+  "enum",
+  "export",
+  "extends",
+  "false",
+  "finally",
+  "for",
+  "from",
+  "function",
+  "get",
+  "global",
+  "if",
+  "implements",
+  "import",
+  "in",
+  "infer",
+  "instanceof",
+  "interface",
+  "is",
+  "keyof",
+  "let",
+  "module",
+  "namespace",
+  "never",
+  "new",
+  "null",
+  "number",
+  "object",
+  "of",
+  "package",
+  "private",
+  "protected",
+  "public",
+  "readonly",
+  "require",
+  "return",
+  "set",
+  "static",
+  "string",
+  "super",
+  "switch",
+  "symbol",
+  "this",
+  "throw",
+  "true",
+  "try",
+  "type",
+  "typeof",
+  "undefined",
+  "unique",
+  "unknown",
+  "var",
+  "void",
+  "while",
+  "with",
+  "yield",
+]);
 
 function buildIdentifier(segments: string[]): string {
   const [first = "action", ...rest] = toWords(segments);
-  return [first.toLowerCase(), ...rest.map((word) => word.charAt(0).toUpperCase() + word.slice(1))]
+  const identifier = [
+    first.toLowerCase(),
+    ...rest.map((word) => word.charAt(0).toUpperCase() + word.slice(1)),
+  ]
     .join("")
     .replace(/^[^a-z_$]/i, "action");
+  return RESERVED_IDENTIFIERS.has(identifier) ? `_${identifier}` : identifier;
 }
 
 interface DeclaredAction {
@@ -408,7 +527,7 @@ function createUpdatedRouteFile(
     .replace(importMarker, `${importMarker}\n${importLine}`)
     .replace(
       routeMarker,
-      `${routeMarker}\n  route('${options.routePath}', ${options.componentName});`,
+      `${routeMarker}\n  route(${JSON.stringify(options.routePath)}, ${options.componentName});`,
     )
     .replace(/\n+$/, "")}\n`;
 }
@@ -436,9 +555,9 @@ function renderPageFile(options: {
     '      <section class="page-heading">',
     '        <Stack gap="2">',
     `          <Badge>${options.badge}</Badge>`,
-    `          <h1>${options.title}</h1>`,
+    `          <h1>${escapeJsxText(options.title)}</h1>`,
     '          <p class="lead">',
-    `            Route-first scaffold for ${options.routePath}. Keep adapters, queries, and mutations outside the page as this surface grows.`,
+    `            Route-first scaffold for ${escapeJsxText(options.routePath)}. Keep adapters, queries, and mutations outside the page as this surface grows.`,
     "          </p>",
     "        </Stack>",
     "      </section>",
@@ -494,6 +613,12 @@ async function addPage(parsed: ParsedArgs, io: CliIo, writeChanges: WriteChanges
   }
 
   const pageFile = path.join(projectRoot, ...branchConfig.pagesDir, ...segments).concat(".tsx");
+  try {
+    await assertProjectFilePaths(projectRoot, [routesFile, pageFile]);
+  } catch (error) {
+    io.error(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
   if ((await pathExists(pageFile)) && !parsed.force) {
     io.error(`Page file already exists: ${pageFile}`);
     io.error("Pass --force to overwrite the existing file.");
@@ -581,6 +706,19 @@ async function addAction(
   const authorizationFile = path.join(projectRoot, "src", "action-authorizations.ts");
   const testFile = path.join(projectRoot, "tests", "actions", `${slug}.test.ts`);
 
+  try {
+    await assertProjectFilePaths(projectRoot, [
+      descriptorFile,
+      handlerFile,
+      registryFile,
+      authorizationFile,
+      testFile,
+    ]);
+  } catch (error) {
+    io.error(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
+
   if (!(await pathExists(registryFile)) || !(await pathExists(authorizationFile))) {
     io.error("Unsupported project layout. Expected an `askr create full-stack` project.");
     return 1;
@@ -650,6 +788,18 @@ async function addDatabase(
   const generatedFile = path.join(projectRoot, "src", "database", "generated.ts");
   const migrationKeep = path.join(projectRoot, "src", "database", "migrations", ".gitkeep");
   const environmentFile = path.join(projectRoot, ".env.example");
+  try {
+    await assertProjectFilePaths(projectRoot, [
+      manifestFile,
+      definitionFile,
+      generatedFile,
+      migrationKeep,
+      environmentFile,
+    ]);
+  } catch (error) {
+    io.error(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
   if (!(await pathExists(manifestFile))) {
     io.error("Database generation requires a project package.json.");
     return 1;
@@ -682,8 +832,13 @@ async function addDatabase(
             "DATABASE_SHADOW_URL=postgres://postgres:postgres@localhost:5432/app_shadow",
           ]
         : ["DATABASE_PATH=./data/app.sqlite"];
+    const existingEnvironmentKeys = new Set(
+      (currentEnvironment ?? "")
+        .split(/\r?\n/)
+        .flatMap((line) => /^\uFEFF?\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(line)?.[1] ?? []),
+    );
     const additions = environmentLines.filter(
-      (line) => !currentEnvironment?.includes(`${line.split("=")[0]}=`),
+      (line) => !existingEnvironmentKeys.has(line.slice(0, line.indexOf("="))),
     );
     const environment = `${currentEnvironment ?? ""}${currentEnvironment && !currentEnvironment.endsWith("\n") ? "\n" : ""}${additions.join("\n")}${additions.length ? "\n" : ""}`;
     const driverImport = parsed.name;

@@ -1,6 +1,19 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  fmt: {
+    overrides: [
+      {
+        files: [
+          "templates/spa/**",
+          "templates/ssg/**",
+          "templates/ssr/**",
+          "templates/startkit/**",
+        ],
+        options: { printWidth: 80, singleQuote: true, trailingComma: "es5" },
+      },
+    ],
+  },
   pack: {
     entry: {
       add: "src/bin/add.ts",

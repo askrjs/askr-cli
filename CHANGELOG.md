@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-02
+
+### Fixed
+
+- Resolve imported Askr analyzer APIs by TypeScript symbol identity and follow
+  statically named resource loaders and requests when checking cancellation.
+- Keep generated page and action source valid for numeric, reserved, and
+  user-supplied route names. Refuse generated writes through symlinked paths,
+  and ignore commented-out environment assignments when adding database config.
+- Serialize incremental SSG snapshots under the output lock and refuse to
+  publish when another build changes the output during generation.
+- Update the CLI's direct minimatch dependency to patched 11.0.4 and resolve
+  the CLI project dependency graph to patched glob 14.0.3.
+
+### Changed
+
+- Move CLI tooling and starter templates to Vite+ 1.4 and refresh compatible
+  dependencies.
+
 ## [0.5.0] - 2026-10-12
 
 ### Added

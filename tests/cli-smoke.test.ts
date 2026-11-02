@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import ts from "typescript";
 import { expect, test, vi } from "vite-plus/test";
 import { runAddCli } from "../src/bin/add";
 import { runCli } from "../src/bin/cli";
@@ -764,7 +765,128 @@ test("should ensure runAddCli scaffolds a page and registers the app route", asy
     expect(pageFile).toMatch(/<h1>Audit Log<\/h1>/);
     expect(pageFile).toMatch(/resource\(\), derive\(\), and For/);
     expect(routesFile).toMatch(/import AuditLogPage from '\.\/audit-log';/);
-    expect(routesFile).toMatch(/route\('\/app\/audit-log', AuditLogPage\);/);
+    expect(routesFile).toMatch(/route\("\/app\/audit-log", AuditLogPage\);/);
+  } finally {
+    process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("should ensure numeric page names generate valid component identifiers", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-add-numeric-page-"));
+  const previousCwd = process.cwd();
+
+  try {
+    process.chdir(tempRoot);
+    expect(
+      await runCreateCli(["spa", "sample-spa", "--no-install", "--no-skills"], createIo().io),
+    ).toBe(0);
+    const appRoot = path.join(tempRoot, "sample-spa");
+    expect(await runAddCli(["page", "404", "--cwd", appRoot], createIo().io)).toBe(0);
+
+    const page = await fs.readFile(path.join(appRoot, "src/pages/app/404.tsx"), "utf8");
+    const result = ts.transpileModule(page, {
+      fileName: "404.tsx",
+      reportDiagnostics: true,
+      compilerOptions: { jsx: ts.JsxEmit.Preserve, module: ts.ModuleKind.ESNext },
+    });
+    expect(
+      result.diagnostics?.filter(
+        (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
+      ),
+    ).toEqual([]);
+    expect(page).toContain("export default function Page404Page()");
+  } finally {
+    process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("should ensure add page treats route and title input as source text", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-add-page-input-"));
+  const previousCwd = process.cwd();
+  const routePath = "/app/audit'); throw new Error('injected');//";
+  const title = "</h1><script>alert('x')</script> &";
+
+  try {
+    process.chdir(tempRoot);
+    expect(
+      await runCreateCli(["spa", "sample-spa", "--no-install", "--no-skills"], createIo().io),
+    ).toBe(0);
+    const appRoot = path.join(tempRoot, "sample-spa");
+    expect(
+      await runAddCli(
+        ["page", "audit", "--cwd", appRoot, "--title", title, "--route", routePath],
+        createIo().io,
+      ),
+    ).toBe(0);
+
+    const page = await fs.readFile(path.join(appRoot, "src/pages/app/audit.tsx"), "utf8");
+    const routes = await fs.readFile(path.join(appRoot, "src/pages/app/_routes.tsx"), "utf8");
+    const sourceFile = ts.createSourceFile(
+      "_routes.tsx",
+      routes,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX,
+    );
+    const calls: ts.CallExpression[] = [];
+    const visit = (node: ts.Node): void => {
+      if (
+        ts.isCallExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        node.expression.text === "route"
+      )
+        calls.push(node);
+      ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+    const registration = calls.find(
+      (call) => call.arguments[0]?.getText(sourceFile) === JSON.stringify(routePath),
+    );
+
+    expect(registration?.arguments).toHaveLength(2);
+    expect(registration?.arguments[0]).toMatchObject({ text: routePath });
+    expect(page).toContain("&lt;/h1&gt;&lt;script&gt;alert('x')&lt;/script&gt; &amp;");
+    const transpiled = ts.transpileModule(routes, {
+      fileName: "_routes.tsx",
+      reportDiagnostics: true,
+      compilerOptions: { jsx: ts.JsxEmit.ReactJSX },
+    });
+    expect(
+      (transpiled.diagnostics ?? []).filter(
+        (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
+      ),
+    ).toEqual([]);
+  } finally {
+    process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("should refuse to add a page through a symlinked route directory", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-add-page-symlink-"));
+  const previousCwd = process.cwd();
+  const outside = path.join(tempRoot, "outside");
+
+  try {
+    process.chdir(tempRoot);
+    expect(
+      await runCreateCli(["spa", "sample-spa", "--no-install", "--no-skills"], createIo().io),
+    ).toBe(0);
+    const appRoot = path.join(tempRoot, "sample-spa");
+    const routeDirectory = path.join(appRoot, "src/pages/app");
+    const originalRoutes = await fs.readFile(path.join(routeDirectory, "_routes.tsx"), "utf8");
+    await fs.rename(routeDirectory, outside);
+    await fs.symlink(outside, routeDirectory, process.platform === "win32" ? "junction" : "dir");
+
+    const result = createIo();
+    expect(await runAddCli(["page", "outside-write", "--cwd", appRoot], result.io)).toBe(1);
+    expect(result.errors.join("\n")).toMatch(/symbolic link|symlink/i);
+    expect(await fs.readFile(path.join(outside, "_routes.tsx"), "utf8")).toBe(originalRoutes);
+    await expect(fs.access(path.join(outside, "outside-write.tsx"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
   } finally {
     process.chdir(previousCwd);
     await fs.rm(tempRoot, { recursive: true, force: true });
@@ -798,8 +920,8 @@ test("should ensure concurrent add page commands cannot silently lose a registra
     expect(failed.errors.join("\n")).toContain("File changed before writing");
 
     const routes = await fs.readFile(path.join(appRoot, "src/pages/app/_routes.tsx"), "utf8");
-    expect(routes).toContain(`route('/app/${succeeded}',`);
-    expect(routes).not.toContain(`route('/app/${failed.name}',`);
+    expect(routes).toContain(`route("/app/${succeeded}",`);
+    expect(routes).not.toContain(`route("/app/${failed.name}",`);
     await expect(
       fs.access(path.join(appRoot, `src/pages/app/${succeeded}.tsx`)),
     ).resolves.toBeUndefined();
@@ -842,6 +964,20 @@ test("should ensure runAddCli transactionally scaffolds both database dialects",
     } finally {
       await fs.rm(tempRoot, { recursive: true, force: true });
     }
+  }
+});
+
+test("should add database environment variables when matching text is only a comment", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-database-env-comment-"));
+  try {
+    await fs.writeFile(path.join(tempRoot, "package.json"), '{"name":"database-app"}\n');
+    await fs.writeFile(path.join(tempRoot, ".env.example"), "# DATABASE_PATH=old-location\n");
+    expect(await runAddCli(["database", "sqlite", "--cwd", tempRoot], createIo().io)).toBe(0);
+    expect(await fs.readFile(path.join(tempRoot, ".env.example"), "utf8")).toBe(
+      "# DATABASE_PATH=old-location\nDATABASE_PATH=./data/app.sqlite\n",
+    );
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
   }
 });
 
@@ -973,7 +1109,7 @@ test("should ensure runCli routes add page through the top-level command", async
     expect(pageFile).toMatch(/export default function OpsReviewQueuePage/);
     expect(pageFile).toMatch(/<h1>Review Queue<\/h1>/);
     expect(routesFile).toMatch(/import OpsReviewQueuePage from '\.\/ops\/review-queue';/);
-    expect(routesFile).toMatch(/route\('\/ops\/review-queue', OpsReviewQueuePage\);/);
+    expect(routesFile).toMatch(/route\("\/ops\/review-queue", OpsReviewQueuePage\);/);
   } finally {
     process.chdir(previousCwd);
     await fs.rm(tempRoot, { recursive: true, force: true });
@@ -1041,6 +1177,40 @@ test("should ensure runAddCli generates a browser-safe action and server registr
     expect(await fs.readFile(path.join(appRoot, "src", "action-authorizations.ts"), "utf8")).toBe(
       authorizationFile,
     );
+  } finally {
+    process.chdir(previousCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("should ensure reserved action names generate valid server identifiers", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-add-action-keyword-"));
+  const previousCwd = process.cwd();
+
+  try {
+    process.chdir(tempRoot);
+    expect(
+      await runCreateCli(
+        ["full-stack", "sample-full-stack", "--no-install", "--no-skills"],
+        createIo().io,
+      ),
+    ).toBe(0);
+    const appRoot = path.join(tempRoot, "sample-full-stack");
+    expect(
+      await runAddCli(["action", "class", "--route", "/", "--cwd", appRoot], createIo().io),
+    ).toBe(0);
+
+    const handler = await fs.readFile(path.join(appRoot, "src/server/actions/class.ts"), "utf8");
+    const result = ts.transpileModule(handler, {
+      fileName: "class.ts",
+      reportDiagnostics: true,
+      compilerOptions: { module: ts.ModuleKind.ESNext },
+    });
+    expect(
+      result.diagnostics?.filter(
+        (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
+      ),
+    ).toEqual([]);
   } finally {
     process.chdir(previousCwd);
     await fs.rm(tempRoot, { recursive: true, force: true });
@@ -1277,6 +1447,94 @@ test("should ensure concurrent SSG invocations publish only complete output tree
       await fs.readFile(path.join(output, "complete.txt"), "utf8"),
     );
     expect((await fs.readdir(root)).some((name) => name.includes("askr-lock"))).toBe(false);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("should ensure concurrent incremental SSG builds do not discard a published route update", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-cli-ssg-incremental-race-"));
+  const output = path.join(root, "dist");
+  await fs.mkdir(path.join(output, "base"), { recursive: true });
+  await fs.writeFile(path.join(output, "base/index.html"), "<main>base</main>");
+  let arrivals = 0;
+  let release!: () => void;
+  const bothReady = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let ready!: () => void;
+  const generationReady = new Promise<void>((resolve) => {
+    ready = resolve;
+  });
+  let instance = 0;
+
+  const invoke = () => {
+    const { io, errors } = createIo();
+    const command = runSsgCli(
+      ["--config", "ssg.config.ts", "--output", output, "--incremental"],
+      {
+        cwd: () => root,
+        existsSync: () => true,
+        importConfig: async () => ({
+          registry: { records: [{ path: "/" }] },
+          sitemap: false,
+          outputReport: false,
+        }),
+        createStaticGen: ({ outputDir }) => {
+          const routeName = `change-${++instance}`;
+          return {
+            async generate() {
+              const filePath = path.join(outputDir, routeName, "index.html");
+              await fs.mkdir(path.dirname(filePath), { recursive: true });
+              await fs.writeFile(filePath, `<main>${routeName}</main>`);
+              if (++arrivals === 2) ready();
+              await bothReady;
+              return {
+                mode: "incremental",
+                successful: 1,
+                totalRoutes: 1,
+                failed: 0,
+                rebuilt: 1,
+                skipped: 0,
+                removed: 0,
+                cacheHits: 0,
+                routes: [
+                  { path: `/${routeName}`, filePath: `${routeName}/index.html`, status: "success" },
+                ],
+              };
+            },
+          };
+        },
+      },
+      io,
+    );
+    return { command, errors };
+  };
+
+  try {
+    const builds = [invoke(), invoke()];
+    await generationReady;
+    release();
+    const outcomes = await Promise.all(
+      builds.map(async ({ command, errors }) => ({
+        code: await command,
+        errors,
+      })),
+    );
+
+    expect(outcomes.map(({ code }) => code).sort()).toEqual([0, 1]);
+    expect(outcomes.flatMap(({ errors }) => errors).join("\n")).toContain(
+      "Output directory changed during incremental generation",
+    );
+    const entries = await fs.readdir(output);
+    const publishedChanges = entries.filter((name) => name.startsWith("change-"));
+    expect(publishedChanges).toHaveLength(1);
+    expect(entries).toContain("base");
+    const published = await fs.readFile(
+      path.join(output, publishedChanges[0]!, "index.html"),
+      "utf8",
+    );
+    expect(published).toContain(publishedChanges[0]);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }

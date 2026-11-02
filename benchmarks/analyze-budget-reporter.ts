@@ -17,21 +17,12 @@ const HOSTED_LINUX_BUDGETS_MS: Readonly<Record<string, number>> = {
 
 type BudgetProfile = "local" | "hosted-linux";
 type ReportedTestCase = Parameters<NonNullable<Reporter["onTestCaseResult"]>>[0];
+type TestResultState = ReturnType<ReportedTestCase["result"]>["state"];
 
 interface BenchmarkObservation {
   readonly mean: number;
   readonly sampleCount: number;
-  readonly state: string;
-}
-
-interface BenchmarkTaskResult {
-  readonly result?: {
-    readonly state: string;
-    readonly benchmark?: {
-      readonly mean: number;
-      readonly sampleCount: number;
-    };
-  };
+  readonly state: TestResultState;
 }
 
 interface ReporterRuntime {
@@ -71,18 +62,17 @@ export class AnalyzeBudgetReporter implements Reporter {
   }
 
   onTestCaseResult(testCase: ReportedTestCase): void {
-    if (!Object.hasOwn(ANALYZE_BUDGETS_MS, testCase.name) || !testCase.meta().benchmark) return;
-
-    const task = testCase as ReportedTestCase & { readonly task: BenchmarkTaskResult };
-    const result = task.task.result;
-    const benchmark = result?.benchmark;
-    if (this.#observations.has(testCase.name)) this.#duplicates.add(testCase.name);
-    this.#observations.set(
-      testCase.name,
-      benchmark
-        ? { mean: benchmark.mean, sampleCount: benchmark.sampleCount, state: result.state }
-        : undefined,
-    );
+    for (const benchmark of testCase.benchmarks()) {
+      for (const task of benchmark.tasks) {
+        if (!Object.hasOwn(ANALYZE_BUDGETS_MS, task.name)) continue;
+        if (this.#observations.has(task.name)) this.#duplicates.add(task.name);
+        this.#observations.set(task.name, {
+          mean: task.latency.mean,
+          sampleCount: task.latency.samplesCount,
+          state: testCase.result().state,
+        });
+      }
+    }
   }
 
   onTestRunEnd(): void {
@@ -96,7 +86,7 @@ export class AnalyzeBudgetReporter implements Reporter {
       }
 
       const result = this.#observations.get(name);
-      if (!result || result.state !== "pass") {
+      if (!result || result.state !== "passed") {
         failures.push(`${name}: successful benchmark result missing`);
       } else if (!Number.isFinite(result.mean) || result.mean <= 0) {
         failures.push(`${name}: benchmark mean must be finite and positive`);

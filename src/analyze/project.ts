@@ -35,6 +35,13 @@ function asObject(value: unknown, message: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function containsGlobCharacters(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    ["*", "?", "[", "]", "{", "}"].some((character) => value.includes(character))
+  );
+}
+
 export function readAnalyzeConfiguration(
   rootManifest: Record<string, unknown>,
 ): AnalyzeConfiguration {
@@ -88,7 +95,7 @@ export function readAnalyzeConfiguration(
       !/^[A-Za-z_$][\w$]*$/.test(record.export) ||
       path.posix.isAbsolute(record.file) ||
       path.win32.isAbsolute(record.file) ||
-      /[*?\[\]{}]/.test(record.file)
+      containsGlobCharacters(record.file)
     )
       throw invalid();
     const file = path.posix.normalize(record.file.replace(/\\/g, "/"));

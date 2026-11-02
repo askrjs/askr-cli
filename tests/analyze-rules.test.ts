@@ -500,6 +500,27 @@ describe("analyzer rules", () => {
     expect(found.every((entry) => entry.file === "src/page.tsx")).toBe(true);
   });
 
+  it("should ignore local functions that shadow imported Askr primitives", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { resource, state } from "@askrjs/askr";
+        export function Page(props: { enabled: boolean }) {
+          const state = (value: number) => value;
+          const count = state(1);
+          const resource = (work: () => unknown) => work();
+          if (props.enabled) resource(() => null);
+          return <div>{count}</div>;
+        }
+      `,
+    });
+    const found = await diagnostics(root);
+    expect(
+      found.filter((entry) =>
+        ["askr/stable-render-call", "askr/state-access"].includes(entry.ruleId),
+      ),
+    ).toEqual([]);
+  });
+
   it("should report unstable render calls and invalid state reads and writes", async () => {
     const root = await fixture({
       "src/page.tsx": `
@@ -703,6 +724,53 @@ describe("analyzer rules", () => {
     const found = await diagnostics(root);
     expect(found.filter((entry) => entry.ruleId === "askr/resource-cancellation")).toHaveLength(1);
     expect(found.filter((entry) => entry.ruleId === "askr/stable-dependencies")).toHaveLength(1);
+  });
+
+  it("should require the resource operation signal on the request itself", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { resource } from "@askrjs/askr";
+        export function Page() {
+          return resource(({ signal }) => {
+            const retained = signal;
+            return fetch("/api");
+          }, []);
+        }
+      `,
+    });
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/resource-cancellation",
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]?.message).toContain("without forwarding its own cancellation signal");
+  });
+
+  it("should inspect both resource overloads and resolve named loaders", async () => {
+    const root = await fixture({
+      "src/page.tsx": `
+        import { resource } from "@askrjs/askr/resources";
+        function missingSourceLoad(url: string, options: { signal: AbortSignal }) {
+          return fetch(url);
+        }
+        function forwardedSourceLoad(url: string, { signal }: { signal: AbortSignal }) {
+          return fetch(url, { signal });
+        }
+        function forwardedLoader({ signal }: { signal: AbortSignal }) {
+          return fetch("/api", { signal });
+        }
+        export function Page() {
+          resource(() => "/missing", missingSourceLoad);
+          resource(() => "/forwarded", forwardedSourceLoad);
+          resource(forwardedLoader, []);
+          return <div />;
+        }
+      `,
+    });
+    const found = (await diagnostics(root)).filter(
+      (entry) => entry.ruleId === "askr/resource-cancellation",
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]?.message).toContain("fetch()");
   });
 
   it("should check For contracts, positional keys, and only reactive JSX map calls", async () => {

@@ -137,6 +137,7 @@ ${behavior === "success" ? "process.exit(0);" : behavior === "failure" ? "proces
       let installer: Installer | undefined;
       let installerWasTerminated = false;
       let startTimer: ReturnType<typeof setTimeout> | undefined;
+      let cleanupError: unknown;
       try {
         if (behavior !== "missing") {
           installer = await Promise.race([
@@ -212,13 +213,14 @@ ${behavior === "success" ? "process.exit(0);" : behavior === "failure" ? "proces
           try {
             process.kill(installer.pid, "SIGKILL");
           } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+            if ((error as NodeJS.ErrnoException).code !== "ESRCH") cleanupError = error;
           }
         }
         // The installer (and Windows command shell) inherit these pipes. Wait
         // for their handles to close before removing the retained fixture cwd.
         await closed;
       }
+      if (cleanupError) throw cleanupError;
     },
     20_000,
   );
@@ -303,7 +305,7 @@ describe("generated directory ownership and recovery", () => {
     expect(result.error?.message).toContain(JSON.stringify(result.backup));
     expect(await fs.readFile(path.join(result.backup, "schemas.ts"), "utf8")).toBe("old schema");
     const stage = await createSiblingStage(target, "copy");
-    expect(await copyTargetIntoStage(target, stage)).toBe(true);
+    expect(await copyTargetIntoStage(target, stage)).not.toBeNull();
     expect(await fs.readFile(path.join(target, "schemas.ts"), "utf8")).toBe("old schema");
     expect(await fs.readFile(path.join(stage, "schemas.ts"), "utf8")).toBe("old schema");
   });
