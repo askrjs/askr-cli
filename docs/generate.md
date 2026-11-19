@@ -35,6 +35,8 @@ Supported schemas include references, constants, enums, objects, arrays,
 parameters override matching `(name, in)` pairs. Path template declarations are
 validated before code is written.
 
+Generated JSON clients require `@askrjs/fetch` and `@askrjs/schema` at runtime. The client validates JSON request bodies before transport and validates JSON success and error responses when decoding. Generation reports unsupported validation keywords at their schema pointers. Read-only and write-only properties follow the direction of use, including through component references.
+
 Supported parameter locations are path, query, and header. Supported bodies and
 responses are JSON, `+json`, text, URL-encoded forms, multipart forms, and binary
 array buffers. Callbacks, webhooks, cookie parameters, response links, and

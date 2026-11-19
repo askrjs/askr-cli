@@ -56,49 +56,18 @@ const document = {
   },
 };
 
-describe("askr generate", () => {
-  it("should generate deterministic files given recursive OpenAPI 3.1 when rendering", () => {
-    const first = generateFiles(document);
-    const second = generateFiles(structuredClone(document));
-    expect(second).toEqual(first);
-    expect(first["schemas.ts"]).toContain('"parent"?: User');
-    expect(first["api.ts"]).toContain('getUser: get("/users/{id}")');
-    expect(first["api.ts"]).toContain(
-      'params<GetUserPath>({ "id": { style: "simple", explode: false } })',
-    );
-    expect(first["api.ts"]).toContain(
-      'query<GetUserQuery>({ "include": { style: "form", explode: true } })',
-    );
-    expect(first["api.ts"]).toContain("securitySchemes");
-  });
-  it("should type-check schema references given a generated client", async () => {
-    const root = await mkdtemp(join(tmpdir(), "askr-generated-types-"));
-    const output = join(root, "generated");
-    await writeGenerated(output, generateFiles(document), false);
-    const fetchTypes = join(root, "fetch.d.ts");
-    await writeFile(
-      fetchTypes,
-      [
-        'declare module "@askrjs/fetch" {',
-        "  export interface ClientOptions {}",
-        "  export interface Descriptor {",
-        "    params<T>(value: unknown): Descriptor;",
-        "    query<T>(value: unknown): Descriptor;",
-        "    returns(value: unknown): Descriptor;",
-        "    errors(value: unknown): Descriptor;",
-        "    security(value: unknown): Descriptor;",
-        "  }",
-        "  export function defineApi(value: unknown, options: unknown): unknown;",
-        "  export function createClient(value: unknown, options?: ClientOptions): unknown;",
-        "  export function get(path: string): Descriptor;",
-        "  export function json<T>(): unknown;",
-        "}",
-      ].join("\n"),
-    );
+async function compileGenerated(files: ReturnType<typeof generateFiles>, consumer = "") {
+  const root = await mkdtemp(join(tmpdir(), "askr-generated-types-"));
+  const output = join(root, "generated");
+  try {
+    await writeGenerated(output, files, false);
+    await writeFile(join(output, "consumer.ts"), consumer);
+    await symlink(join(process.cwd(), "node_modules"), join(root, "node_modules"), "dir");
     const program = ts.createProgram({
       rootNames: [
-        fetchTypes,
-        ...["schemas.ts", "operations.ts", "api.ts", "index.ts"].map((file) => join(output, file)),
+        ...["consumer.ts", "schemas.ts", "operations.ts", "api.ts", "index.ts"].map((file) =>
+          join(output, file),
+        ),
       ],
       options: {
         module: ts.ModuleKind.ESNext,
@@ -116,7 +85,166 @@ describe("askr generate", () => {
       .map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
 
     expect(errors).toEqual([]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
+describe("askr generate", () => {
+  it.each(["inline", "reference"])(
+    "generates distinct recursive request and response shapes for %s",
+    async (mode) => {
+      const model = {
+        type: "object",
+        required: ["name", "id", "secret"],
+        properties: {
+          name: { type: "string" },
+          id: { type: "integer", readOnly: true },
+          secret: { type: "string", writeOnly: true },
+          child: { $ref: "#/components/schemas/User" },
+        },
+      };
+      const content = {
+        "application/json": {
+          schema: mode === "inline" ? model : { $ref: "#/components/schemas/User" },
+        },
+      };
+      const files = generateFiles({
+        openapi: "3.1.0",
+        components: { schemas: { User: model } },
+        paths: {
+          "/": {
+            post: {
+              operationId: "save",
+              requestBody: { content },
+              responses: { "200": { content } },
+            },
+          },
+        },
+      });
+      if (mode === "reference") {
+        expect(files["operations.ts"]).toContain("export type SaveBody = UserRequest;");
+        expect(files["operations.ts"]).toContain("export type SaveResponse200 = User;");
+      }
+      await compileGenerated(
+        files,
+        `
+      import { createApiClient } from "./api";
+      const client = createApiClient();
+      const response = await client.save({body:{name:"a",secret:"b",child:{name:"c",secret:"d"}}});
+      if(response.ok) {
+        const id: number = response.data.id;
+        void id;
+        // @ts-expect-error write-only field
+        response.data.secret;
+      }
+      // @ts-expect-error missing required write-only property
+      await client.save({body:{name:"a"}});
+      // @ts-expect-error read-only field
+      await client.save({body:{id:1,name:"a",secret:"b"}});
+    `,
+      );
+      expect(files["schemas.ts"]).toContain('"child"?: UserRequest;');
+    },
+  );
+
+  it("should generate deterministic files given recursive OpenAPI 3.1 when rendering", () => {
+    const first = generateFiles(document);
+    const second = generateFiles(structuredClone(document));
+    expect(second).toEqual(first);
+    expect(first["schemas.ts"]).toContain('"parent"?: User');
+    expect(first["api.ts"]).toContain('getUser: get("/users/{id}")');
+    expect(first["api.ts"]).toContain(
+      'params<GetUserPath>({ "id": { style: "simple", explode: false } })',
+    );
+    expect(first["api.ts"]).toContain(
+      'query<GetUserQuery>({ "include": { style: "form", explode: true } })',
+    );
+    expect(first["api.ts"]).toContain("securitySchemes");
   });
+  it("should type-check schema references given a generated client", async () => {
+    await compileGenerated(generateFiles(document));
+  });
+  it("validates generated JSON calls before transport and after a success response", async () => {
+    const root = await mkdtemp(join(process.cwd(), ".generated-consumer-"));
+    try {
+      const content = {
+        "application/json": {
+          schema: { type: "object", required: ["id"], properties: { id: { type: "integer" } } },
+        },
+      };
+      const files = generateFiles({
+        openapi: "3.1.0",
+        paths: {
+          "/items": {
+            post: {
+              operationId: "save",
+              requestBody: { content },
+              responses: { "200": { content }, "400": { content } },
+            },
+          },
+        },
+      });
+      const modulePath = join(root, "api.mjs");
+      await writeFile(
+        modulePath,
+        ts.transpileModule(files["api.ts"], {
+          compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+        }).outputText,
+      );
+      const { createApiClient } = await import(pathToFileURL(modulePath).href);
+      let calls = 0;
+      const client = createApiClient({
+        baseUrl: "https://example.test",
+        fetch: async () => {
+          calls++;
+          return Response.json({ id: "wrong type" }, { status: calls === 1 ? 200 : 400 });
+        },
+      });
+      expect(await client.save({ body: { id: 1 } })).toMatchObject({
+        ok: false,
+        kind: "decode",
+        status: 200,
+      });
+      expect(await client.save({ body: { id: "wrong" } })).toMatchObject({
+        ok: false,
+        kind: "request",
+      });
+      expect(calls).toBe(1);
+      expect(await client.save({ body: { id: 1 } })).toMatchObject({
+        ok: false,
+        kind: "decode",
+        status: 400,
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves the generated tree when a validation keyword is unsupported", async () => {
+    const root = await mkdtemp(join(tmpdir(), "askr-invalid-schema-"));
+    try {
+      const input = join(root, "input.json");
+      const output = join(root, "generated");
+      await writeFile(input, JSON.stringify(document));
+      await writeGenerated(output, generateFiles(document), false);
+      const readOutput = async () =>
+        Promise.all(
+          (await readdir(output)).sort().map((name) => readFile(join(output, name), "utf8")),
+        );
+      const original = await readOutput();
+      const invalid = structuredClone(document);
+      Object.assign(invalid.components.schemas.User.properties.id, { not: { const: "bad" } });
+      await writeFile(input, JSON.stringify(invalid));
+      await expect(
+        (async () => writeGenerated(output, generateFiles(await loadOpenApi(input)), false))(),
+      ).rejects.toThrow("#/components/schemas/User/properties/id/not");
+      expect(await readOutput()).toEqual(original);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("should include an exact pointer given an unsupported operation when rendering", () => {
     const invalid: any = structuredClone(document);
     invalid.paths["/users/{id}"].get.callbacks = {};
