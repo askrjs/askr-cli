@@ -28,7 +28,10 @@ export class GenerationError extends Error {}
 const fail = (message: string, at: string, operationId?: string): never => {
   throw new GenerationError(`${operationId ? `${operationId}: ` : ""}${message} at ${at}`);
 };
-type SchemaReferenceCollector = { add(name: string): void };
+type SchemaReferenceCollector = {
+  requestNames?: ReadonlyMap<string, string>;
+  add(name: string): void;
+};
 const pascal = (name: string) => {
   const result = name
     .replace(/(^|[^A-Za-z0-9]+)([A-Za-z0-9])/g, (_, _s, c) => c.toUpperCase())
@@ -42,9 +45,14 @@ function schemaType(
   direction: "request" | "response" = "response",
   references?: SchemaReferenceCollector,
 ): string {
+  if (schema.nullable === true) {
+    const { nullable, ...rest } = schema;
+    return `(${schemaType(rest, at, direction, references)}) | null`;
+  }
   if (schema.$ref) {
-    const name = decodeURIComponent(String(schema.$ref).split("/").at(-1)!);
-    const typeName = pascal(name);
+    const name = pointerPart(String(schema.$ref).split("/").at(-1)!);
+    const base = pascal(name);
+    const typeName = direction === "request" ? (references?.requestNames?.get(base) ?? base) : base;
     references?.add(typeName);
     return typeName;
   }
@@ -97,9 +105,7 @@ function schemaType(
     type = `{\n${properties.join("\n")}\n}`;
   } else if (!schema.type) fail("Unsupported schema without a type", at);
   else fail(`Unsupported schema type ${schema.type}`, at);
-  return schema.nullable || (Array.isArray(schema.type) && schema.type.includes("null"))
-    ? `${type} | null`
-    : type;
+  return type;
 }
 function responseSchema(operation: Json, at: string, success: boolean) {
   const entries = Object.entries<Json>(operation.responses ?? {})
@@ -107,37 +113,171 @@ function responseSchema(operation: Json, at: string, success: boolean) {
     .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }));
   return entries;
 }
+type Direction = "request" | "response";
+type ValidatorEmitter = (value: Json, at: string, direction: Direction) => string;
+
+function validatorExpression(
+  value: Json,
+  at: string,
+  direction: Direction,
+  reference: (ref: string, at: string, direction: Direction) => string,
+): string {
+  const render = (child: Json, path: string) =>
+    validatorExpression(child, path, direction, reference);
+  const annotations = [
+    "title",
+    "description",
+    "example",
+    "examples",
+    "default",
+    "deprecated",
+    "readOnly",
+    "writeOnly",
+  ];
+  const check = (...keys: string[]) => {
+    for (const key of Object.keys(value)) {
+      if (!annotations.includes(key) && !keys.includes(key) && !key.startsWith("x-"))
+        fail(`Unsupported JSON validation keyword ${key}`, at + pointer(key).slice(1));
+    }
+  };
+  if (value.$ref) {
+    check("$ref");
+    return reference(value.$ref, at, direction);
+  }
+  if (value.nullable === true) {
+    const { nullable, ...rest } = value;
+    return `s.nullable(${render(rest, at)})`;
+  }
+  if (Array.isArray(value.type))
+    return `s.anyOf(${value.type.map((type: string) => render({ ...value, type }, at)).join(", ")})`;
+  for (const key of ["oneOf", "anyOf", "allOf"]) {
+    if (!value[key]) continue;
+    check(key, "nullable");
+    return `s.${key}(${value[key].map((child: Json, i: number) => render(child, at + "/" + key + "/" + i)).join(", ")})`;
+  }
+  if ("const" in value || value.enum) {
+    check("type", "enum", "const", "nullable");
+    const values = value.enum ?? [value.const];
+    if (
+      values.some((v: unknown) => v !== null && !["string", "boolean", "number"].includes(typeof v))
+    )
+      fail("Unsupported non-scalar literal", at);
+    const choices = values.filter(
+      (v: unknown) =>
+        (!("const" in value) || v === value.const) &&
+        (!value.type ||
+          (value.type === "integer"
+            ? Number.isInteger(v)
+            : (v === null ? "null" : typeof v) === value.type)),
+    );
+    if (!choices.length) fail("Empty literal schema", at);
+    const literals = choices.map((v: unknown) => `s.literal(${JSON.stringify(v)})`);
+    return literals.length === 1 ? literals[0] : `s.anyOf(${literals.join(", ")})`;
+  }
+  const type = value.type ?? (value.items ? "array" : "object");
+  const keys: Record<string, string[]> = {
+    string: ["minLength", "maxLength", "pattern", "format"],
+    number: ["minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf"],
+    array: ["minItems", "maxItems", "uniqueItems"],
+    object: ["minProperties", "maxProperties"],
+    boolean: [],
+    null: [],
+  };
+  const options = keys[type === "integer" ? "number" : type] ?? [];
+  const structural =
+    type === "array"
+      ? ["items"]
+      : type === "object"
+        ? ["properties", "additionalProperties", "required"]
+        : [];
+  check("type", "nullable", ...options, ...structural);
+  const args = Object.fromEntries(options.filter((k) => k in value).map((k) => [k, value[k]]));
+  if (
+    value.format &&
+    !["uuid", "email", "uri", "date", "date-time", "byte", "binary"].includes(value.format)
+  )
+    fail("Unsupported string format", at + "/format");
+  if (type === "string" && "pattern" in value) {
+    try {
+      new RegExp(value.pattern, "u");
+    } catch {
+      fail("Invalid regular expression", at + "/pattern");
+    }
+  }
+  for (const key of options) {
+    if (!(key in args)) continue;
+    if (["pattern", "format"].includes(key)) {
+      if (typeof args[key] !== "string") fail("Expected a string", at + "/" + key);
+    } else if (key === "uniqueItems") {
+      if (typeof args[key] !== "boolean") fail("Expected a boolean", at + "/" + key);
+    } else if (
+      !Number.isFinite(args[key]) ||
+      (key === "multipleOf" && args[key] <= 0) ||
+      (/Length$|Items$|Properties$/.test(key) && (!Number.isInteger(args[key]) || args[key] < 0))
+    ) {
+      fail("Unsupported numeric constraint", at + "/" + key);
+    }
+  }
+  if (type === "array")
+    return `s.array(${render(value.items, at + "/items")}, ${JSON.stringify(args)})`;
+  if (type === "object") {
+    const required = new Set<string>(value.required ?? []);
+    for (const name of required) {
+      if (!Object.hasOwn(value.properties ?? {}, name))
+        fail("Required property needs a declared schema", at + "/required");
+    }
+    const fields = Object.entries<Json>(value.properties ?? {}).flatMap(([name, child]) => {
+      if (direction === "request" ? child.readOnly : child.writeOnly) return [];
+      const parsed = render(child, at + pointer("properties", name).slice(1));
+      return [
+        `[${JSON.stringify(name)}]: ${required.has(name) ? parsed : `s.optional(${parsed})`}`,
+      ];
+    });
+    const additional = value.additionalProperties ?? true;
+    return `s.object({ ${fields.join(", ")} }, { ...${JSON.stringify(args)}, additionalProperties: ${typeof additional === "boolean" ? additional : render(additional, at + "/additionalProperties")} })`;
+  }
+  return `s.${type}(${JSON.stringify(args)})`;
+}
+
 function pickContent(
   content: Json | undefined,
   at: string,
   direction: "request" | "response",
-  references?: SchemaReferenceCollector,
+  references: SchemaReferenceCollector,
+  validator: ValidatorEmitter,
+  imports: Set<string>,
 ) {
   const entries = Object.entries<Json>(content ?? {}).sort(([a], [b]) => a.localeCompare(b));
-  if (!entries.length) return { type: "undefined", codec: "empty()", media: [] as string[] };
-  const types = entries.map(([mediaType, value]) => ({
-    mediaType,
-    type: schemaType(
-      value.schema ?? {},
-      `${at}/content/${mediaType.replace(/~/g, "~0").replace(/\//g, "~1")}/schema`,
-      direction,
-      references,
-    ),
-  }));
+  if (!entries.length) {
+    imports.add("empty");
+    return { type: "undefined", codec: "empty()", media: [] as string[] };
+  }
+  if (entries.length > 1) imports.add("content");
+  const types = entries.map(([mediaType, value]) => {
+    const location = at + pointer("content", mediaType, "schema").slice(1);
+    const type = schemaType(value.schema ?? {}, location, direction, references);
+    const name = codecFor(mediaType);
+    imports.add(name);
+    const codec =
+      name === "json"
+        ? `json(${validator(value.schema, location, direction)} as import("@askrjs/schema").Schema<${type}>)`
+        : name + "()";
+    return { mediaType, type, codec };
+  });
   const union = [...new Set(types.map((v) => v.type))].join(" | ");
   const codec =
     types.length === 1
-      ? codecFor(types[0]!.mediaType, union)
-      : `content({ ${types.map((v) => `${JSON.stringify(v.mediaType)}: ${codecFor(v.mediaType, v.type)}`).join(", ")} })`;
+      ? types[0]!.codec
+      : `content({ ${types.map((v) => `${JSON.stringify(v.mediaType)}: ${v.codec}`).join(", ")} })`;
   return { type: union, codec, media: types.map((v) => v.mediaType) };
 }
-function codecFor(mediaType: string, type: string) {
-  if (mediaType === "application/json" || mediaType.endsWith("+json")) return `json<${type}>()`;
-  if (mediaType.startsWith("text/")) return "text()";
-  if (mediaType === "application/x-www-form-urlencoded") return "urlEncoded()";
-  if (mediaType === "multipart/form-data") return "multipart()";
-  if (mediaType === "application/octet-stream") return "arrayBuffer()";
-  fail(`Unsupported media type ${mediaType}`, "#/content");
+function codecFor(mediaType: string): string {
+  if (mediaType === "application/json" || mediaType.endsWith("+json")) return "json";
+  if (mediaType.startsWith("text/")) return "text";
+  if (mediaType === "application/x-www-form-urlencoded") return "urlEncoded";
+  if (mediaType === "multipart/form-data") return "multipart";
+  if (mediaType === "application/octet-stream") return "arrayBuffer";
+  return fail(`Unsupported media type ${mediaType}`, "#/content");
 }
 
 type SourceDocument = { uri: string; document: Json };
@@ -662,22 +802,68 @@ export function generateFiles(document: Json): Record<(typeof OWNED)[number], st
     ([safe, original]) =>
       `export type ${safe} = ${schemaType(schemas[original], pointer("components", "schemas", original))};`,
   );
+  const requestNames = new Map<string, string>();
+  const requestRefs = { requestNames, add() {} };
+  // A directional child can change its parents, including members of a cycle.
+  let previousSize;
+  do {
+    previousSize = requestNames.size;
+    for (const [safe, original] of names) {
+      if (requestNames.has(safe)) continue;
+      const at = pointer("components", "schemas", original);
+      const schema = schemas[original];
+      if (schemaType(schema, at, "request", requestRefs) === schemaType(schema, at)) continue;
+      let requestName = safe + "Request";
+      while (names.has(requestName) || [...requestNames.values()].includes(requestName))
+        requestName += "Request";
+      requestNames.set(safe, requestName);
+    }
+  } while (requestNames.size !== previousSize);
+  for (const [safe, name] of requestNames) {
+    const original = names.get(safe)!;
+    schemaLines.push(
+      `export type ${name} = ${schemaType(schemas[original], pointer("components", "schemas", original), "request", requestRefs)};`,
+    );
+  }
   const operationSchemaReferences = new Set<string>();
   const apiSchemaReferences = new Set<string>();
   const apiOperationReferences = new Set<string>();
   const contentSchemaReferences: SchemaReferenceCollector = {
+    requestNames,
     add(name) {
       operationSchemaReferences.add(name);
       apiSchemaReferences.add(name);
     },
   };
+  let usesValidators = false;
+  const validators = new Map<string, string>();
+  const emitValidator: ValidatorEmitter = (value, at, direction) => {
+    usesValidators = true;
+    return validatorExpression(value, at, direction, (ref, location, usage) => {
+      const original = pointerPart(ref.split("/").at(-1)!);
+      const base = pascal(original);
+      const name = usage === "request" ? (requestNames.get(base) ?? base) : base;
+      if (!Object.hasOwn(schemas, original)) fail("Unknown component reference", location);
+      apiSchemaReferences.add(name);
+      if (!validators.has(name)) {
+        validators.set(name, "");
+        validators.set(
+          name,
+          emitValidator(schemas[original], pointer("components", "schemas", original), usage),
+        );
+      }
+      return `s.raw<${name}>({}, value => validate${name}.safeParse(value))`;
+    });
+  };
   const operationTypes: string[] = [];
   const descriptors: string[] = [];
+  const imports = new Set<string>();
   const seen = new Set<string>();
   for (const path of Object.keys(document.paths ?? {}).sort())
     for (const method of METHODS) {
       const operation = document.paths[path]?.[method];
       if (!operation) continue;
+      imports.add(method === "delete" ? "del" : method);
       const at = pointer("paths", path, method);
       const id = operation.operationId;
       if (!id || !identifier.test(id))
@@ -731,7 +917,7 @@ export function generateFiles(document: Json): Record<(typeof OWNED)[number], st
         const name = `${prefix}${pascal(location)}`;
         apiOperationReferences.add(name);
         operationTypes.push(
-          `export type ${name} = {\n${list.map((p) => `  ${JSON.stringify(p.name)}${p.required || location === "path" ? "" : "?"}: ${schemaType(p.schema ?? {}, `${at}/parameters`, "request", operationSchemaReferences)};`).join("\n")}\n};`,
+          `export type ${name} = {\n${list.map((p) => `  ${JSON.stringify(p.name)}${p.required || location === "path" ? "" : "?"}: ${schemaType(p.schema ?? {}, `${at}/parameters`, "request", { requestNames, add: (name) => operationSchemaReferences.add(name) })};`).join("\n")}\n};`,
         );
         const defaultStyle = location === "query" ? "form" : "simple";
         const spec = `{ ${list
@@ -752,6 +938,8 @@ export function generateFiles(document: Json): Record<(typeof OWNED)[number], st
             `${at}/requestBody`,
             "request",
             contentSchemaReferences,
+            emitValidator,
+            imports,
           )
         : undefined;
       if (body) operationTypes.push(`export type ${prefix}Body = ${body.type};`);
@@ -771,6 +959,8 @@ export function generateFiles(document: Json): Record<(typeof OWNED)[number], st
           `${at}/responses/${status}`,
           "response",
           contentSchemaReferences,
+          emitValidator,
+          imports,
         );
         const typeName = `${prefix}Response${status}`;
         operationTypes.push(`export type ${typeName} = ${value.type};`);
@@ -785,6 +975,8 @@ export function generateFiles(document: Json): Record<(typeof OWNED)[number], st
             `${at}/responses/${status}`,
             "response",
             contentSchemaReferences,
+            emitValidator,
+            imports,
           );
           const typeName = `${prefix}Error${pascal(status)}`;
           operationTypes.push(`export type ${typeName} = ${value.type};`);
@@ -796,19 +988,10 @@ export function generateFiles(document: Json): Record<(typeof OWNED)[number], st
         chain.push(`security(${JSON.stringify(operation.security ?? document.security)})`);
       descriptors.push(`  ${id}: ${chain.join("\n    .")},`);
     }
-  const imports = [
-    ...new Set(
-      descriptors
-        .join(" ")
-        .match(
-          /\b(get|post|put|patch|del|head|options|json|text|urlEncoded|multipart|arrayBuffer|empty|content)\b/g,
-        ) ?? [],
-    ),
-  ].sort();
   const files = {
     "schemas.ts": `${schemaLines.join("\n\n")}\n`,
     "operations.ts": `${operationSchemaReferences.size ? `import type { ${[...operationSchemaReferences].sort().join(", ")} } from "./schemas";\n\n` : ""}${operationTypes.join("\n\n")}\n`,
-    "api.ts": `import { ${["defineApi", "createClient", ...imports].join(", ")} } from "@askrjs/fetch";\nimport type { ClientOptions } from "@askrjs/fetch";\n${apiSchemaReferences.size ? `import type { ${[...apiSchemaReferences].sort().join(", ")} } from "./schemas";\n` : ""}${apiOperationReferences.size ? `import type { ${[...apiOperationReferences].sort().join(", ")} } from "./operations";\n` : ""}\nexport const api = defineApi({\n${descriptors.join("\n")}\n}, ${JSON.stringify({ servers: (document.servers ?? []).map((s: Json) => s.url), securitySchemes: document.components?.securitySchemes ?? {} }, null, 2)});\n\nexport const createApiClient = (options?: ClientOptions) => createClient(api, options);\n`,
+    "api.ts": `import { ${["defineApi", "createClient", ...[...imports].sort()].join(", ")} } from "@askrjs/fetch";\nimport type { ClientOptions } from "@askrjs/fetch";\n${apiSchemaReferences.size ? `import type { ${[...apiSchemaReferences].sort().join(", ")} } from "./schemas";\n` : ""}${apiOperationReferences.size ? `import type { ${[...apiOperationReferences].sort().join(", ")} } from "./operations";\n` : ""}\n${usesValidators ? 'import { schema as s } from "@askrjs/schema";\n' : ""}${[...validators].map(([name, expression]) => `const validate${name}: import("@askrjs/schema").Schema<${name}> = ${expression} as import("@askrjs/schema").Schema<${name}>;`).join("\n")}\nexport const api = defineApi({\n${descriptors.join("\n")}\n}, ${JSON.stringify({ servers: (document.servers ?? []).map((s: Json) => s.url), securitySchemes: document.components?.securitySchemes ?? {} }, null, 2)});\n\nexport const createApiClient = (options?: ClientOptions) => createClient(api, options);\n`,
     "index.ts": `export * from "./schemas";\nexport * from "./operations";\nexport { api, createApiClient } from "./api";\n`,
     ".askr-generated.json": "",
   } satisfies Record<(typeof OWNED)[number], string>;

@@ -75,8 +75,10 @@
   "devDependencies": {
     "@askrjs/askr": ">=0.5.0 <0.6.0",
     "@askrjs/charts": ">=0.5.0 <0.6.0",
+    "@askrjs/fetch": "^0.5.0",
     "@askrjs/logos": ">=0.5.0 <0.6.0",
     "@askrjs/lucide": ">=0.5.0 <0.6.0",
+    "@askrjs/schema": "^0.5.0",
     "@askrjs/themes": ">=0.5.0 <0.6.0",
     "@askrjs/ui": ">=0.5.0 <0.6.0",
     "@askrjs/vite": ">=0.5.0 <0.6.0",
