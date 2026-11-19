@@ -62,14 +62,14 @@
     "test:types": "npm run build && node tests/package-consumers.js"
   },
   "dependencies": {
-    "@npmcli/config": "^11.2.0",
-    "ignore": "^7.0.14",
+    "@npmcli/config": "^11.2.1",
+    "ignore": "^7.0.16",
     "js-yaml": "^5.5.0",
-    "minimatch": "^11.0.4",
+    "minimatch": "^11.0.9",
     "npm-registry-fetch": "^20.0.1",
-    "parse5": "^8.1.0",
-    "semver": "^7.8.5",
-    "tsx": "^4.23.12",
+    "parse5": "^8.1.1",
+    "semver": "^7.8.6",
+    "tsx": "^4.23.15",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "devDependencies": {
@@ -86,11 +86,11 @@
     "@types/node": "^26.6.6",
     "@types/semver": "^7.8.0",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "@vitest/coverage-v8": "5.0.5",
+    "@vitest/coverage-v8": "5.1.0",
     "publint": "^0.3.25",
-    "vite": "npm:@voidzero-dev/vite-plus-core@1.4.0",
-    "vite-plus": "1.4.0",
-    "vitest": "5.0.5"
+    "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8000",
+    "vite-plus": "1.7.0",
+    "vitest": "5.1.0"
   },
   "peerDependencies": {
     "@askrjs/askr": ">=0.5.0 <0.6.0"
@@ -102,11 +102,11 @@
   },
   "overrides": {
     "@npmcli/map-workspaces": {
-      "minimatch": "^11.0.4"
+      "minimatch": "^11.0.9"
     },
-    "glob": "14.0.3",
-    "vite": "npm:@voidzero-dev/vite-plus-core@1.4.0",
-    "vitest": "5.0.5"
+    "glob": "14.0.6",
+    "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8000",
+    "vitest": "5.1.0"
   },
   "engines": {
     "node": ">=24.0.0"
