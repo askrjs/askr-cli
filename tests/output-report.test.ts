@@ -57,6 +57,29 @@ afterEach(async () => {
 });
 
 describe("SSG output report", () => {
+  it.each([
+    [{ routes: { raw: -1 } }, /outputReport\.budgets\.routes\.raw must be a non-negative integer byte limit/],
+    [{ routes: { raw: 1.5 } }, /outputReport\.budgets\.routes\.raw must be a non-negative integer byte limit/],
+    [{ hydration: { share: -0.1 } }, /hydration share.*must be from 0 through 1/],
+    [{ hydration: { share: 1.1 } }, /hydration share.*must be from 0 through 1/],
+  ])("should reject invalid output budget values before writing a report", async (budgets, message) => {
+    const { outputDir, routes } = await fixture();
+    const inspections = await inspectSsgDocuments(outputDir, routes);
+    await expect(writeSsgOutputReport(outputDir, routes, inspections, { budgets })).rejects.toThrow(
+      message,
+    );
+    await expect(fs.access(path.join(outputDir, ".askr/ssg-output.json"))).rejects.toThrow();
+  });
+
+  it.each([0, 1])("should accept hydration share boundary %s", async (share) => {
+    const { outputDir, routes } = await fixture();
+    await fs.writeFile(path.join(outputDir, "guide/index.html"), "<html><body>Guide</body></html>");
+    const inspections = await inspectSsgDocuments(outputDir, routes);
+    await expect(
+      writeSsgOutputReport(outputDir, routes, inspections, { budgets: { hydration: { share } } }),
+    ).resolves.toBeTruthy();
+  });
+
   it("should report the complete stage deterministically with gzip and hydration metrics", async () => {
     const { outputDir, routes } = await fixture();
     const inspections = await inspectSsgDocuments(outputDir, routes);
@@ -146,9 +169,14 @@ describe("SSG output report", () => {
     );
     const inspections = await inspectSsgDocuments(outputDir, routes);
 
-    await expect(
-      writeSsgOutputReport(outputDir, routes, inspections, { basePath: "/" }),
-    ).resolves.toBeTruthy();
+    const destination = await writeSsgOutputReport(outputDir, routes, inspections, { basePath: "/" });
+    const report = JSON.parse(await fs.readFile(destination, "utf8"));
+    expect(report.routes[1].initial.css.map((asset: { path: string }) => asset.path)).toContain(
+      "assets/app.css",
+    );
+    expect(
+      report.routes[1].initial.javascript.map((asset: { path: string }) => asset.path),
+    ).toContain("assets/app.js");
   });
 
   it("should not rewrite root-absolute assets outside the configured base path", async () => {
@@ -204,7 +232,17 @@ describe("SSG output report", () => {
     );
     const inspections = await inspectSsgDocuments(outputDir, routes);
 
-    await expect(writeSsgOutputReport(outputDir, routes, inspections)).resolves.toBeTruthy();
+    await fs.writeFile(path.join(outputDir, "assets/app.js"), "export const app = true;");
+    await fs.writeFile(
+      path.join(outputDir, "guide/index.html"),
+      '<script type="module" src="../assets/data.json"></script>' +
+        '<script type="module" src="../assets/app.js"></script>',
+    );
+    const reportPath = await writeSsgOutputReport(outputDir, routes, await inspectSsgDocuments(outputDir, routes));
+    const report = JSON.parse(await fs.readFile(reportPath, "utf8"));
+    const initialJavaScript = report.routes[1].initial.javascript.map((asset: { path: string }) => asset.path);
+    expect(initialJavaScript).toContain("assets/app.js");
+    expect(initialJavaScript).not.toContain("assets/data.json");
   });
 
   it("should list every configured budget violation and withhold the report", async () => {

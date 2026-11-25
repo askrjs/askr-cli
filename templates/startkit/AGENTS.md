@@ -26,7 +26,7 @@ npm run fmt        # Vite+ format
 - **Framework:** Askr - actor-backed, fine-grained reactive UI. No virtual DOM.
 - **Components:** askr-ui headless components (Button, Accordion, Toggle, Input, etc.). Props use `onPress` (not `onClick`), `asChild` for polymorphism, `data-slot` attributes for styling hooks.
 - **Styling:** askr-themes CSS via `[data-slot]` selectors. Keep `src/styles.css` as a thin entrypoint and organize styles in `src/styles/*` using layers (reset/tokens/theme/layout/components).
-- **Routing:** `createRouteRegistry()` composes `group()` and `route()` declarations in `src/router.tsx`. Use `currentRoute()` inside components and navigate with `<Link href="...">`.
+- **Routing:** `src/router.tsx` creates the registry; `src/routes/` composes `group()` and `route()` declarations. Use `currentRoute()` inside components and navigate with `<Link href="...">`.
 - **State:** Prefer `const [value, setValue] = state(initial)`. Read with `value()`, update with `setValue(...)`. `derive()` for computed values. `resource()` for async data.
 - **Data flow:** Keep sample data in `src/lib/mock-data.ts`, not inline in pages. Read async data with `resource()` and keep mock mutations in the same lib boundary.
 - **Preferences:** Keep persistent appearance/session helpers in the lib boundary and initialize at app bootstrap.
@@ -43,16 +43,51 @@ npm run fmt        # Vite+ format
 
 ```
 src/
-  main.tsx           # Entry: createSPA + navigate
-  app.tsx            # Root layout with nav
-  router.tsx         # Route registration
-  styles.css         # Style entrypoint
-  styles/            # reset/tokens/theme/layout/components layers
-  components/        # App-level reusable components
-  layouts/           # app and auth route layouts
-  features/          # feature-scoped UI modules
-  pages/             # Route page components
-  lib/               # Mock data + formatting helpers
+  main.tsx
+  router.tsx
+  routes/
+    index.ts
+    auth.ts
+    auth-config.ts
+    public.ts
+    workspace/
+      index.ts
+      accounts.ts
+  pages/
+    _layout.tsx
+    home.tsx
+    not-found.tsx
+    auth/
+      _layout.tsx
+      login.tsx
+    workspace/
+      _layout.tsx
+      dashboard.tsx
+      settings.tsx
+      accounts/
+        index.tsx
+  components/
+    app-sidebar.tsx
+    app-header.tsx
+    stat-card.tsx
+    data-table.tsx
+    empty-state.tsx
+    page-header.tsx
+  features/
+    accounts/
+      account-table.tsx
+      account-filters.tsx
+  lib/
+    mock-data.ts
+    format.ts
+    routes.ts
+  styles.css
+  styles/
+    reset.css
+    tokens.css
+    theme.css
+    layout.css
+    components.css
 tests/               # Vitest tests
 ```
 
