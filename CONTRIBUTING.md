@@ -57,3 +57,13 @@ Follow the [release checklist](./docs/releasing.md). A
 `chore(release): prepare @askrjs/cli X.Y.Z` change must move the Unreleased
 entries into a dated version section; the normal `npm run check` gate verifies
 that the package version exists in the changelog.
+
+## Git hooks
+
+Enable the repository hooks after cloning:
+
+```shell
+git config core.hooksPath .githooks
+```
+
+Commit messages may not contain `Co-authored-by:` trailers. The canonical Dependabot co-author trailer is the only exception. Pull requests run the same validation on GitHub, so the policy applies even when a contributor has not enabled local hooks.
