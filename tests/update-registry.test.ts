@@ -25,6 +25,27 @@ afterEach(async () => {
 });
 
 describe("update npm configuration and registry", () => {
+  test.each([
+    ["statusCode", { statusCode: 404 }],
+    ["code", { code: "E404" }],
+  ])("should sanitize registry package-not-found errors from %s", async (_kind, errorFields) => {
+    const root = await tempRoot();
+    const result = await fetchPackuments(
+      ["@scope/missing"],
+      await loadNpmConfiguration(root, { HOME: root }),
+      {
+        viewPackage: async () => {
+          throw Object.assign(new Error("https://registry.invalid/raw-secret"), errorFields);
+        },
+      },
+    );
+    expect(result.failures.get("@scope/missing")).toBe(
+      "package was not found in the selected registry",
+    );
+    expect(JSON.stringify([...result.failures])).not.toContain("registry.invalid");
+    expect(JSON.stringify([...result.failures])).not.toContain("raw-secret");
+  });
+
   test("should load npm configuration without inheriting another package manager executable", async () => {
     const root = await tempRoot();
     const configuration = await loadNpmConfiguration(root, {

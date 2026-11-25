@@ -24,17 +24,41 @@ describe("lib mock data", () => {
   });
 
   it("should filter and paginate accounts", async () => {
-    const result = await listAccounts({
+    const first = await listAccounts({
       signal: new AbortController().signal,
-      query: "northwind",
+      query: "",
+      status: "active",
+      page: 1,
+      pageSize: 3,
+    });
+    const second = await listAccounts({
+      signal: new AbortController().signal,
+      query: "",
+      status: "active",
+      page: 2,
+      pageSize: 3,
+    });
+    const empty = await listAccounts({
+      signal: new AbortController().signal,
+      query: "no-such-account",
       status: "all",
       page: 1,
-      pageSize: 5,
+      pageSize: 3,
     });
 
-    expect(result.items.length).toBeGreaterThan(0);
-    expect(result.items[0]?.name.toLowerCase()).toContain("northwind");
-    expect(result.totalPages).toBeGreaterThanOrEqual(1);
+    expect(first.items.map((item) => item.id)).toEqual(["acc_001", "acc_002", "acc_005"]);
+    expect(second.items.map((item) => item.id)).toEqual(["acc_007", "acc_008"]);
+    expect(first.page).toBe(1);
+    expect(second.page).toBe(2);
+    expect(first.items).toHaveLength(3);
+    expect(second.items).toHaveLength(2);
+    expect(
+      first.items
+        .map((item) => item.id)
+        .filter((id) => second.items.some((item) => item.id === id)),
+    ).toEqual([]);
+    expect(empty.items).toEqual([]);
+    expect(empty.totalItems).toBe(0);
   });
 
   it("should archive selected accounts", async () => {

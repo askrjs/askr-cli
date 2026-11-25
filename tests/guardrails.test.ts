@@ -263,8 +263,12 @@ describe("guardrail commands", () => {
     expect(JSON.parse(output.logs[0])).toMatchObject({ command: "doctor" });
 
     const help = io();
-    expect(await runGuardrailCli("repair", ["--help"], help.value)).toBe(0);
+    expect(await runCli(["repair", "--help"], help.value)).toBe(0);
     expect(help.logs.join("\n")).toMatch(/askr repair/);
+
+    const check = io();
+    expect(await runCli(["check", "--help"], check.value)).toBe(0);
+    expect(check.logs.join("\n")).toMatch(/askr check/);
   });
 
   it("should cover guardrail entry parsing, human reports, and error output", async () => {

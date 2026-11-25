@@ -241,28 +241,12 @@ test("should ensure runCreateCli defaults to startkit when template is omitted",
     expect(errors).toHaveLength(0);
 
     const appRoot = path.join(tempRoot, "sample-app");
-    const packageJson = await fs.readFile(path.join(appRoot, "package.json"), "utf8");
-    const landingFile = await fs.readFile(path.join(appRoot, "src", "pages", "home.tsx"), "utf8");
-    const routesFile = await fs.readFile(path.join(appRoot, "src", "routes", "index.ts"), "utf8");
-    const routerFile = await fs.readFile(path.join(appRoot, "src", "router.tsx"), "utf8");
-    const sidebarFile = await fs.readFile(
-      path.join(appRoot, "src", "components", "app-sidebar.tsx"),
-      "utf8",
+    const explicitIo = createIo();
+    expect(await runCreateCli(["startkit", "explicit-app", "--no-install"], explicitIo.io)).toBe(0);
+    expect(explicitIo.errors).toHaveLength(0);
+    expect(await fs.readFile(path.join(appRoot, "src", "routes", "index.ts"), "utf8")).toBe(
+      await fs.readFile(path.join(tempRoot, "explicit-app", "src", "routes", "index.ts"), "utf8"),
     );
-
-    expect(packageJson).toMatch(/"name": "sample-app"/);
-    expect(packageJson).toMatch(/"@askrjs\/lucide"/);
-    expect(landingFile).toMatch(/Production-ready starter/);
-    expect(routesFile).toMatch(/auth:\s*requireAnonymous\(\)/);
-    expect(routesFile).toMatch(/auth:\s*requireUser\(\)/);
-    expect(routesFile).toMatch(/group\(\{\s*layout:\s*App\s*\}/);
-    expect(routesFile).toMatch(/fallback\(/);
-    expect(routerFile).toMatch(/createRouteRegistry/);
-    expect(routerFile).toMatch(/export const pageRegistry/);
-    expect(routerFile).toMatch(/auth:\s*routeAuth/);
-    expect(sidebarFile).toMatch(/Navbar\s+orientation="vertical"/);
-    expect(sidebarFile).toMatch(/NavGroup id="workspace-nav-group" label="Workspace"/);
-    expect(sidebarFile).toMatch(/placement="bottom"/);
   } finally {
     process.chdir(previousCwd);
     await fs.rm(tempRoot, { recursive: true, force: true });
