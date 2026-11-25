@@ -8,9 +8,10 @@ function readSource(path: string): string {
 }
 
 describe("SPA template structure", () => {
-  it("should boot from the route registry and mount the public, auth, and app layouts", () => {
+  it("should wire the SPA entry to the public, auth, and app route groups", () => {
     expect(readSource("main.tsx")).toMatch(/registry:\s*pageRegistry\b/);
     const registry = readSource("pages/_routes.tsx");
+    expect(readSource("pages/_layout.tsx")).toContain("export default");
     expect(registry).toMatch(/group\(\{ layout: RootLayout \}/);
 
     for (const [directory, layout, register, route] of [
