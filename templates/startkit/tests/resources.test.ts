@@ -52,7 +52,11 @@ describe("lib mock data", () => {
     expect(second.page).toBe(2);
     expect(first.items).toHaveLength(3);
     expect(second.items).toHaveLength(2);
-    expect(first.items.map((item) => item.id).filter((id) => second.items.some((item) => item.id === id))).toEqual([]);
+    expect(
+      first.items
+        .map((item) => item.id)
+        .filter((id) => second.items.some((item) => item.id === id)),
+    ).toEqual([]);
     expect(empty.items).toEqual([]);
     expect(empty.totalItems).toBe(0);
   });

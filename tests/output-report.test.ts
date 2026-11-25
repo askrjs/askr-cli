@@ -58,18 +58,27 @@ afterEach(async () => {
 
 describe("SSG output report", () => {
   it.each([
-    [{ routes: { raw: -1 } }, /outputReport\.budgets\.routes\.raw must be a non-negative integer byte limit/],
-    [{ routes: { raw: 1.5 } }, /outputReport\.budgets\.routes\.raw must be a non-negative integer byte limit/],
+    [
+      { routes: { raw: -1 } },
+      /outputReport\.budgets\.routes\.raw must be a non-negative integer byte limit/,
+    ],
+    [
+      { routes: { raw: 1.5 } },
+      /outputReport\.budgets\.routes\.raw must be a non-negative integer byte limit/,
+    ],
     [{ hydration: { share: -0.1 } }, /hydration share.*must be from 0 through 1/],
     [{ hydration: { share: 1.1 } }, /hydration share.*must be from 0 through 1/],
-  ])("should reject invalid output budget values before writing a report", async (budgets, message) => {
-    const { outputDir, routes } = await fixture();
-    const inspections = await inspectSsgDocuments(outputDir, routes);
-    await expect(writeSsgOutputReport(outputDir, routes, inspections, { budgets })).rejects.toThrow(
-      message,
-    );
-    await expect(fs.access(path.join(outputDir, ".askr/ssg-output.json"))).rejects.toThrow();
-  });
+  ])(
+    "should reject invalid output budget values before writing a report",
+    async (budgets, message) => {
+      const { outputDir, routes } = await fixture();
+      const inspections = await inspectSsgDocuments(outputDir, routes);
+      await expect(
+        writeSsgOutputReport(outputDir, routes, inspections, { budgets }),
+      ).rejects.toThrow(message);
+      await expect(fs.access(path.join(outputDir, ".askr/ssg-output.json"))).rejects.toThrow();
+    },
+  );
 
   it.each([0, 1])("should accept hydration share boundary %s", async (share) => {
     const { outputDir, routes } = await fixture();
@@ -169,7 +178,9 @@ describe("SSG output report", () => {
     );
     const inspections = await inspectSsgDocuments(outputDir, routes);
 
-    const destination = await writeSsgOutputReport(outputDir, routes, inspections, { basePath: "/" });
+    const destination = await writeSsgOutputReport(outputDir, routes, inspections, {
+      basePath: "/",
+    });
     const report = JSON.parse(await fs.readFile(destination, "utf8"));
     expect(report.routes[1].initial.css.map((asset: { path: string }) => asset.path)).toContain(
       "assets/app.css",
@@ -238,9 +249,15 @@ describe("SSG output report", () => {
       '<script type="module" src="../assets/data.json"></script>' +
         '<script type="module" src="../assets/app.js"></script>',
     );
-    const reportPath = await writeSsgOutputReport(outputDir, routes, await inspectSsgDocuments(outputDir, routes));
+    const reportPath = await writeSsgOutputReport(
+      outputDir,
+      routes,
+      await inspectSsgDocuments(outputDir, routes),
+    );
     const report = JSON.parse(await fs.readFile(reportPath, "utf8"));
-    const initialJavaScript = report.routes[1].initial.javascript.map((asset: { path: string }) => asset.path);
+    const initialJavaScript = report.routes[1].initial.javascript.map(
+      (asset: { path: string }) => asset.path,
+    );
     expect(initialJavaScript).toContain("assets/app.js");
     expect(initialJavaScript).not.toContain("assets/data.json");
   });

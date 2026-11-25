@@ -242,17 +242,10 @@ test("should ensure runCreateCli defaults to startkit when template is omitted",
 
     const appRoot = path.join(tempRoot, "sample-app");
     const explicitIo = createIo();
-    expect(
-      await runCreateCli(["startkit", "explicit-app", "--no-install"], explicitIo.io),
-    ).toBe(0);
+    expect(await runCreateCli(["startkit", "explicit-app", "--no-install"], explicitIo.io)).toBe(0);
     expect(explicitIo.errors).toHaveLength(0);
-    expect(
-      await fs.readFile(path.join(appRoot, "src", "routes", "index.ts"), "utf8"),
-    ).toBe(
-      await fs.readFile(
-        path.join(tempRoot, "explicit-app", "src", "routes", "index.ts"),
-        "utf8",
-      ),
+    expect(await fs.readFile(path.join(appRoot, "src", "routes", "index.ts"), "utf8")).toBe(
+      await fs.readFile(path.join(tempRoot, "explicit-app", "src", "routes", "index.ts"), "utf8"),
     );
   } finally {
     process.chdir(previousCwd);
