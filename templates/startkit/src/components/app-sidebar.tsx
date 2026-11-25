@@ -1,21 +1,21 @@
-import { Link } from '@askrjs/askr/router';
+import { Link } from "@askrjs/askr/router";
 import {
   LayoutDashboardIcon,
   UsersIcon,
   SettingsIcon,
   LayersIcon,
   ShieldCheckIcon,
-} from '@askrjs/lucide';
-import type { IconProps } from '@askrjs/askr/foundations/icon';
-import type { JSXElement } from '@askrjs/askr/foundations';
-import { NavBrand, NavGroup, NavLink, Navbar } from '@askrjs/themes/components';
+} from "@askrjs/lucide";
+import type { IconProps } from "@askrjs/askr/foundations/icon";
+import type { JSXElement } from "@askrjs/askr/foundations";
+import { NavBrand, NavGroup, NavLink, Navbar } from "@askrjs/themes/components";
 import {
   accountsRoute,
   dashboardRoute,
   landingRoute,
   loginRoute,
   settingsRoute,
-} from '../lib/routes';
+} from "../lib/routes";
 
 type NavItem = {
   href: string;
@@ -42,25 +42,21 @@ const primaryNav: NavItem[] = [
 ];
 
 const secondaryNav: NavItem[] = [
-  { href: landingRoute.href, label: 'Marketing site', icon: LayersIcon },
-  { href: loginRoute.href, label: 'Auth entry', icon: ShieldCheckIcon },
+  { href: landingRoute.href, label: "Marketing site", icon: LayersIcon },
+  { href: loginRoute.href, label: "Auth entry", icon: ShieldCheckIcon },
 ];
 
 export default function AppSidebar() {
   return (
     <aside class="app-sidebar" aria-label="Sidebar navigation">
-      <Navbar
-        orientation="vertical"
-        class="app-sidebar-nav"
-        aria-label="Sidebar navigation"
-      >
+      <Navbar orientation="vertical" class="app-sidebar-nav" aria-label="Sidebar navigation">
         <NavBrand>
           <Link href={dashboardRoute.href} class="sidebar-brand">
             <span class="brand-pill" aria-hidden="true">
               A
             </span>
             <div>
-              <p class="sidebar-title">{'{{appName}}'}</p>
+              <p class="sidebar-title">{"{{appName}}"}</p>
               <p class="sidebar-subtitle">Starter Kit</p>
             </div>
           </Link>

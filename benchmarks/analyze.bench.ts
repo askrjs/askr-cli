@@ -27,11 +27,9 @@ describe("askr analyze", () => {
   test("50-file workspace", async ({ bench }) => {
     await bench("50-file workspace", () => analyzeFixture(mediumWorkspace, 50)).run(benchOptions);
   });
-
   test("250-file workspace", async ({ bench }) => {
     await bench("250-file workspace", () => analyzeFixture(largeWorkspace, 250)).run(benchOptions);
   });
-
   test("5-workspace monorepo with 250 files", async ({ bench }) => {
     await bench("5-workspace monorepo with 250 files", () => analyzeFixture(monorepo, 250)).run(
       benchOptions,

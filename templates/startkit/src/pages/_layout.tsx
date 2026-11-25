@@ -1,4 +1,4 @@
-import '../styles.css';
+import "../styles.css";
 import {
   ToastHost,
   Toast,
@@ -6,15 +6,9 @@ import {
   ToastDescription,
   ToastTitle,
   ToastViewport,
-} from '@askrjs/ui/toast';
-import {
-  clearToast,
-  bindToast,
-  setToastOpen,
-  toastMessage,
-  toastOpen,
-} from '../toast';
-import { state } from '@askrjs/askr';
+} from "@askrjs/ui/toast";
+import { clearToast, bindToast, setToastOpen, toastMessage, toastOpen } from "../toast";
+import { state } from "@askrjs/askr";
 
 export default function App({ children }: { children?: unknown }) {
   const [messageState, setMessageState] = state(toastMessage());
@@ -25,7 +19,7 @@ export default function App({ children }: { children?: unknown }) {
     setOpen: setOpenState,
   });
 
-  const messageTitle = () => messageState()?.title ?? '';
+  const messageTitle = () => messageState()?.title ?? "";
   const messageDescription = () => messageState()?.description;
 
   return (
@@ -45,9 +39,7 @@ export default function App({ children }: { children?: unknown }) {
           class="app-toast"
         >
           <ToastTitle>{messageTitle()}</ToastTitle>
-          {messageDescription() && (
-            <ToastDescription>{messageDescription()}</ToastDescription>
-          )}
+          {messageDescription() && <ToastDescription>{messageDescription()}</ToastDescription>}
           <ToastClose aria-label="Dismiss notification">Dismiss</ToastClose>
         </Toast>
       )}

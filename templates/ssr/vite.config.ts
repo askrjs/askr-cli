@@ -1,16 +1,16 @@
-import { defineConfig } from 'vite-plus';
-import { askr } from '@askrjs/vite';
-import { askrServer } from '@askrjs/vite/server';
+import { defineConfig } from "vite-plus";
+import { askr } from "@askrjs/vite";
+import { askrServer } from "@askrjs/vite/server";
 
 export default defineConfig({
-  plugins: [askr(), askrServer({ entry: './src/entry-server.tsx' })],
+  plugins: [askr(), askrServer({ entry: "./src/entry-server.tsx" })],
   lint: {
-    ignorePatterns: ['dist/**', 'node_modules/**', 'coverage/**'],
+    ignorePatterns: ["dist/**", "node_modules/**", "coverage/**"],
   },
   fmt: {
     semi: true,
     singleQuote: true,
-    trailingComma: 'es5',
+    trailingComma: "es5",
     printWidth: 80,
     tabWidth: 2,
   },

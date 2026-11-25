@@ -1,32 +1,27 @@
-import { Link } from '@askrjs/askr/router';
-import { Button } from '@askrjs/ui';
-import {
-  ActionRow,
-  Card,
-  CardGrid,
-  SectionHeader,
-} from '../components/site-shell';
+import { Link } from "@askrjs/askr/router";
+import { Button } from "@askrjs/ui";
+import { ActionRow, Card, CardGrid, SectionHeader } from "../components/site-shell";
 
 const routeMap = [
   {
-    path: '/',
-    title: 'Home',
-    note: 'Start here and link out to the rest of the sample.',
+    path: "/",
+    title: "Home",
+    note: "Start here and link out to the rest of the sample.",
   },
   {
-    path: '/workflow',
-    title: 'Workflow',
-    note: 'Show the edit, generate, and preview loop.',
+    path: "/workflow",
+    title: "Workflow",
+    note: "Show the edit, generate, and preview loop.",
   },
   {
-    path: '/content',
-    title: 'Content',
-    note: 'Keep the route list visible and easy to extend.',
+    path: "/content",
+    title: "Content",
+    note: "Keep the route list visible and easy to extend.",
   },
   {
-    path: '/preview',
-    title: 'Preview',
-    note: 'Keep one interactive page to confirm hydration.',
+    path: "/preview",
+    title: "Preview",
+    note: "Keep one interactive page to confirm hydration.",
   },
 ] as const;
 
@@ -51,11 +46,7 @@ export default function Content() {
 
       <CardGrid>
         {routeMap.map((route) => (
-          <Card
-            eyebrow={route.path}
-            title={route.title}
-            description={route.note}
-          />
+          <Card eyebrow={route.path} title={route.title} description={route.note} />
         ))}
       </CardGrid>
     </>

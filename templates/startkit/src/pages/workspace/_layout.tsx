@@ -1,6 +1,6 @@
-import { Block, Main } from '@askrjs/themes/components';
-import AppHeader from '../../components/app-header';
-import AppSidebar from '../../components/app-sidebar';
+import { Block, Main } from "@askrjs/themes/components";
+import AppHeader from "../../components/app-header";
+import AppSidebar from "../../components/app-sidebar";
 
 export default function AppLayout(props: { children?: unknown }) {
   return (
