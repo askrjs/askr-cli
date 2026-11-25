@@ -14,7 +14,7 @@
     "noEmit": true,
     "jsx": "preserve",
     "jsxImportSource": "@askrjs/askr",
-    "types": ["@askrjs/themes"]
+    "types": ["@askrjs/themes", "node"]
   },
   "include": ["src", "tests"],
   "references": [{ "path": "./tsconfig.node.json" }]
