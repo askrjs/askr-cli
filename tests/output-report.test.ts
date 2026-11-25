@@ -234,16 +234,9 @@ describe("SSG output report", () => {
     );
   });
 
-  it("should ignore emitted assets whose type does not match the reference", async () => {
+  it("should exclude non-JavaScript assets from initial JavaScript", async () => {
     const { outputDir, routes } = await fixture();
     await fs.writeFile(path.join(outputDir, "assets/data.json"), "{}\n");
-    await fs.writeFile(
-      path.join(outputDir, "guide/index.html"),
-      '<script type="module" src="../assets/data.json"></script>',
-    );
-    const inspections = await inspectSsgDocuments(outputDir, routes);
-
-    await fs.writeFile(path.join(outputDir, "assets/app.js"), "export const app = true;");
     await fs.writeFile(
       path.join(outputDir, "guide/index.html"),
       '<script type="module" src="../assets/data.json"></script>' +
