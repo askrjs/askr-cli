@@ -12,7 +12,6 @@ export default defineConfig({
     fileParallelism: false,
     maxWorkers: 1,
     pool: "forks",
-    reporters: ["default", new AnalyzeBudgetReporter()],
     globalSetup: ["./benchmarks/analyze-global-setup.ts"],
     reporters: ["default", new AnalyzeBudgetReporter()],
     benchmark: {
