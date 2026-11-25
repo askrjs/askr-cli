@@ -1,15 +1,15 @@
-import { defineConfig } from 'vite-plus';
-import { askr } from '@askrjs/vite';
+import { defineConfig } from "vite-plus";
+import { askr } from "@askrjs/vite";
 
 export default defineConfig({
   plugins: [askr()],
   lint: {
-    ignorePatterns: ['dist/**', 'node_modules/**', 'coverage/**'],
+    ignorePatterns: ["dist/**", "node_modules/**", "coverage/**"],
   },
   fmt: {
     semi: true,
     singleQuote: true,
-    trailingComma: 'es5',
+    trailingComma: "es5",
     printWidth: 80,
     tabWidth: 2,
   },
@@ -18,7 +18,7 @@ export default defineConfig({
     open: true,
   },
   build: {
-    outDir: 'dist',
+    outDir: "dist",
     sourcemap: true,
   },
 });

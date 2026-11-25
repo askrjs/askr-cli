@@ -1,7 +1,7 @@
-import { formatCurrency, formatPercent } from './format';
+import { formatCurrency, formatPercent } from "./format";
 
-export type AppearanceMode = 'default' | 'harbor' | 'ink';
-export type AccountStatus = 'active' | 'pending' | 'archived';
+export type AppearanceMode = "default" | "harbor" | "ink";
+export type AccountStatus = "active" | "pending" | "archived";
 
 export type DashboardStat = {
   key: string;
@@ -22,7 +22,7 @@ export type AccountRecord = {
   id: string;
   name: string;
   email: string;
-  plan: 'Starter' | 'Growth' | 'Enterprise';
+  plan: "Starter" | "Growth" | "Enterprise";
   status: AccountStatus;
   mrr: number;
   seats: number;
@@ -35,84 +35,84 @@ export type PagedResult<T> = {
   page: number;
 };
 
-const appearanceStorageKey = 'startkit:appearance';
-const sessionStorageKey = 'startkit:session';
-const appearanceOrder: AppearanceMode[] = ['default', 'harbor', 'ink'];
+const appearanceStorageKey = "startkit:appearance";
+const sessionStorageKey = "startkit:session";
+const appearanceOrder: AppearanceMode[] = ["default", "harbor", "ink"];
 const storageFallback = new Map<string, string>();
 
-let appearance: AppearanceMode = 'default';
+let appearance: AppearanceMode = "default";
 let sessionEmail: string | null = null;
 
 const accountSeed: AccountRecord[] = [
   {
-    id: 'acc_001',
-    name: 'Northwind Logistics',
-    email: 'ops@northwind.example',
-    plan: 'Enterprise',
-    status: 'active',
+    id: "acc_001",
+    name: "Northwind Logistics",
+    email: "ops@northwind.example",
+    plan: "Enterprise",
+    status: "active",
     mrr: 32000,
     seats: 82,
   },
   {
-    id: 'acc_002',
-    name: 'Pinecone Retail',
-    email: 'team@pinecone.example',
-    plan: 'Growth',
-    status: 'active',
+    id: "acc_002",
+    name: "Pinecone Retail",
+    email: "team@pinecone.example",
+    plan: "Growth",
+    status: "active",
     mrr: 9800,
     seats: 28,
   },
   {
-    id: 'acc_003',
-    name: 'Hexa Health',
-    email: 'care@hexa.example',
-    plan: 'Growth',
-    status: 'pending',
+    id: "acc_003",
+    name: "Hexa Health",
+    email: "care@hexa.example",
+    plan: "Growth",
+    status: "pending",
     mrr: 6400,
     seats: 16,
   },
   {
-    id: 'acc_004',
-    name: 'Atlas Research',
-    email: 'lab@atlas.example',
-    plan: 'Starter',
-    status: 'archived',
+    id: "acc_004",
+    name: "Atlas Research",
+    email: "lab@atlas.example",
+    plan: "Starter",
+    status: "archived",
     mrr: 0,
     seats: 4,
   },
   {
-    id: 'acc_005',
-    name: 'Lumen Ops',
-    email: 'admin@lumen.example',
-    plan: 'Growth',
-    status: 'active',
+    id: "acc_005",
+    name: "Lumen Ops",
+    email: "admin@lumen.example",
+    plan: "Growth",
+    status: "active",
     mrr: 11400,
     seats: 34,
   },
   {
-    id: 'acc_006',
-    name: 'Summit Security',
-    email: 'it@summit.example',
-    plan: 'Enterprise',
-    status: 'pending',
+    id: "acc_006",
+    name: "Summit Security",
+    email: "it@summit.example",
+    plan: "Enterprise",
+    status: "pending",
     mrr: 22900,
     seats: 63,
   },
   {
-    id: 'acc_007',
-    name: 'Aster Finance',
-    email: 'hello@aster.example',
-    plan: 'Starter',
-    status: 'active',
+    id: "acc_007",
+    name: "Aster Finance",
+    email: "hello@aster.example",
+    plan: "Starter",
+    status: "active",
     mrr: 3700,
     seats: 11,
   },
   {
-    id: 'acc_008',
-    name: 'Calico Labs',
-    email: 'team@calico.example',
-    plan: 'Growth',
-    status: 'active',
+    id: "acc_008",
+    name: "Calico Labs",
+    email: "team@calico.example",
+    plan: "Growth",
+    status: "active",
     mrr: 12400,
     seats: 39,
   },
@@ -122,31 +122,31 @@ let accountsDb = [...accountSeed];
 
 const activitiesSeed: ActivityEntry[] = [
   {
-    id: 'evt_001',
-    actor: 'Alex Morgan',
-    action: 'invited',
-    resource: '2 teammates to Northwind Logistics',
+    id: "evt_001",
+    actor: "Alex Morgan",
+    action: "invited",
+    resource: "2 teammates to Northwind Logistics",
     timestamp: new Date(Date.now() - 16 * 60 * 1000).toISOString(),
   },
   {
-    id: 'evt_002',
-    actor: 'Priya Shah',
-    action: 'upgraded',
-    resource: 'Pinecone Retail from Starter to Growth',
+    id: "evt_002",
+    actor: "Priya Shah",
+    action: "upgraded",
+    resource: "Pinecone Retail from Starter to Growth",
     timestamp: new Date(Date.now() - 74 * 60 * 1000).toISOString(),
   },
   {
-    id: 'evt_003',
-    actor: 'Jordan Kim',
-    action: 'resolved',
-    resource: 'billing retry for Aster Finance',
+    id: "evt_003",
+    actor: "Jordan Kim",
+    action: "resolved",
+    resource: "billing retry for Aster Finance",
     timestamp: new Date(Date.now() - 5.5 * 60 * 60 * 1000).toISOString(),
   },
   {
-    id: 'evt_004',
-    actor: 'System',
-    action: 'synced',
-    resource: 'daily usage metrics',
+    id: "evt_004",
+    actor: "System",
+    action: "synced",
+    resource: "daily usage metrics",
     timestamp: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
   },
 ];
@@ -161,7 +161,7 @@ function wait(signal?: AbortSignal, delay = 220): Promise<void> {
 
     const onAbort = () => {
       clearTimeout(timeout);
-      reject(new Error('Request aborted'));
+      reject(new Error("Request aborted"));
     };
 
     if (signal.aborted) {
@@ -169,19 +169,16 @@ function wait(signal?: AbortSignal, delay = 220): Promise<void> {
       return;
     }
 
-    signal.addEventListener('abort', onAbort, { once: true });
+    signal.addEventListener("abort", onAbort, { once: true });
   });
 }
 
 function browserStorage(): Storage | undefined {
-  const globalDescriptor = Object.getOwnPropertyDescriptor(
-    globalThis,
-    'localStorage'
-  );
+  const globalDescriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
   if (globalDescriptor?.get && globalDescriptor.enumerable === false) {
     return undefined;
   }
-  if (typeof document === 'undefined') return undefined;
+  if (typeof document === "undefined") return undefined;
   try {
     return document.defaultView?.localStorage;
   } catch {
@@ -215,13 +212,11 @@ function removeStorage(key: string) {
 }
 
 export function initializeAppSession() {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return;
   }
 
-  const storedAppearance = normalizeAppearance(
-    readStorage(appearanceStorageKey) ?? appearance
-  );
+  const storedAppearance = normalizeAppearance(readStorage(appearanceStorageKey) ?? appearance);
   setAppearance(storedAppearance);
 
   sessionEmail = readStorage(sessionStorageKey) ?? sessionEmail;
@@ -235,7 +230,7 @@ export function setAppearance(mode: AppearanceMode) {
   const normalized = normalizeAppearance(mode);
   appearance = normalized;
 
-  if (typeof document !== 'undefined') {
+  if (typeof document !== "undefined") {
     document.documentElement.dataset.skAppearance = normalized;
   }
 
@@ -249,9 +244,9 @@ export function nextAppearance(mode: AppearanceMode): AppearanceMode {
 }
 
 export function resetAppearancePreference() {
-  appearance = 'default';
+  appearance = "default";
 
-  if (typeof document !== 'undefined') {
+  if (typeof document !== "undefined") {
     delete document.documentElement.dataset.skAppearance;
   }
 
@@ -274,12 +269,12 @@ export async function signIn(input: {
   await wait(input.signal, 260);
 
   const email = input.email.trim().toLowerCase();
-  if (!email.includes('@')) {
-    throw new Error('Enter a valid email address.');
+  if (!email.includes("@")) {
+    throw new Error("Enter a valid email address.");
   }
 
   if (input.password.trim().length < 8) {
-    throw new Error('Password must be at least 8 characters.');
+    throw new Error("Password must be at least 8 characters.");
   }
 
   sessionEmail = email;
@@ -298,38 +293,34 @@ export async function getDashboardData(input: {
 }): Promise<{ stats: DashboardStat[]; activities: ActivityEntry[] }> {
   await wait(input.signal, 240);
 
-  const activeAccounts = accountsDb.filter(
-    (item) => item.status === 'active'
-  ).length;
-  const pendingAccounts = accountsDb.filter(
-    (item) => item.status === 'pending'
-  ).length;
+  const activeAccounts = accountsDb.filter((item) => item.status === "active").length;
+  const pendingAccounts = accountsDb.filter((item) => item.status === "pending").length;
   const mrr = accountsDb.reduce((sum, item) => sum + item.mrr, 0);
   const seats = accountsDb.reduce((sum, item) => sum + item.seats, 0);
 
   return {
     stats: [
       {
-        key: 'mrr',
-        label: 'Monthly recurring revenue',
+        key: "mrr",
+        label: "Monthly recurring revenue",
         value: formatCurrency(mrr),
         trend: formatPercent(4.2),
       },
       {
-        key: 'accounts',
-        label: 'Active accounts',
+        key: "accounts",
+        label: "Active accounts",
         value: String(activeAccounts),
         trend: formatPercent(2.3),
       },
       {
-        key: 'pending',
-        label: 'Pending approvals',
+        key: "pending",
+        label: "Pending approvals",
         value: String(pendingAccounts),
         trend: formatPercent(-1.1),
       },
       {
-        key: 'seats',
-        label: 'Provisioned seats',
+        key: "seats",
+        label: "Provisioned seats",
         value: String(seats),
         trend: formatPercent(3.8),
       },
@@ -340,21 +331,20 @@ export async function getDashboardData(input: {
 
 export async function listAccounts(input: {
   query: string;
-  status: AccountStatus | 'all';
+  status: AccountStatus | "all";
   page: number;
   pageSize: number;
   signal?: AbortSignal;
 }): Promise<PagedResult<AccountRecord>> {
   await wait(input.signal, 280);
 
-  if (input.query.trim().toLowerCase() === 'error') {
+  if (input.query.trim().toLowerCase() === "error") {
     throw new Error('Mock API failed. Clear search text "error" and retry.');
   }
 
   const normalizedQuery = input.query.trim().toLowerCase();
   const filtered = accountsDb.filter((item) => {
-    const statusMatch =
-      input.status === 'all' ? true : item.status === input.status;
+    const statusMatch = input.status === "all" ? true : item.status === input.status;
     if (!statusMatch) {
       return false;
     }
@@ -398,7 +388,7 @@ export async function archiveAccounts(input: {
     archived += 1;
     return {
       ...item,
-      status: 'archived',
+      status: "archived",
     };
   });
 
@@ -411,9 +401,9 @@ export function resetMockData() {
 }
 
 function normalizeAppearance(value: string | null | undefined): AppearanceMode {
-  if (value === 'harbor' || value === 'ink' || value === 'default') {
+  if (value === "harbor" || value === "ink" || value === "default") {
     return value;
   }
 
-  return 'default';
+  return "default";
 }

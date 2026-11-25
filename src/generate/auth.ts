@@ -341,7 +341,7 @@ export async function planProviderAuth(
       await replace("src/components/app-header.tsx", (content) =>
         content
           .replace(
-            "import { signOut } from '../lib/mock-data';",
+            /import \{ signOut \} from ["']\.\.\/lib\/mock-data["'];/,
             'import { sessionAuth } from "../auth/client";',
           )
           .replace("onSelect={() => {", "onSelect={async () => {")
@@ -353,9 +353,9 @@ export async function planProviderAuth(
       );
       await replace("src/lib/mock-data.ts", (content) =>
         content
-          .replace("const sessionStorageKey = 'startkit:session';\n", "")
-          .replace("let sessionEmail: string | null = null;\n", "")
-          .replace("  sessionEmail = readStorage(sessionStorageKey) ?? sessionEmail;\n", "")
+          .replace(/const sessionStorageKey = ["']startkit:session["'];\n/, "")
+          .replace(/let sessionEmail: string \| null = null;\n/, "")
+          .replace(/\s+sessionEmail = readStorage\(sessionStorageKey\) \?\? sessionEmail;\n/, "")
           .replace(
             /export function isAuthenticated\(\): boolean \{[\s\S]*?(?=export async function getDashboardData)/,
             "",
@@ -474,14 +474,23 @@ export async function planProviderAuth(
         ),
       );
       await replace("src/main.tsx", (content) =>
-        content
-          .replace("import { createSPA }", "import { createSPA, hydrateSPA }")
-          .replace(
-            template === "spa"
-              ? "await createSPA({\n  root: document.getElementById('app')!,\n  registry: pageRegistry,\n});"
-              : "await createSPA({ root, registry: pageRegistry });",
-            `${template === "spa" ? "const root = document.getElementById('app');\nif (!root) throw new Error('Missing #app root element.');\n\n" : ""}if (root.hasChildNodes()) {\n  await hydrateSPA({ root, registry: pageRegistry });\n} else {\n  await createSPA({ root, registry: pageRegistry });\n}`,
-          ),
+        (() => {
+          const withHydrationImport = content.replace(
+            "import { createSPA }",
+            "import { createSPA, hydrateSPA }",
+          );
+          const hydration =
+            "if (root.hasChildNodes()) {\n  await hydrateSPA({ root, registry: pageRegistry });\n} else {\n  await createSPA({ root, registry: pageRegistry });\n}";
+          return template === "spa"
+            ? withHydrationImport.replace(
+                /await createSPA\(\{\s*root: document\.getElementById\(["']app["']\)!?,\s*registry: pageRegistry,?\s*\}\);/,
+                `const root = document.getElementById("app");\nif (!root) throw new Error("Missing #app root element.");\n\n${hydration}`,
+              )
+            : withHydrationImport.replace(
+                "await createSPA({ root, registry: pageRegistry });",
+                hydration,
+              );
+        })(),
       );
       await replace("index.html", (content) =>
         content

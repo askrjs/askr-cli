@@ -1,6 +1,6 @@
-import { PageFrame, SiteHeader } from './components/site-shell';
+import { PageFrame, SiteHeader } from "./components/site-shell";
 
-export { navItems } from './components/site-shell';
+export { navItems } from "./components/site-shell";
 
 export default function App({ children }: { children?: unknown }) {
   return (

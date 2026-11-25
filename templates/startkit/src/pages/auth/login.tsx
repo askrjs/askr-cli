@@ -1,37 +1,33 @@
-import { state } from '@askrjs/askr';
-import { Link, currentRoute, navigate } from '@askrjs/askr/router';
-import { Button } from '@askrjs/ui/button';
-import { Input } from '@askrjs/ui/input';
-import { Field } from '@askrjs/themes/components';
-import { LockKeyholeIcon, MailIcon } from '@askrjs/lucide';
-import { signIn } from '../../lib/mock-data';
-import {
-  dashboardRoute,
-  normalizeProtectedRouteTarget,
-} from '../../lib/routes';
-import { showToast } from '../../toast';
+import { state } from "@askrjs/askr";
+import { Link, currentRoute, navigate } from "@askrjs/askr/router";
+import { Button } from "@askrjs/ui/button";
+import { Input } from "@askrjs/ui/input";
+import { Field } from "@askrjs/themes/components";
+import { LockKeyholeIcon, MailIcon } from "@askrjs/lucide";
+import { signIn } from "../../lib/mock-data";
+import { dashboardRoute, normalizeProtectedRouteTarget } from "../../lib/routes";
+import { showToast } from "../../toast";
 
 export default function LoginPage() {
-  const [emailState, setEmailState] = state('alex@example.com');
-  const [passwordState, setPasswordState] = state('askr1234');
-  const [errorTextState, setErrorTextState] = state('');
+  const [emailState, setEmailState] = state("alex@example.com");
+  const [passwordState, setPasswordState] = state("askr1234");
+  const [errorTextState, setErrorTextState] = state("");
   const [submittingState, setSubmittingState] = state(false);
   const routeSnapshot = currentRoute();
 
   const redirectTarget = () =>
-    normalizeProtectedRouteTarget(routeSnapshot.query.get('next')) ||
-    dashboardRoute.href;
+    normalizeProtectedRouteTarget(routeSnapshot.query.get("next")) || dashboardRoute.href;
 
   const validate = () => {
-    if (!emailState().trim().includes('@')) {
-      return 'Enter a valid email address.';
+    if (!emailState().trim().includes("@")) {
+      return "Enter a valid email address.";
     }
 
     if (passwordState().trim().length < 8) {
-      return 'Password must be at least 8 characters.';
+      return "Password must be at least 8 characters.";
     }
 
-    return '';
+    return "";
   };
 
   const submit = async (event: Event) => {
@@ -44,19 +40,17 @@ export default function LoginPage() {
     }
 
     setSubmittingState(true);
-    setErrorTextState('');
+    setErrorTextState("");
 
     try {
       await signIn({ email: emailState(), password: passwordState() });
       showToast({
-        title: 'Signed in',
-        description: 'Welcome back. You can now access protected routes.',
+        title: "Signed in",
+        description: "Welcome back. You can now access protected routes.",
       });
-      navigate(redirectTarget(), { history: 'replace' });
+      navigate(redirectTarget(), { history: "replace" });
     } catch (error) {
-      setErrorTextState(
-        error instanceof Error ? error.message : 'Could not sign in.'
-      );
+      setErrorTextState(error instanceof Error ? error.message : "Could not sign in.");
       setSubmittingState(false);
     }
   };
@@ -75,9 +69,7 @@ export default function LoginPage() {
               type="email"
               id="login-email"
               value={emailState()}
-              onInput={(event: Event) =>
-                setEmailState((event.target as HTMLInputElement).value)
-              }
+              onInput={(event: Event) => setEmailState((event.target as HTMLInputElement).value)}
             />
           </label>
         </Field>
@@ -90,9 +82,7 @@ export default function LoginPage() {
               type="password"
               id="login-password"
               value={passwordState()}
-              onInput={(event: Event) =>
-                setPasswordState((event.target as HTMLInputElement).value)
-              }
+              onInput={(event: Event) => setPasswordState((event.target as HTMLInputElement).value)}
             />
           </label>
         </Field>
@@ -104,7 +94,7 @@ export default function LoginPage() {
         )}
 
         <Button type="submit" disabled={submittingState()}>
-          {submittingState() ? 'Signing in...' : 'Sign in'}
+          {submittingState() ? "Signing in..." : "Sign in"}
         </Button>
       </form>
 
@@ -115,9 +105,8 @@ export default function LoginPage() {
           class="link-button"
           onClick={() =>
             showToast({
-              title: 'Reset link sent',
-              description:
-                'This is a starter example. Replace with your auth flow.',
+              title: "Reset link sent",
+              description: "This is a starter example. Replace with your auth flow.",
             })
           }
         >

@@ -1,7 +1,7 @@
-import { state } from '@askrjs/askr';
-import { navigate } from '@askrjs/askr/router';
-import { LockKeyholeIcon } from '@askrjs/lucide';
-import { Input } from '@askrjs/ui';
+import { state } from "@askrjs/askr";
+import { navigate } from "@askrjs/askr/router";
+import { LockKeyholeIcon } from "@askrjs/lucide";
+import { Input } from "@askrjs/ui";
 import {
   Button,
   Container,
@@ -9,18 +9,18 @@ import {
   FieldHint,
   InputGroup,
   InputGroupText,
-} from '@askrjs/themes/components';
+} from "@askrjs/themes/components";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@askrjs/themes/components';
-import { Stack } from '@askrjs/themes/components';
+} from "@askrjs/themes/components";
+import { Stack } from "@askrjs/themes/components";
 
 export default function LoginPage() {
-  const [email, setEmail] = state('ops@example.com');
+  const [email, setEmail] = state("ops@example.com");
 
   return (
     <Container size="sm" class="auth-page">
@@ -31,8 +31,8 @@ export default function LoginPage() {
           </span>
           <CardTitle>Sign in</CardTitle>
           <CardDescription>
-            This starter keeps auth mocked, but the auth shell is isolated from
-            the public landing layout and ready for a real session provider.
+            This starter keeps auth mocked, but the auth shell is isolated from the public landing
+            layout and ready for a real session provider.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -52,9 +52,7 @@ export default function LoginPage() {
               </InputGroup>
               <FieldHint>Use any address to enter the demo console.</FieldHint>
             </Field>
-            <Button onPress={() => navigate('/app')}>
-              Continue to console
-            </Button>
+            <Button onPress={() => navigate("/app")}>Continue to console</Button>
           </Stack>
         </CardContent>
       </Card>
