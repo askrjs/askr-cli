@@ -34,7 +34,6 @@ test("should check typed endpoint cancellation through the installed CLI and pac
     const filename = packed.trim().split(/\r?\n/).at(-1)!;
     expect(filename).toMatch(/^[^/\\]+\.tgz$/);
     const manifest = JSON.parse(await fs.readFile(path.join(repository, "package.json"), "utf8"));
-    const range = manifest.devDependencies["@askrjs/askr"];
     await fs.writeFile(
       path.join(root, "package.json"),
       JSON.stringify({
@@ -43,8 +42,8 @@ test("should check typed endpoint cancellation through the installed CLI and pac
         type: "module",
         dependencies: {
           "@askrjs/cli": `file:${path.join(root, filename)}`,
-          "@askrjs/askr": range,
-          "@askrjs/fetch": range,
+          "@askrjs/askr": manifest.devDependencies["@askrjs/askr"],
+          "@askrjs/fetch": manifest.devDependencies["@askrjs/fetch"],
         },
       }),
     );

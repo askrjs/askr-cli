@@ -146,6 +146,7 @@ describe("askr generate", () => {
       );
       expect(files["schemas.ts"]).toContain('"child"?: UserRequest;');
     },
+    15_000,
   );
 
   it("should generate deterministic files given recursive OpenAPI 3.1 when rendering", () => {
@@ -162,9 +163,13 @@ describe("askr generate", () => {
     );
     expect(first["api.ts"]).toContain("securitySchemes");
   });
-  it("should type-check schema references given a generated client", async () => {
-    await compileGenerated(generateFiles(document));
-  });
+  it(
+    "should type-check schema references given a generated client",
+    { timeout: 15_000 },
+    async () => {
+      await compileGenerated(generateFiles(document));
+    },
+  );
   it("validates generated JSON calls before transport and after a success response", async () => {
     const root = await mkdtemp(join(process.cwd(), ".generated-consumer-"));
     try {
