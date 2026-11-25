@@ -22,7 +22,7 @@ type TestResultState = ReturnType<ReportedTestCase["result"]>["state"];
 interface BenchmarkObservation {
   readonly mean: number;
   readonly sampleCount: number;
-  readonly state: string;
+  readonly state: TestResultState;
 }
 
 interface ReporterRuntime {
@@ -62,21 +62,17 @@ export class AnalyzeBudgetReporter implements Reporter {
   }
 
   onTestCaseResult(testCase: ReportedTestCase): void {
-    if (!Object.hasOwn(ANALYZE_BUDGETS_MS, testCase.name)) return;
-
-    const result = testCase.result();
-    const benchmark = testCase.benchmarks().flatMap((entry) => entry.tasks)[0];
-    if (this.#observations.has(testCase.name)) this.#duplicates.add(testCase.name);
-    this.#observations.set(
-      testCase.name,
-      benchmark
-        ? {
-            mean: benchmark.latency.mean,
-            sampleCount: benchmark.latency.samplesCount,
-            state: result.state,
-          }
-        : undefined,
-    );
+    for (const benchmark of testCase.benchmarks()) {
+      for (const task of benchmark.tasks) {
+        if (!Object.hasOwn(ANALYZE_BUDGETS_MS, task.name)) continue;
+        if (this.#observations.has(task.name)) this.#duplicates.add(task.name);
+        this.#observations.set(task.name, {
+          mean: task.latency.mean,
+          sampleCount: task.latency.samplesCount,
+          state: testCase.result().state,
+        });
+      }
+    }
   }
 
   onTestRunEnd(): void {

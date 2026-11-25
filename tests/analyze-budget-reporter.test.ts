@@ -14,10 +14,10 @@ function benchmarkCase(
 ): ReportedTestCase {
   return {
     name,
-    result: () => ({ state: state === "pass" ? "passed" : "failed" }),
+    result: () => ({ state }),
     benchmarks: () =>
       benchmark && mean !== undefined
-        ? [{ tasks: [{ latency: { mean, samplesCount: sampleCount } }] }]
+        ? [{ name, tasks: [{ name, latency: { mean, samplesCount: sampleCount } }] }]
         : [],
   } as unknown as ReportedTestCase;
 }
